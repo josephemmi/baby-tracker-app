@@ -2,10 +2,9 @@ import { redirect } from "next/navigation";
 import { getCurrentUserAndProfile } from "@/lib/supabase/queries";
 import { createClient } from "@/lib/supabase/server";
 import { AppHeader } from "@/components/layout/app-header";
-import { AddBabyForm } from "@/components/baby/add-baby-form";
-import { LogMatrix } from "@/components/log/log-matrix";
+import { TimelineView } from "@/components/timeline/timeline-view";
 
-export default async function Home() {
+export default async function TimelinePage() {
   const { user, profile, household } = await getCurrentUserAndProfile();
 
   if (!user) redirect("/login");
@@ -33,7 +32,7 @@ export default async function Home() {
         .select("*")
         .eq("baby_id", baby.id)
         .order("timestamp", { ascending: false })
-        .limit(100)
+        .limit(1000)
     : { data: [] };
 
   return (
@@ -43,18 +42,15 @@ export default async function Home() {
           householdName={household.name}
           inviteCode={household.invite_code}
           profileName={profile.name}
-          active="log"
+          active="timeline"
         />
 
         {!baby ? (
-          <AddBabyForm householdId={household.id} />
+          <p className="text-sm text-zinc-500">
+            Add your baby from the Log tab first.
+          </p>
         ) : (
-          <LogMatrix
-            babyId={baby.id}
-            currentUserId={user.id}
-            memberNames={memberNames}
-            initialEntries={entries ?? []}
-          />
+          <TimelineView entries={entries ?? []} memberNames={memberNames} />
         )}
       </div>
     </div>
