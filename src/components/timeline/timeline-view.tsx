@@ -70,7 +70,11 @@ export function TimelineView({ entries, memberNames }: TimelineViewProps) {
       </div>
 
       {groupedByDay.length === 0 ? (
-        <p className="text-sm text-zinc-500">No entries yet.</p>
+        <p className="text-sm text-zinc-500">
+          {entries.length === 0
+            ? "No entries yet."
+            : "No entries match this filter."}
+        </p>
       ) : (
         groupedByDay.map(([day, dayMoments]) => (
           <div key={day} className="flex flex-col gap-2">
