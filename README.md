@@ -31,14 +31,15 @@ A shared, real-time baby-tracking app (feeds, pees, poops) built with Next.js, T
    npm run dev
    ```
 
-   Open [http://localhost:3000](http://localhost:3000). Sign up, then on the onboarding screen either create a household (you'll get an invite code to share) or join one with a code, then add your baby.
+   Open [http://localhost:3000](http://localhost:3000). Signup collects your name, email, password, and household choice (create or join, via invite code) all on one screen; on success you land straight on the Log tab. (If your Supabase project has email confirmation on, you'll finish household setup at `/onboarding` after confirming instead.) Then add your baby.
 
 ## Project structure
 
-- `src/app` — Next.js App Router pages (`/login`, `/signup`, `/onboarding`, and `/` for the logging matrix)
-- `src/components` — React components, grouped by feature (`auth`, `onboarding`, `baby`, `log`)
+- `src/app` — Next.js App Router pages: `/login`, `/signup`, `/onboarding` (fallback household setup for the email-confirmation case), `/` (Log), `/timeline`, `/reports`
+- `src/components` — React components, grouped by feature (`auth`, `onboarding`, `baby`, `log`, `timeline`, `reports`, `layout`)
 - `src/lib/supabase` — Supabase client helpers (browser, server, and middleware clients, using `@supabase/ssr`) and generated `Database` types
-- `src/lib/entries.ts` — grouping/formatting helpers shared by the logging UI
+- `src/lib/entries.ts` — grouping/sorting/formatting helpers shared by the Log and Timeline screens
+- `src/lib/reports.ts` — client-side stat/daily-aggregate computation for the Reports screen
 - `middleware.ts` — refreshes the Supabase auth session on each request
 - `supabase/migrations` — SQL schema migrations, applied in order
 
@@ -56,6 +57,10 @@ Row Level Security is enabled on all four tables, scoped so a signed-in user can
 The matrix UI clusters same-instant entries (e.g. a feed logged alongside a pee) back into a single row for display, since the paper log this replaces often has multiple things happening at once — see `groupEntriesIntoMoments` in `src/lib/entries.ts`.
 
 Realtime is enabled on `entries` (see the `enable_realtime` migration), so when one household member logs something, the other sees it appear live without refreshing — this is delivered subject to the same RLS policies, so only household members receive it.
+
+**Home vs. Timeline ordering.** These use two different sort keys on purpose: Home sorts by `created_at` (when the row was logged) so a newly logged entry always lands on top even if its event time was backdated; Timeline sorts by `timestamp` (the event's actual time) for chronological review. `src/lib/entries.ts` exports `sortMomentsByCreatedAt` and `sortMomentsByTimestamp` for this.
+
+**Reports** (`/reports`) computes stat cards (total entries/feeds, avg mL per feed, avg gap between feeds), two per-day bar charts, and a daily summary table — all client-side from the fetched entries, no SQL aggregation views. Fine at household scale; revisit if this becomes commercial and datasets grow.
 
 ## Stack
 

@@ -2,10 +2,9 @@ import { redirect } from "next/navigation";
 import { getCurrentUserAndProfile } from "@/lib/supabase/queries";
 import { createClient } from "@/lib/supabase/server";
 import { AppHeader } from "@/components/layout/app-header";
-import { AddBabyForm } from "@/components/baby/add-baby-form";
-import { LogMatrix } from "@/components/log/log-matrix";
+import { ReportsView } from "@/components/reports/reports-view";
 
-export default async function Home() {
+export default async function ReportsPage() {
   const { user, profile, household } = await getCurrentUserAndProfile();
 
   if (!user) redirect("/login");
@@ -13,26 +12,20 @@ export default async function Home() {
 
   const supabase = await createClient();
 
-  const [{ data: babies }, { data: members }] = await Promise.all([
-    supabase
-      .from("babies")
-      .select("*")
-      .eq("household_id", household.id)
-      .order("created_at", { ascending: true }),
-    supabase.from("users").select("*").eq("household_id", household.id),
-  ]);
+  const { data: babies } = await supabase
+    .from("babies")
+    .select("*")
+    .eq("household_id", household.id)
+    .order("created_at", { ascending: true });
 
   const baby = babies?.[0] ?? null;
 
-  // Home shows entries in the order they were logged, not by their (editable)
-  // event time, so a newly logged moment always lands on top.
   const { data: entries } = baby
     ? await supabase
         .from("entries")
         .select("*")
         .eq("baby_id", baby.id)
-        .order("created_at", { ascending: false })
-        .limit(100)
+        .order("timestamp", { ascending: true })
     : { data: [] };
 
   return (
@@ -42,18 +35,15 @@ export default async function Home() {
           householdName={household.name}
           inviteCode={household.invite_code}
           profileName={profile.name}
-          active="log"
+          active="reports"
         />
 
         {!baby ? (
-          <AddBabyForm householdId={household.id} />
+          <p className="text-sm text-zinc-500">
+            Add your baby from the Log tab first.
+          </p>
         ) : (
-          <LogMatrix
-            babyId={baby.id}
-            currentUserId={user.id}
-            members={members ?? []}
-            initialEntries={entries ?? []}
-          />
+          <ReportsView entries={entries ?? []} />
         )}
       </div>
     </div>

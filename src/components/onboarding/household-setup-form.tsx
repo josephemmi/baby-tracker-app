@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { HouseholdChoiceFields } from "@/components/onboarding/household-choice-fields";
 
 type Mode = "create" | "join";
 
@@ -52,31 +53,6 @@ export function HouseholdSetupForm() {
         Set up your household
       </h1>
 
-      <div className="flex gap-2 text-sm">
-        <button
-          type="button"
-          onClick={() => setMode("create")}
-          className={`flex-1 rounded px-3 py-2 ${
-            mode === "create"
-              ? "bg-zinc-950 text-white dark:bg-zinc-50 dark:text-zinc-950"
-              : "bg-zinc-100 text-zinc-950 dark:bg-zinc-900 dark:text-zinc-50"
-          }`}
-        >
-          Create household
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode("join")}
-          className={`flex-1 rounded px-3 py-2 ${
-            mode === "join"
-              ? "bg-zinc-950 text-white dark:bg-zinc-50 dark:text-zinc-950"
-              : "bg-zinc-100 text-zinc-950 dark:bg-zinc-900 dark:text-zinc-50"
-          }`}
-        >
-          Join household
-        </button>
-      </div>
-
       <label className="flex flex-col gap-1 text-sm text-zinc-950 dark:text-zinc-50">
         Your name
         <input
@@ -87,29 +63,14 @@ export function HouseholdSetupForm() {
         />
       </label>
 
-      {mode === "create" ? (
-        <label className="flex flex-col gap-1 text-sm text-zinc-950 dark:text-zinc-50">
-          Household name
-          <input
-            required
-            value={householdName}
-            onChange={(e) => setHouseholdName(e.target.value)}
-            placeholder="e.g. The Smiths"
-            className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-          />
-        </label>
-      ) : (
-        <label className="flex flex-col gap-1 text-sm text-zinc-950 dark:text-zinc-50">
-          Invite code
-          <input
-            required
-            value={inviteCode}
-            onChange={(e) => setInviteCode(e.target.value)}
-            placeholder="e.g. A3F9K2LP"
-            className="rounded border border-zinc-300 px-3 py-2 uppercase dark:border-zinc-700 dark:bg-zinc-900"
-          />
-        </label>
-      )}
+      <HouseholdChoiceFields
+        mode={mode}
+        onModeChange={setMode}
+        householdName={householdName}
+        onHouseholdNameChange={setHouseholdName}
+        inviteCode={inviteCode}
+        onInviteCodeChange={setInviteCode}
+      />
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 

@@ -4,11 +4,18 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { HouseholdChoiceFields } from "@/components/onboarding/household-choice-fields";
+
+type Mode = "create" | "join";
 
 export function SignupForm() {
   const router = useRouter();
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [mode, setMode] = useState<Mode>("create");
+  const [householdName, setHouseholdName] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [checkEmail, setCheckEmail] = useState(false);
@@ -18,24 +25,46 @@ export function SignupForm() {
     setError(null);
     setLoading(true);
 
-    const { data, error } = await createClient().auth.signUp({
+    const supabase = createClient();
+    const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
     });
 
-    setLoading(false);
-
-    if (error) {
-      setError(error.message);
+    if (signUpError) {
+      setLoading(false);
+      setError(signUpError.message);
       return;
     }
 
-    if (data.session) {
-      router.replace("/onboarding");
-      router.refresh();
-    } else {
+    if (!data.session) {
+      // Email confirmation is required, so there's no session yet to attach
+      // a household to. They'll finish setup via /onboarding after logging in.
+      setLoading(false);
       setCheckEmail(true);
+      return;
     }
+
+    const { error: householdError } =
+      mode === "create"
+        ? await supabase.rpc("create_household", {
+            household_name: householdName,
+            member_name: name,
+          })
+        : await supabase.rpc("join_household", {
+            code: inviteCode,
+            member_name: name,
+          });
+
+    setLoading(false);
+
+    if (householdError) {
+      setError(householdError.message);
+      return;
+    }
+
+    router.replace("/");
+    router.refresh();
   }
 
   if (checkEmail) {
@@ -45,8 +74,8 @@ export function SignupForm() {
           Check your email to confirm your account, then{" "}
           <Link href="/login" className="font-medium underline">
             log in
-          </Link>
-          .
+          </Link>{" "}
+          to finish setting up your household.
         </p>
       </div>
     );
@@ -60,6 +89,16 @@ export function SignupForm() {
       <h1 className="text-xl font-semibold text-zinc-950 dark:text-zinc-50">
         Sign up
       </h1>
+
+      <label className="flex flex-col gap-1 text-sm text-zinc-950 dark:text-zinc-50">
+        Name
+        <input
+          required
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+        />
+      </label>
       <label className="flex flex-col gap-1 text-sm text-zinc-950 dark:text-zinc-50">
         Email
         <input
@@ -81,6 +120,16 @@ export function SignupForm() {
           className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
         />
       </label>
+
+      <HouseholdChoiceFields
+        mode={mode}
+        onModeChange={setMode}
+        householdName={householdName}
+        onHouseholdNameChange={setHouseholdName}
+        inviteCode={inviteCode}
+        onInviteCodeChange={setInviteCode}
+      />
+
       {error && <p className="text-sm text-red-600">{error}</p>}
       <button
         type="submit"

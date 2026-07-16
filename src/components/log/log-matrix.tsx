@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   groupEntriesIntoMoments,
+  sortMomentsByCreatedAt,
   toDatetimeLocalValue,
   type EntryRow,
 } from "@/lib/entries";
@@ -11,21 +12,27 @@ import type { EntryType } from "@/lib/supabase/database.types";
 import { LastFeedWidget } from "@/components/log/last-feed-widget";
 import { MomentsTable } from "@/components/log/moments-table";
 
+interface Member {
+  id: string;
+  name: string;
+}
+
 interface LogMatrixProps {
   babyId: string;
   currentUserId: string;
-  memberNames: Record<string, string>;
+  members: Member[];
   initialEntries: EntryRow[];
 }
 
 export function LogMatrix({
   babyId,
   currentUserId,
-  memberNames,
+  members,
   initialEntries,
 }: LogMatrixProps) {
   const [entries, setEntries] = useState(initialEntries);
   const [time, setTime] = useState(() => toDatetimeLocalValue(new Date()));
+  const [loggedBy, setLoggedBy] = useState(currentUserId);
   const [feedChecked, setFeedChecked] = useState(false);
   const [peeChecked, setPeeChecked] = useState(false);
   const [poopChecked, setPoopChecked] = useState(false);
@@ -34,7 +41,17 @@ export function LogMatrix({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const moments = useMemo(() => groupEntriesIntoMoments(entries), [entries]);
+  const memberNames = useMemo(
+    () => Object.fromEntries(members.map((member) => [member.id, member.name])),
+    [members],
+  );
+
+  // Home always shows newest-logged first, not newest-by-event-time — see
+  // sortMomentsByCreatedAt: a backdated entry shouldn't get buried.
+  const moments = useMemo(
+    () => sortMomentsByCreatedAt(groupEntriesIntoMoments(entries)),
+    [entries],
+  );
 
   useEffect(() => {
     const supabase = createClient();
@@ -66,6 +83,7 @@ export function LogMatrix({
 
   function resetForm() {
     setTime(toDatetimeLocalValue(new Date()));
+    setLoggedBy(currentUserId);
     setFeedChecked(false);
     setPeeChecked(false);
     setPoopChecked(false);
@@ -96,7 +114,7 @@ export function LogMatrix({
 
     const rows = types.map((type) => ({
       baby_id: babyId,
-      logged_by: currentUserId,
+      logged_by: loggedBy,
       type,
       timestamp,
       notes: trimmedNotes,
@@ -137,6 +155,26 @@ export function LogMatrix({
               className="rounded border border-zinc-300 px-2 py-1.5 dark:border-zinc-700 dark:bg-zinc-900"
             />
           </label>
+
+          <div className="flex flex-col gap-1 text-sm text-zinc-950 dark:text-zinc-50">
+            Logged by
+            <div className="flex gap-1">
+              {members.map((member) => (
+                <button
+                  key={member.id}
+                  type="button"
+                  onClick={() => setLoggedBy(member.id)}
+                  className={`rounded-full px-3 py-1.5 text-xs ${
+                    loggedBy === member.id
+                      ? "bg-zinc-950 text-white dark:bg-zinc-50 dark:text-zinc-950"
+                      : "bg-zinc-100 text-zinc-950 dark:bg-zinc-900 dark:text-zinc-50"
+                  }`}
+                >
+                  {member.name}
+                </button>
+              ))}
+            </div>
+          </div>
 
           <label className="flex items-center gap-2 text-sm text-zinc-950 dark:text-zinc-50">
             <input
