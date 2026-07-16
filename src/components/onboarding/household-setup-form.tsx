@@ -7,10 +7,14 @@ import { HouseholdChoiceFields } from "@/components/onboarding/household-choice-
 
 type Mode = "create" | "join";
 
-export function HouseholdSetupForm() {
+export function HouseholdSetupForm({
+  defaultName = "",
+}: {
+  defaultName?: string;
+}) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("create");
-  const [memberName, setMemberName] = useState("");
+  const [memberName, setMemberName] = useState(defaultName);
   const [householdName, setHouseholdName] = useState("");
   const [inviteCode, setInviteCode] = useState("");
   const [error, setError] = useState<string | null>(null);

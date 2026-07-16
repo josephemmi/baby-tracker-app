@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { GoogleOAuthButton } from "@/components/auth/google-oauth-button";
 
 export function LoginForm() {
   const router = useRouter();
@@ -41,6 +42,15 @@ export function LoginForm() {
       <h1 className="text-xl font-semibold text-zinc-950 dark:text-zinc-50">
         Log in
       </h1>
+
+      <GoogleOAuthButton />
+
+      <div className="flex items-center gap-3 text-xs text-zinc-500">
+        <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
+        or
+        <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
+      </div>
+
       <label className="flex flex-col gap-1 text-sm text-zinc-950 dark:text-zinc-50">
         Email
         <input

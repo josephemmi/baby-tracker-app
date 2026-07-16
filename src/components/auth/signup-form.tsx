@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { HouseholdChoiceFields } from "@/components/onboarding/household-choice-fields";
+import { GoogleOAuthButton } from "@/components/auth/google-oauth-button";
 
 type Mode = "create" | "join";
 
@@ -89,6 +90,17 @@ export function SignupForm() {
       <h1 className="text-xl font-semibold text-zinc-950 dark:text-zinc-50">
         Sign up
       </h1>
+
+      <GoogleOAuthButton />
+      <p className="-mt-2 text-center text-xs text-zinc-500">
+        You&apos;ll set your name and household after continuing with Google.
+      </p>
+
+      <div className="flex items-center gap-3 text-xs text-zinc-500">
+        <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
+        or sign up with email
+        <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
+      </div>
 
       <label className="flex flex-col gap-1 text-sm text-zinc-950 dark:text-zinc-50">
         Name

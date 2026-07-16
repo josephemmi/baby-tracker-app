@@ -25,7 +25,13 @@ A shared, real-time baby-tracking app (feeds, pees, poops) built with Next.js, T
 
 4. Optional but recommended for a two-person household: under Authentication → Providers → Email in the Supabase dashboard, turn off "Confirm email" so signup doesn't require clicking an email link first.
 
-5. Run the dev server:
+5. Optional — enable "Continue with Google":
+   - In [Google Cloud Console](https://console.cloud.google.com/apis/credentials), create an OAuth 2.0 Client ID (Web application) with authorized redirect URI `https://<your-project-ref>.supabase.co/auth/v1/callback`.
+   - In the Supabase dashboard, under Authentication → Providers → Google, paste the Client ID and Client Secret and enable it.
+   - Under Authentication → URL Configuration, add `http://localhost:3000/auth/callback` (and your production URL + `/auth/callback` once deployed) to the Redirect URLs allowlist.
+   - Google sign-ins skip the manual name/email/password fields and land on `/onboarding` to finish household setup, with the name field prefilled from the Google profile when available.
+
+6. Run the dev server:
 
    ```bash
    npm run dev

@@ -8,9 +8,14 @@ export default async function OnboardingPage() {
   if (!user) redirect("/login");
   if (profile) redirect("/");
 
+  const defaultName =
+    (user.user_metadata?.full_name as string | undefined) ??
+    (user.user_metadata?.name as string | undefined) ??
+    "";
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-8 dark:bg-black">
-      <HouseholdSetupForm />
+      <HouseholdSetupForm defaultName={defaultName} />
     </div>
   );
 }
