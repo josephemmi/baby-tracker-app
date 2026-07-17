@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { HouseholdChoiceFields } from "@/components/onboarding/household-choice-fields";
@@ -10,7 +9,6 @@ import { GoogleOAuthButton } from "@/components/auth/google-oauth-button";
 type Mode = "create" | "join";
 
 export function SignupForm() {
-  const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -64,8 +62,7 @@ export function SignupForm() {
       return;
     }
 
-    router.replace("/");
-    router.refresh();
+    window.location.href = "/";
   }
 
   if (checkEmail) {

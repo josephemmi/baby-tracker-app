@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { HouseholdChoiceFields } from "@/components/onboarding/household-choice-fields";
 
@@ -12,7 +11,6 @@ export function HouseholdSetupForm({
 }: {
   defaultName?: string;
 }) {
-  const router = useRouter();
   const [mode, setMode] = useState<Mode>("create");
   const [memberName, setMemberName] = useState(defaultName);
   const [householdName, setHouseholdName] = useState("");
@@ -44,8 +42,7 @@ export function HouseholdSetupForm({
       return;
     }
 
-    router.replace("/");
-    router.refresh();
+    window.location.href = "/";
   }
 
   return (

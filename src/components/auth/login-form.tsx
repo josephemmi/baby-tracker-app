@@ -1,13 +1,11 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { GoogleOAuthButton } from "@/components/auth/google-oauth-button";
 
 export function LoginForm() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -30,8 +28,11 @@ export function LoginForm() {
       return;
     }
 
-    router.replace("/");
-    router.refresh();
+    // Hard navigation: a client-side router.replace() can serve a cached,
+    // pre-login RSC response for "/" and bounce back to /login even though
+    // the session cookie is already set. A full reload guarantees the
+    // server sees the fresh session.
+    window.location.href = "/";
   }
 
   return (
