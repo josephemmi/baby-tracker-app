@@ -43,10 +43,10 @@ A shared, real-time baby-tracking app (feeds, pees, poops) built with Next.js, T
 
 - `src/app` — Next.js App Router pages: `/login`, `/signup`, `/onboarding` (fallback household setup for the email-confirmation case), `/` (Log), `/timeline`, `/reports`
 - `src/components` — React components, grouped by feature (`auth`, `onboarding`, `baby`, `log`, `timeline`, `reports`, `layout`)
-- `src/lib/supabase` — Supabase client helpers (browser, server, and middleware clients, using `@supabase/ssr`) and generated `Database` types
+- `src/lib/supabase` — Supabase client helpers (browser, server, and proxy clients, using `@supabase/ssr`) and generated `Database` types
 - `src/lib/entries.ts` — grouping/sorting/formatting helpers shared by the Log and Timeline screens
 - `src/lib/reports.ts` — client-side stat/daily-aggregate computation for the Reports screen
-- `middleware.ts` — refreshes the Supabase auth session on each request
+- `proxy.ts` — refreshes the Supabase auth session on each request (this Next.js version renamed `middleware.ts` to `proxy.ts`)
 - `supabase/migrations` — SQL schema migrations, applied in order
 
 ## Data model
