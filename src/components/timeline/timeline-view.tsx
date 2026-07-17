@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import {
   groupEntriesIntoMoments,
-  sortMomentsByTimestamp,
   type EntryRow,
   type Moment,
 } from "@/lib/entries";
@@ -27,10 +26,7 @@ interface TimelineViewProps {
 export function TimelineView({ entries, memberNames }: TimelineViewProps) {
   const [filter, setFilter] = useState<Filter>("all");
 
-  const moments = useMemo(
-    () => sortMomentsByTimestamp(groupEntriesIntoMoments(entries)),
-    [entries],
-  );
+  const moments = useMemo(() => groupEntriesIntoMoments(entries), [entries]);
 
   const filteredMoments = useMemo(
     () =>

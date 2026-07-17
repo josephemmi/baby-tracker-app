@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   groupEntriesIntoMoments,
-  sortMomentsByCreatedAt,
   toDatetimeLocalValue,
   type EntryRow,
 } from "@/lib/entries";
@@ -46,12 +45,7 @@ export function LogMatrix({
     [members],
   );
 
-  // Home always shows newest-logged first, not newest-by-event-time — see
-  // sortMomentsByCreatedAt: a backdated entry shouldn't get buried.
-  const moments = useMemo(
-    () => sortMomentsByCreatedAt(groupEntriesIntoMoments(entries)),
-    [entries],
-  );
+  const moments = useMemo(() => groupEntriesIntoMoments(entries), [entries]);
 
   useEffect(() => {
     const supabase = createClient();

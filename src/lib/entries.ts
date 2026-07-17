@@ -7,7 +7,6 @@ export type EntryRow = Database["public"]["Tables"]["entries"]["Row"];
 export interface Moment {
   key: string;
   timestamp: string;
-  createdAt: string;
   loggedBy: string | null;
   notes: string | null;
   feed?: EntryRow;
@@ -15,6 +14,8 @@ export interface Moment {
   poop?: EntryRow;
 }
 
+// Groups same-instant entries into moments and sorts them chronologically
+// (most recent event time first) — used by both Home and Timeline.
 export function groupEntriesIntoMoments(entries: EntryRow[]): Moment[] {
   const moments = new Map<string, Moment>();
 
@@ -23,29 +24,18 @@ export function groupEntriesIntoMoments(entries: EntryRow[]): Moment[] {
     const moment = moments.get(key) ?? {
       key,
       timestamp: entry.timestamp,
-      createdAt: entry.created_at,
       loggedBy: entry.logged_by,
       notes: null,
     };
 
     moment[entry.type] = entry;
     moment.notes = moment.notes ?? entry.notes;
-    if (entry.created_at > moment.createdAt) moment.createdAt = entry.created_at;
     moments.set(key, moment);
   }
 
-  return Array.from(moments.values());
-}
-
-// Home/Log: newly logged entries always appear on top, regardless of what
-// time value was typed into them (e.g. backdating a feed doesn't bury it).
-export function sortMomentsByCreatedAt(moments: Moment[]): Moment[] {
-  return [...moments].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-}
-
-// Timeline: chronological review by when the event actually happened.
-export function sortMomentsByTimestamp(moments: Moment[]): Moment[] {
-  return [...moments].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  return Array.from(moments.values()).sort((a, b) =>
+    b.timestamp.localeCompare(a.timestamp),
+  );
 }
 
 export function toDatetimeLocalValue(date: Date): string {

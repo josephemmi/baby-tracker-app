@@ -64,9 +64,17 @@ The matrix UI clusters same-instant entries (e.g. a feed logged alongside a pee)
 
 Realtime is enabled on `entries` (see the `enable_realtime` migration), so when one household member logs something, the other sees it appear live without refreshing — this is delivered subject to the same RLS policies, so only household members receive it.
 
-**Home vs. Timeline ordering.** These use two different sort keys on purpose: Home sorts by `created_at` (when the row was logged) so a newly logged entry always lands on top even if its event time was backdated; Timeline sorts by `timestamp` (the event's actual time) for chronological review. `src/lib/entries.ts` exports `sortMomentsByCreatedAt` and `sortMomentsByTimestamp` for this.
+Both Home and Timeline sort moments chronologically by `timestamp` (the event's actual time), most recent first — `groupEntriesIntoMoments` in `src/lib/entries.ts` handles both the clustering and the sort.
 
 **Reports** (`/reports`) computes stat cards (total entries/feeds, avg mL per feed, avg gap between feeds), two per-day bar charts, and a daily summary table — all client-side from the fetched entries, no SQL aggregation views. Fine at household scale; revisit if this becomes commercial and datasets grow.
+
+## Troubleshooting
+
+**Login/signup succeeds but bounces back to `/login`, or server-side Supabase calls fail with `UNABLE_TO_GET_ISSUER_CERT_LOCALLY`:** some local setups (antivirus/VPN software doing HTTPS inspection) install a certificate your browser trusts but Node.js doesn't, so the *server* can't verify your session with Supabase even though the *browser* signed in fine. Workaround for local dev only — never for production:
+
+```bash
+NODE_TLS_REJECT_UNAUTHORIZED=0 npm run dev
+```
 
 ## Stack
 

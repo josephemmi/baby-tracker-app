@@ -3,8 +3,6 @@ import {
   formatTimeAgo,
   groupEntriesIntoMoments,
   latestEntryOfType,
-  sortMomentsByCreatedAt,
-  sortMomentsByTimestamp,
 } from "@/lib/entries";
 import { makeEntry } from "@/lib/test-helpers";
 
@@ -55,37 +53,22 @@ describe("groupEntriesIntoMoments", () => {
   });
 });
 
-describe("sortMomentsByCreatedAt vs sortMomentsByTimestamp", () => {
-  it("Home order (createdAt) puts a backdated-but-just-logged entry on top", () => {
-    // Logged first (created earlier), event time is recent.
-    const earlierLogged = makeEntry({
-      id: "a",
-      type: "feed",
-      timestamp: "2026-07-16T09:00:00.000Z",
-      created_at: "2026-07-16T08:00:00.000Z",
-    });
-    // Logged just now, but the user backdated the event time far in the past.
-    const justLoggedButBackdated = makeEntry({
-      id: "b",
-      type: "pee",
-      timestamp: "2026-07-14T09:00:00.000Z",
-      created_at: "2026-07-16T09:30:00.000Z",
-    });
+describe("groupEntriesIntoMoments ordering", () => {
+  it("sorts moments chronologically by event timestamp, most recent first", () => {
+    const entries = [
+      makeEntry({ id: "a", type: "feed", timestamp: "2026-07-16T08:00:00.000Z" }),
+      // Logged after "a" in real time, but with an earlier (backdated) event time.
+      makeEntry({ id: "b", type: "pee", timestamp: "2026-07-14T09:00:00.000Z" }),
+      makeEntry({ id: "c", type: "poop", timestamp: "2026-07-16T11:00:00.000Z" }),
+    ];
 
-    const moments = groupEntriesIntoMoments([
-      earlierLogged,
-      justLoggedButBackdated,
-    ]);
+    const moments = groupEntriesIntoMoments(entries);
 
-    const homeOrder = sortMomentsByCreatedAt(moments);
-    expect(homeOrder[0].feed ?? homeOrder[0].pee).toBeDefined();
-    expect(homeOrder[0].createdAt).toBe("2026-07-16T09:30:00.000Z");
-
-    const timelineOrder = sortMomentsByTimestamp(moments);
-    // Timeline is chronological by event time, so the backdated one sorts last.
-    expect(timelineOrder[timelineOrder.length - 1].timestamp).toBe(
+    expect(moments.map((m) => m.timestamp)).toEqual([
+      "2026-07-16T11:00:00.000Z",
+      "2026-07-16T08:00:00.000Z",
       "2026-07-14T09:00:00.000Z",
-    );
+    ]);
   });
 });
 

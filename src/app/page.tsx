@@ -24,14 +24,12 @@ export default async function Home() {
 
   const baby = babies?.[0] ?? null;
 
-  // Home shows entries in the order they were logged, not by their (editable)
-  // event time, so a newly logged moment always lands on top.
   const { data: entries } = baby
     ? await supabase
         .from("entries")
         .select("*")
         .eq("baby_id", baby.id)
-        .order("created_at", { ascending: false })
+        .order("timestamp", { ascending: false })
         .limit(100)
     : { data: [] };
 
