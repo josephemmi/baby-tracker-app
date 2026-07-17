@@ -11,12 +11,19 @@ interface BarChartProps {
   title: string;
   data: BarChartDatum[];
   valueFormatter?: (value: number) => string;
+  color?: "amber" | "sage";
 }
+
+const BAR_COLOR = {
+  amber: "bg-amber",
+  sage: "bg-sage",
+};
 
 export function BarChart({
   title,
   data,
   valueFormatter = (value) => String(value),
+  color = "sage",
 }: BarChartProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const max = Math.max(1, ...data.map((d) => d.value));
@@ -24,14 +31,14 @@ export function BarChart({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-baseline justify-between">
-        <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+        <h3 className="text-[11px] font-bold tracking-[0.05em] text-ink-soft uppercase">
           {title}
         </h3>
-        <span className="text-xs text-zinc-400 dark:text-zinc-500">
+        <span className="text-xs tabular-nums text-ink-soft">
           {valueFormatter(max)}
         </span>
       </div>
-      <div className="flex h-36 items-end gap-1.5 border-b border-zinc-300 dark:border-zinc-700">
+      <div className="flex h-36 items-end gap-1.5 border-b border-line-strong">
         {data.map((d, index) => (
           <div
             key={`${d.label}-${index}`}
@@ -40,20 +47,20 @@ export function BarChart({
             onMouseLeave={() => setHoveredIndex(null)}
           >
             {hoveredIndex === index && (
-              <div className="absolute -top-7 z-10 whitespace-nowrap rounded bg-zinc-950 px-2 py-1 text-xs text-white dark:bg-zinc-50 dark:text-zinc-950">
+              <div className="absolute -top-7 z-10 whitespace-nowrap rounded-full bg-ink px-2 py-1 text-xs font-bold text-paper-raised">
                 {valueFormatter(d.value)}
               </div>
             )}
             <div
-              className="w-full max-w-6 rounded-t-[4px] bg-[#2a78d6] dark:bg-[#3987e5]"
+              className={`w-full max-w-6 rounded-t-[4px] ${BAR_COLOR[color]}`}
               style={{
-                height: d.value > 0 ? `${Math.max((d.value / max) * 100, 2)}%` : "0",
+                height: `${Math.max((d.value / max) * 100, 4)}%`,
               }}
             />
           </div>
         ))}
       </div>
-      <div className="flex gap-1.5 text-[10px] text-zinc-500">
+      <div className="flex gap-1.5 text-[10px] tabular-nums text-ink-soft">
         {data.map((d, index) => (
           <div
             key={`${d.label}-${index}`}

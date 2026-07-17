@@ -10,6 +10,11 @@ import {
 import type { EntryType } from "@/lib/supabase/database.types";
 import { LastFeedWidget } from "@/components/log/last-feed-widget";
 import { MomentsTable } from "@/components/log/moments-table";
+import { TypeCheckbox } from "@/components/log/type-checkbox";
+import { Field } from "@/components/ui/field";
+import { TextInput } from "@/components/ui/text-input";
+import { PrimaryButton } from "@/components/ui/primary-button";
+import { initials, personColor } from "@/lib/person-colors";
 
 interface Member {
   id: string;
@@ -39,6 +44,7 @@ export function LogMatrix({
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [flashKey, setFlashKey] = useState<string | null>(null);
 
   const memberNames = useMemo(
     () => Object.fromEntries(members.map((member) => [member.id, member.name])),
@@ -128,6 +134,14 @@ export function LogMatrix({
     }
 
     setEntries((prev) => [...(data ?? []), ...prev]);
+
+    const inserted = data?.[0];
+    if (inserted) {
+      const key = `${inserted.timestamp}|${inserted.logged_by ?? "unknown"}`;
+      setFlashKey(key);
+      setTimeout(() => setFlashKey(null), 1400);
+    }
+
     resetForm();
   }
 
@@ -137,106 +151,104 @@ export function LogMatrix({
 
       <form
         onSubmit={handleLog}
-        className="flex flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+        className="flex flex-col gap-3 rounded-[10px] border border-line bg-paper-raised p-4 shadow-card"
       >
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 text-sm text-zinc-950 dark:text-zinc-50">
-            Time
-            <input
+        <div className="flex flex-wrap items-end gap-4">
+          <Field label="Time">
+            <TextInput
               type="datetime-local"
               value={time}
               onChange={(e) => setTime(e.target.value)}
-              className="rounded border border-zinc-300 px-2 py-1.5 dark:border-zinc-700 dark:bg-zinc-900"
+              className="tabular-nums"
             />
-          </label>
+          </Field>
 
-          <div className="flex flex-col gap-1 text-sm text-zinc-950 dark:text-zinc-50">
-            Logged by
-            <div className="flex gap-1">
-              {members.map((member) => (
-                <button
-                  key={member.id}
-                  type="button"
-                  onClick={() => setLoggedBy(member.id)}
-                  className={`rounded-full px-3 py-1.5 text-xs ${
-                    loggedBy === member.id
-                      ? "bg-zinc-950 text-white dark:bg-zinc-50 dark:text-zinc-950"
-                      : "bg-zinc-100 text-zinc-950 dark:bg-zinc-900 dark:text-zinc-50"
-                  }`}
-                >
-                  {member.name}
-                </button>
-              ))}
+          <Field label="Logged by">
+            <div className="flex gap-1.5">
+              {members.map((member, index) => {
+                const color = personColor(index);
+                const active = loggedBy === member.id;
+                return (
+                  <button
+                    key={member.id}
+                    type="button"
+                    onClick={() => setLoggedBy(member.id)}
+                    className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-bold transition-colors ${
+                      active
+                        ? "border-sage bg-sage-soft text-ink"
+                        : "border-line-strong text-ink-soft hover:bg-paper"
+                    }`}
+                  >
+                    <span
+                      className={`flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold ${color.bg} ${color.text}`}
+                    >
+                      {initials(member.name)}
+                    </span>
+                    {member.name}
+                  </button>
+                );
+              })}
             </div>
-          </div>
+          </Field>
 
-          <label className="flex items-center gap-2 text-sm text-zinc-950 dark:text-zinc-50">
-            <input
-              type="checkbox"
-              checked={feedChecked}
-              onChange={(e) => setFeedChecked(e.target.checked)}
-              className="h-4 w-4"
-            />
-            Feed
-          </label>
+          <TypeCheckbox
+            checked={feedChecked}
+            onChange={setFeedChecked}
+            color="amber"
+            label="Feed"
+          />
 
-          <label className="flex flex-col gap-1 text-sm text-zinc-950 dark:text-zinc-50">
-            mL
-            <input
-              type="number"
-              step="0.1"
-              min="0"
-              value={amountMl}
-              disabled={!feedChecked}
-              onChange={(e) => setAmountMl(e.target.value)}
-              className="w-20 rounded border border-zinc-300 px-2 py-1.5 disabled:opacity-40 dark:border-zinc-700 dark:bg-zinc-900"
-            />
-          </label>
+          <Field label="mL">
+            <div className="flex items-center gap-1.5">
+              <TextInput
+                type="number"
+                step="0.1"
+                min="0"
+                value={amountMl}
+                disabled={!feedChecked}
+                onChange={(e) => setAmountMl(e.target.value)}
+                focusColor="amber"
+                className="w-20 text-right tabular-nums"
+              />
+              <span className="text-[13.5px] text-ink-soft">ml</span>
+            </div>
+          </Field>
 
-          <label className="flex items-center gap-2 text-sm text-zinc-950 dark:text-zinc-50">
-            <input
-              type="checkbox"
-              checked={peeChecked}
-              onChange={(e) => setPeeChecked(e.target.checked)}
-              className="h-4 w-4"
-            />
-            Pee
-          </label>
+          <TypeCheckbox
+            checked={peeChecked}
+            onChange={setPeeChecked}
+            color="brand-blue"
+            label="Pee"
+          />
 
-          <label className="flex items-center gap-2 text-sm text-zinc-950 dark:text-zinc-50">
-            <input
-              type="checkbox"
-              checked={poopChecked}
-              onChange={(e) => setPoopChecked(e.target.checked)}
-              className="h-4 w-4"
-            />
-            Poo
-          </label>
+          <TypeCheckbox
+            checked={poopChecked}
+            onChange={setPoopChecked}
+            color="terracotta"
+            label="Poo"
+          />
 
-          <label className="flex min-w-40 flex-1 flex-col gap-1 text-sm text-zinc-950 dark:text-zinc-50">
-            Notes
+          <Field label="Notes">
             <input
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="rounded border border-zinc-300 px-2 py-1.5 dark:border-zinc-700 dark:bg-zinc-900"
+              placeholder="Add a note…"
+              className="min-w-40 rounded-[10px] border border-transparent bg-transparent px-3 py-2 text-[13.5px] text-ink placeholder:text-line-strong placeholder:italic hover:border-line focus:border-line-strong focus:bg-paper focus:outline-none"
             />
-          </label>
+          </Field>
 
-          <button
-            type="submit"
-            disabled={submitting}
-            className="rounded bg-zinc-950 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-950"
-          >
-            {submitting ? "Logging…" : "Log"}
-          </button>
+          <PrimaryButton type="submit" disabled={submitting}>
+            {submitting ? "Logging…" : "Log a moment"}
+          </PrimaryButton>
         </div>
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-terracotta">{error}</p>}
       </form>
 
       <MomentsTable
         moments={moments}
         memberNames={memberNames}
-        emptyMessage="No entries yet — log the first one above."
+        emptyMessage="No entries yet — log the first moment above."
+        flashMomentKey={flashKey}
       />
     </div>
   );

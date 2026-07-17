@@ -9,7 +9,7 @@ export default async function LoginPage() {
   if (user && !profile) redirect("/onboarding");
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-8 dark:bg-black">
+    <div className="flex min-h-screen items-center justify-center bg-paper p-8">
       <LoginForm />
     </div>
   );

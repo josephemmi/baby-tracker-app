@@ -1,9 +1,12 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { GoogleOAuthButton } from "@/components/auth/google-oauth-button";
+import { AuthCard } from "@/components/auth/auth-card";
+import { Field } from "@/components/ui/field";
+import { TextInput } from "@/components/ui/text-input";
+import { PrimaryButton } from "@/components/ui/primary-button";
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
@@ -36,56 +39,37 @@ export function LoginForm() {
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="flex w-full max-w-sm flex-col gap-4 rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950"
-    >
-      <h1 className="text-xl font-semibold text-zinc-950 dark:text-zinc-50">
-        Log in
-      </h1>
+    <AuthCard active="login">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <GoogleOAuthButton />
 
-      <GoogleOAuthButton />
+        <div className="flex items-center gap-3 text-xs text-ink-soft">
+          <div className="h-px flex-1 bg-line" />
+          or
+          <div className="h-px flex-1 bg-line" />
+        </div>
 
-      <div className="flex items-center gap-3 text-xs text-zinc-500">
-        <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
-        or
-        <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
-      </div>
-
-      <label className="flex flex-col gap-1 text-sm text-zinc-950 dark:text-zinc-50">
-        Email
-        <input
-          type="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-        />
-      </label>
-      <label className="flex flex-col gap-1 text-sm text-zinc-950 dark:text-zinc-50">
-        Password
-        <input
-          type="password"
-          required
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-        />
-      </label>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <button
-        type="submit"
-        disabled={loading}
-        className="rounded bg-zinc-950 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-950"
-      >
-        {loading ? "Logging in…" : "Log in"}
-      </button>
-      <p className="text-center text-sm text-zinc-600 dark:text-zinc-400">
-        No account?{" "}
-        <Link href="/signup" className="font-medium underline">
-          Sign up
-        </Link>
-      </p>
-    </form>
+        <Field label="Email">
+          <TextInput
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </Field>
+        <Field label="Password">
+          <TextInput
+            type="password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </Field>
+        {error && <p className="text-sm text-terracotta">{error}</p>}
+        <PrimaryButton type="submit" disabled={loading}>
+          {loading ? "Logging in…" : "Log in"}
+        </PrimaryButton>
+      </form>
+    </AuthCard>
   );
 }

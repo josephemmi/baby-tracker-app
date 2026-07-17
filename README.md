@@ -1,4 +1,4 @@
-# Baby Tracker
+# Nestlog
 
 A shared, real-time baby-tracking app (feeds, pees, poops) built with Next.js, TypeScript, Tailwind CSS, and Supabase.
 
@@ -67,6 +67,10 @@ Realtime is enabled on `entries` (see the `enable_realtime` migration), so when 
 Both Home and Timeline sort moments chronologically by `timestamp` (the event's actual time), most recent first — `groupEntriesIntoMoments` in `src/lib/entries.ts` handles both the clustering and the sort.
 
 **Reports** (`/reports`) computes stat cards (total entries/feeds, avg mL per feed, avg gap between feeds), two per-day bar charts, and a daily summary table — all client-side from the fetched entries, no SQL aggregation views. Fine at household scale; revisit if this becomes commercial and datasets grow.
+
+## Design system
+
+The "paper" visual language (warm off-white surfaces, ruled-line table dividers, amber/sage/terracotta/brand-blue accents) is defined as Tailwind v4 theme tokens directly in `src/app/globals.css` via `@theme` — this Tailwind version doesn't use a `tailwind.config.js`, so tokens like `--color-sage` live in CSS and generate `bg-sage`/`text-sage`/etc utilities automatically. Shared primitives live in `src/components/ui` (`Field`, `TextInput`, `PrimaryButton`) and `src/components/brand` (`BrandMark`). Per-person identity colors (avatars, "logged by" pills) cycle through a fixed sage/terracotta/brand-blue palette by household join order — see `src/lib/person-colors.ts`. There is no dark mode; the design spec is light-only by intent.
 
 ## Troubleshooting
 

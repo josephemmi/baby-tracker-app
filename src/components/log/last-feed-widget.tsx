@@ -14,21 +14,21 @@ export function LastFeedWidget({ entries }: { entries: EntryRow[] }) {
   const lastFeed = latestEntryOfType(entries, "feed");
 
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
-      <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+    <div className="rounded-[10px] border border-line bg-paper-raised p-4 shadow-card">
+      <p className="text-[11px] font-bold tracking-[0.05em] text-ink-soft uppercase">
         Last feed
       </p>
       {lastFeed ? (
-        <p className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+        <p className="text-2xl font-bold tabular-nums text-ink">
           {formatTimeAgo(lastFeed.timestamp, now)}
           {lastFeed.amount_ml != null && (
-            <span className="ml-2 text-sm font-normal text-zinc-500">
+            <span className="ml-2 text-sm font-normal text-ink-soft">
               {lastFeed.amount_ml} mL
             </span>
           )}
         </p>
       ) : (
-        <p className="text-lg text-zinc-500">No feeds logged yet</p>
+        <p className="text-2xl font-bold text-ink-soft">No feeds logged yet</p>
       )}
     </div>
   );

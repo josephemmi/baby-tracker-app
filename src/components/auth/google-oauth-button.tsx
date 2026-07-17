@@ -16,7 +16,7 @@ export function GoogleOAuthButton() {
     <button
       type="button"
       onClick={handleClick}
-      className="flex items-center justify-center gap-2 rounded border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-950 dark:border-zinc-700 dark:text-zinc-50"
+      className="flex items-center justify-center gap-2 rounded-full border border-line-strong bg-paper-raised px-4 py-2 text-sm font-bold text-ink transition-colors hover:bg-paper"
     >
       <svg viewBox="0 0 48 48" className="h-4 w-4" aria-hidden="true">
         <path

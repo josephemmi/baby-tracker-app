@@ -1,63 +1,75 @@
 import Link from "next/link";
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { BrandMark } from "@/components/brand/brand-mark";
+import { initials, personColor } from "@/lib/person-colors";
 
 interface AppHeaderProps {
   householdName: string;
   inviteCode: string;
   profileName: string;
+  profileColorIndex: number;
   active: "log" | "timeline" | "reports";
 }
 
 const navLinkClass = (isActive: boolean) =>
-  `rounded px-3 py-1.5 text-sm ${
+  `rounded-full border px-3 py-1.5 text-sm font-bold transition-colors ${
     isActive
-      ? "bg-zinc-950 text-white dark:bg-zinc-50 dark:text-zinc-950"
-      : "bg-zinc-100 text-zinc-950 dark:bg-zinc-900 dark:text-zinc-50"
+      ? "border-ink bg-ink text-paper-raised"
+      : "border-transparent text-ink-soft hover:border-line hover:bg-paper-raised"
   }`;
-
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  return parts
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("");
-}
 
 export function AppHeader({
   householdName,
   inviteCode,
   profileName,
+  profileColorIndex,
   active,
 }: AppHeaderProps) {
+  const color = personColor(profileColorIndex);
+
   return (
     <header className="flex flex-wrap items-center justify-between gap-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
-          {householdName}
-        </h1>
-        <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-950 text-[10px] font-semibold text-white dark:bg-zinc-50 dark:text-zinc-950">
-            {initials(profileName)}
-          </span>
-          <span>
-            {profileName} · Invite code:{" "}
-            <span className="font-mono">{inviteCode}</span>
-          </span>
+      <div className="flex items-center gap-3">
+        <BrandMark size={40} />
+        <div>
+          <h1 className="text-[19px] font-bold tracking-[-0.01em] text-ink">
+            {householdName}
+          </h1>
+          <div className="flex items-center gap-2 text-[12.5px] text-ink-soft">
+            <span
+              className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${color.bg} ${color.text}`}
+            >
+              {initials(profileName)}
+            </span>
+            <span>
+              {profileName} · Invite code:{" "}
+              <span className="tabular-nums">{inviteCode}</span>
+            </span>
+          </div>
         </div>
       </div>
       <div className="flex items-center gap-3">
-        <nav className="flex gap-2">
-          <Link href="/" className={navLinkClass(active === "log")}>
+        <nav role="tablist" aria-label="Sections" className="flex gap-2">
+          <Link
+            href="/"
+            role="tab"
+            aria-selected={active === "log"}
+            className={navLinkClass(active === "log")}
+          >
             Log
           </Link>
           <Link
             href="/timeline"
+            role="tab"
+            aria-selected={active === "timeline"}
             className={navLinkClass(active === "timeline")}
           >
             Timeline
           </Link>
           <Link
             href="/reports"
+            role="tab"
+            aria-selected={active === "reports"}
             className={navLinkClass(active === "reports")}
           >
             Reports

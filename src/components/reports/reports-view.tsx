@@ -16,7 +16,7 @@ export function ReportsView({ entries }: { entries: EntryRow[] }) {
 
   if (entries.length === 0) {
     return (
-      <p className="text-sm text-zinc-500">
+      <p className="text-sm text-ink-soft">
         No entries yet — reports will appear once you start logging.
       </p>
     );
@@ -43,7 +43,7 @@ export function ReportsView({ entries }: { entries: EntryRow[] }) {
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 rounded-[10px] border border-line bg-paper-raised p-4 shadow-card sm:grid-cols-2">
         <BarChart
           title="Feed volume per day"
           data={dailyStats.map((day) => ({
@@ -51,6 +51,7 @@ export function ReportsView({ entries }: { entries: EntryRow[] }) {
             value: day.totalMl,
           }))}
           valueFormatter={(value) => `${value} mL`}
+          color="amber"
         />
         <BarChart
           title="Feed count per day"
@@ -58,43 +59,42 @@ export function ReportsView({ entries }: { entries: EntryRow[] }) {
             label: day.dayLabel,
             value: day.feedCount,
           }))}
+          color="sage"
         />
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
-        <table className="w-full min-w-[560px] border-collapse text-sm">
+      <div className="overflow-x-auto rounded-[10px] border border-line bg-paper-raised shadow-card">
+        <table className="w-full min-w-[560px] border-collapse text-[13.5px]">
           <thead>
-            <tr className="border-b border-zinc-200 bg-zinc-100 text-left text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-              <th className="px-3 py-2 font-medium">Day</th>
-              <th className="px-3 py-2 font-medium">Feeds</th>
-              <th className="px-3 py-2 font-medium">Total mL</th>
-              <th className="px-3 py-2 font-medium">Avg mL/feed</th>
-              <th className="px-3 py-2 font-medium">Poo count</th>
-              <th className="px-3 py-2 font-medium">Pee count</th>
+            <tr className="border-b border-line-strong text-left text-[11px] font-bold tracking-[0.05em] text-ink-soft uppercase">
+              <th className="px-3 py-2.5">Day</th>
+              <th className="px-3 py-2.5">Feeds</th>
+              <th className="px-3 py-2.5">Total mL</th>
+              <th className="px-3 py-2.5">Avg mL/feed</th>
+              <th className="px-3 py-2.5">Poo count</th>
+              <th className="px-3 py-2.5">Pee count</th>
             </tr>
           </thead>
           <tbody>
             {[...dailyStats].reverse().map((day) => (
               <tr
                 key={day.dayKey}
-                className="border-b border-zinc-100 last:border-0 dark:border-zinc-900"
+                className="border-b border-line last:border-0"
               >
-                <td className="px-3 py-2 text-zinc-950 dark:text-zinc-50">
-                  {day.dayLabel}
-                </td>
-                <td className="px-3 py-2 text-zinc-950 dark:text-zinc-50">
+                <td className="px-3 py-2.5 text-ink">{day.dayLabel}</td>
+                <td className="px-3 py-2.5 tabular-nums text-ink">
                   {day.feedCount}
                 </td>
-                <td className="px-3 py-2 text-zinc-950 dark:text-zinc-50">
+                <td className="px-3 py-2.5 tabular-nums text-ink">
                   {day.totalMl || ""}
                 </td>
-                <td className="px-3 py-2 text-zinc-950 dark:text-zinc-50">
+                <td className="px-3 py-2.5 tabular-nums text-ink">
                   {day.avgMlPerFeed != null ? day.avgMlPerFeed.toFixed(1) : ""}
                 </td>
-                <td className="px-3 py-2 text-zinc-950 dark:text-zinc-50">
+                <td className="px-3 py-2.5 tabular-nums text-ink">
                   {day.poopCount}
                 </td>
-                <td className="px-3 py-2 text-zinc-950 dark:text-zinc-50">
+                <td className="px-3 py-2.5 tabular-nums text-ink">
                   {day.peeCount}
                 </td>
               </tr>

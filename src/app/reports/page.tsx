@@ -3,6 +3,7 @@ import { getCurrentUserAndProfile } from "@/lib/supabase/queries";
 import { createClient } from "@/lib/supabase/server";
 import { AppHeader } from "@/components/layout/app-header";
 import { ReportsView } from "@/components/reports/reports-view";
+import { colorIndexFor } from "@/lib/person-colors";
 
 export default async function ReportsPage() {
   const { user, profile, household } = await getCurrentUserAndProfile();
@@ -12,11 +13,18 @@ export default async function ReportsPage() {
 
   const supabase = await createClient();
 
-  const { data: babies } = await supabase
-    .from("babies")
-    .select("*")
-    .eq("household_id", household.id)
-    .order("created_at", { ascending: true });
+  const [{ data: babies }, { data: members }] = await Promise.all([
+    supabase
+      .from("babies")
+      .select("*")
+      .eq("household_id", household.id)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("users")
+      .select("*")
+      .eq("household_id", household.id)
+      .order("created_at", { ascending: true }),
+  ]);
 
   const baby = babies?.[0] ?? null;
 
@@ -29,17 +37,18 @@ export default async function ReportsPage() {
     : { data: [] };
 
   return (
-    <div className="min-h-screen bg-zinc-50 p-4 dark:bg-black sm:p-8">
+    <div className="min-h-screen bg-paper p-4 sm:p-8">
       <div className="mx-auto flex max-w-4xl flex-col gap-6">
         <AppHeader
           householdName={household.name}
           inviteCode={household.invite_code}
           profileName={profile.name}
+          profileColorIndex={colorIndexFor(members ?? [], user.id)}
           active="reports"
         />
 
         {!baby ? (
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-ink-soft">
             Add your baby from the Log tab first.
           </p>
         ) : (

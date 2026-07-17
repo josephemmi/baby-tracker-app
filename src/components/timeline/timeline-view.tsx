@@ -52,16 +52,18 @@ export function TimelineView({ entries, memberNames }: TimelineViewProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex gap-2">
+      <div role="tablist" aria-label="Filter by type" className="flex gap-2">
         {FILTERS.map((f) => (
           <button
             key={f.value}
             type="button"
+            role="tab"
+            aria-selected={filter === f.value}
             onClick={() => setFilter(f.value)}
-            className={`rounded px-3 py-1.5 text-sm ${
+            className={`rounded-full border px-3 py-1 text-[12.5px] font-bold transition-colors ${
               filter === f.value
-                ? "bg-zinc-950 text-white dark:bg-zinc-50 dark:text-zinc-950"
-                : "bg-zinc-100 text-zinc-950 dark:bg-zinc-900 dark:text-zinc-50"
+                ? "border-ink bg-ink text-paper-raised"
+                : "border-line-strong text-ink-soft hover:bg-paper-raised"
             }`}
           >
             {f.label}
@@ -70,7 +72,7 @@ export function TimelineView({ entries, memberNames }: TimelineViewProps) {
       </div>
 
       {groupedByDay.length === 0 ? (
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-ink-soft">
           {entries.length === 0
             ? "No entries yet."
             : "No entries match this filter."}
@@ -78,7 +80,7 @@ export function TimelineView({ entries, memberNames }: TimelineViewProps) {
       ) : (
         groupedByDay.map(([day, dayMoments]) => (
           <div key={day} className="flex flex-col gap-2">
-            <h2 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+            <h2 className="text-[11px] font-bold tracking-[0.05em] text-ink-soft uppercase">
               {day}
             </h2>
             <MomentsTable
