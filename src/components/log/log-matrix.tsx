@@ -10,7 +10,7 @@ import {
   type Moment,
 } from "@/lib/entries";
 import type { EntryType } from "@/lib/supabase/database.types";
-import { LastFeedWidget } from "@/components/log/last-feed-widget";
+import { GlanceCards } from "@/components/log/glance-cards";
 import { MomentsTable } from "@/components/log/moments-table";
 import { PrimaryButton } from "@/components/ui/primary-button";
 
@@ -304,7 +304,7 @@ export function LogMatrix({
 
   return (
     <div className="flex flex-col gap-4">
-      <LastFeedWidget entries={entries} />
+      <GlanceCards entries={entries} />
 
       <div className="flex items-center justify-between gap-4">
         <PrimaryButton type="button" onClick={handleLogMoment}>
