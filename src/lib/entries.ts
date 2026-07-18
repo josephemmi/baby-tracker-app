@@ -12,6 +12,29 @@ export interface Moment {
   feed?: EntryRow;
   pee?: EntryRow;
   poop?: EntryRow;
+  // True for a row the user just created that has no entry rows in the DB
+  // yet — exists only client-side until the first checkbox is ticked.
+  isDraft?: boolean;
+}
+
+// A brand-new, empty row: time + logged-by prefilled, nothing else — the
+// client-side stand-in for "Log a moment" until the first type is checked.
+export function createDraftMoment(loggedBy: string): Moment {
+  return {
+    key: `draft-${crypto.randomUUID()}`,
+    timestamp: new Date().toISOString(),
+    loggedBy,
+    notes: null,
+    isDraft: true,
+  };
+}
+
+// Combines not-yet-persisted draft rows with real DB-backed moments into one
+// chronologically sorted list for display.
+export function mergeMoments(drafts: Moment[], real: Moment[]): Moment[] {
+  return [...drafts, ...real].sort((a, b) =>
+    b.timestamp.localeCompare(a.timestamp),
+  );
 }
 
 // Groups same-instant entries into moments and sorts them chronologically

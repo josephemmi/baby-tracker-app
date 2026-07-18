@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  createDraftMoment,
   formatTimeAgo,
   groupEntriesIntoMoments,
   latestEntryOfType,
+  mergeMoments,
 } from "@/lib/entries";
 import { makeEntry } from "@/lib/test-helpers";
 
@@ -85,6 +87,40 @@ describe("latestEntryOfType", () => {
 
   it("returns null when no entry of that type exists", () => {
     expect(latestEntryOfType([], "feed")).toBeNull();
+  });
+});
+
+describe("createDraftMoment", () => {
+  it("prefills logged-by and current time, leaving everything else empty", () => {
+    const draft = createDraftMoment("u1");
+
+    expect(draft.isDraft).toBe(true);
+    expect(draft.loggedBy).toBe("u1");
+    expect(draft.notes).toBeNull();
+    expect(draft.feed).toBeUndefined();
+    expect(draft.pee).toBeUndefined();
+    expect(draft.poop).toBeUndefined();
+    expect(draft.key.startsWith("draft-")).toBe(true);
+  });
+
+  it("gives each draft a unique key", () => {
+    const a = createDraftMoment("u1");
+    const b = createDraftMoment("u1");
+    expect(a.key).not.toBe(b.key);
+  });
+});
+
+describe("mergeMoments", () => {
+  it("combines drafts and real moments into one chronologically sorted list", () => {
+    const real = groupEntriesIntoMoments([
+      makeEntry({ type: "feed", timestamp: "2026-07-16T08:00:00.000Z" }),
+    ]);
+    const draft = createDraftMoment("u1");
+    draft.timestamp = "2026-07-16T09:00:00.000Z";
+
+    const merged = mergeMoments([draft], real);
+
+    expect(merged.map((m) => m.key)).toEqual([draft.key, real[0].key]);
   });
 });
 

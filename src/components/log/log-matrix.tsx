@@ -1,20 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
+  createDraftMoment,
   groupEntriesIntoMoments,
-  toDatetimeLocalValue,
+  mergeMoments,
   type EntryRow,
+  type Moment,
 } from "@/lib/entries";
 import type { EntryType } from "@/lib/supabase/database.types";
 import { LastFeedWidget } from "@/components/log/last-feed-widget";
 import { MomentsTable } from "@/components/log/moments-table";
-import { TypeCheckbox } from "@/components/log/type-checkbox";
-import { Field } from "@/components/ui/field";
-import { TextInput } from "@/components/ui/text-input";
 import { PrimaryButton } from "@/components/ui/primary-button";
-import { initials, personColor } from "@/lib/person-colors";
 
 interface Member {
   id: string;
@@ -28,6 +26,12 @@ interface LogMatrixProps {
   initialEntries: EntryRow[];
 }
 
+function siblingIds(moment: Moment): string[] {
+  return [moment.feed?.id, moment.pee?.id, moment.poop?.id].filter(
+    (id): id is string => !!id,
+  );
+}
+
 export function LogMatrix({
   babyId,
   currentUserId,
@@ -35,15 +39,8 @@ export function LogMatrix({
   initialEntries,
 }: LogMatrixProps) {
   const [entries, setEntries] = useState(initialEntries);
-  const [time, setTime] = useState(() => toDatetimeLocalValue(new Date()));
-  const [loggedBy, setLoggedBy] = useState(currentUserId);
-  const [feedChecked, setFeedChecked] = useState(false);
-  const [peeChecked, setPeeChecked] = useState(false);
-  const [poopChecked, setPoopChecked] = useState(false);
-  const [amountMl, setAmountMl] = useState("");
-  const [notes, setNotes] = useState("");
+  const [drafts, setDrafts] = useState<Moment[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
   const [flashKey, setFlashKey] = useState<string | null>(null);
 
   const memberNames = useMemo(
@@ -51,7 +48,10 @@ export function LogMatrix({
     [members],
   );
 
-  const moments = useMemo(() => groupEntriesIntoMoments(entries), [entries]);
+  const moments = useMemo(
+    () => mergeMoments(drafts, groupEntriesIntoMoments(entries)),
+    [drafts, entries],
+  );
 
   useEffect(() => {
     const supabase = createClient();
@@ -74,6 +74,34 @@ export function LogMatrix({
           );
         },
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "entries",
+          filter: `baby_id=eq.${babyId}`,
+        },
+        (payload) => {
+          const updated = payload.new as EntryRow;
+          setEntries((prev) =>
+            prev.map((entry) => (entry.id === updated.id ? updated : entry)),
+          );
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "entries",
+          filter: `baby_id=eq.${babyId}`,
+        },
+        (payload) => {
+          const removedId = (payload.old as Partial<EntryRow>).id;
+          setEntries((prev) => prev.filter((entry) => entry.id !== removedId));
+        },
+      )
       .subscribe();
 
     return () => {
@@ -81,174 +109,222 @@ export function LogMatrix({
     };
   }, [babyId]);
 
-  function resetForm() {
-    setTime(toDatetimeLocalValue(new Date()));
-    setLoggedBy(currentUserId);
-    setFeedChecked(false);
-    setPeeChecked(false);
-    setPoopChecked(false);
-    setAmountMl("");
-    setNotes("");
+  function handleLogMoment() {
+    const draft = createDraftMoment(currentUserId);
+    setDrafts((prev) => [draft, ...prev]);
+    setFlashKey(draft.key);
+    setTimeout(() => setFlashKey(null), 1400);
   }
 
-  async function handleLog(e: FormEvent) {
-    e.preventDefault();
+  async function handleToggleType(
+    moment: Moment,
+    type: EntryType,
+    checked: boolean,
+  ) {
     setError(null);
+    const supabase = createClient();
 
-    const types: EntryType[] = [
-      ...(feedChecked ? (["feed"] as const) : []),
-      ...(peeChecked ? (["pee"] as const) : []),
-      ...(poopChecked ? (["poop"] as const) : []),
-    ];
+    if (checked) {
+      const { data, error } = await supabase
+        .from("entries")
+        .insert({
+          baby_id: babyId,
+          logged_by: moment.loggedBy,
+          type,
+          timestamp: moment.timestamp,
+          notes: moment.notes,
+          amount_ml: null,
+        })
+        .select()
+        .single();
 
-    if (types.length === 0) {
-      setError("Check at least one of Feed, Pee, or Poo.");
+      if (error) {
+        setError(error.message);
+        return;
+      }
+
+      setEntries((prev) => [data, ...prev]);
+      if (moment.isDraft) {
+        setDrafts((prev) => prev.filter((d) => d.key !== moment.key));
+      }
       return;
     }
 
-    setSubmitting(true);
+    const existingId = moment[type]?.id;
+    if (!existingId) return;
 
-    const timestamp = new Date(time).toISOString();
-    const trimmedNotes = notes.trim() || null;
-    const parsedAmount = amountMl.trim() ? Number(amountMl) : null;
-
-    const rows = types.map((type) => ({
-      baby_id: babyId,
-      logged_by: loggedBy,
-      type,
-      timestamp,
-      notes: trimmedNotes,
-      amount_ml: type === "feed" ? parsedAmount : null,
-    }));
-
-    const { data, error } = await createClient()
+    const { error } = await supabase
       .from("entries")
-      .insert(rows)
-      .select();
-
-    setSubmitting(false);
+      .delete()
+      .eq("id", existingId);
 
     if (error) {
       setError(error.message);
       return;
     }
 
-    setEntries((prev) => [...(data ?? []), ...prev]);
+    setEntries((prev) => prev.filter((entry) => entry.id !== existingId));
 
-    const inserted = data?.[0];
-    if (inserted) {
-      const key = `${inserted.timestamp}|${inserted.logged_by ?? "unknown"}`;
-      setFlashKey(key);
-      setTimeout(() => setFlashKey(null), 1400);
+    const remainingTypes = siblingIds(moment).filter((id) => id !== existingId);
+    if (remainingTypes.length === 0) {
+      setDrafts((prev) => [
+        {
+          key: `draft-${crypto.randomUUID()}`,
+          timestamp: moment.timestamp,
+          loggedBy: moment.loggedBy,
+          notes: moment.notes,
+          isDraft: true,
+        },
+        ...prev,
+      ]);
+    }
+  }
+
+  async function handleTimeCommit(moment: Moment, value: string) {
+    if (!value) return;
+    const timestamp = new Date(value).toISOString();
+    if (timestamp === moment.timestamp) return;
+
+    if (moment.isDraft) {
+      setDrafts((prev) =>
+        prev.map((d) => (d.key === moment.key ? { ...d, timestamp } : d)),
+      );
+      return;
     }
 
-    resetForm();
+    const ids = siblingIds(moment);
+    if (ids.length === 0) return;
+
+    setError(null);
+    const { error } = await createClient()
+      .from("entries")
+      .update({ timestamp })
+      .in("id", ids);
+
+    if (error) {
+      setError(error.message);
+      return;
+    }
+
+    setEntries((prev) =>
+      prev.map((entry) =>
+        ids.includes(entry.id) ? { ...entry, timestamp } : entry,
+      ),
+    );
+  }
+
+  async function handleNotesCommit(moment: Moment, value: string) {
+    const notes = value.trim() || null;
+    if (notes === moment.notes) return;
+
+    if (moment.isDraft) {
+      setDrafts((prev) =>
+        prev.map((d) => (d.key === moment.key ? { ...d, notes } : d)),
+      );
+      return;
+    }
+
+    const ids = siblingIds(moment);
+    if (ids.length === 0) return;
+
+    setError(null);
+    const { error } = await createClient()
+      .from("entries")
+      .update({ notes })
+      .in("id", ids);
+
+    if (error) {
+      setError(error.message);
+      return;
+    }
+
+    setEntries((prev) =>
+      prev.map((entry) => (ids.includes(entry.id) ? { ...entry, notes } : entry)),
+    );
+  }
+
+  async function handleAmountCommit(moment: Moment, value: string) {
+    const feedId = moment.feed?.id;
+    if (!feedId) return;
+    const amount_ml = value.trim() ? Number(value) : null;
+    if (amount_ml === moment.feed?.amount_ml) return;
+
+    setError(null);
+    const { error } = await createClient()
+      .from("entries")
+      .update({ amount_ml })
+      .eq("id", feedId);
+
+    if (error) {
+      setError(error.message);
+      return;
+    }
+
+    setEntries((prev) =>
+      prev.map((entry) =>
+        entry.id === feedId ? { ...entry, amount_ml } : entry,
+      ),
+    );
+  }
+
+  async function handleLoggedByCycle(moment: Moment) {
+    if (members.length === 0) return;
+    const currentIndex = members.findIndex((m) => m.id === moment.loggedBy);
+    const next = members[(currentIndex + 1) % members.length];
+
+    if (moment.isDraft) {
+      setDrafts((prev) =>
+        prev.map((d) =>
+          d.key === moment.key ? { ...d, loggedBy: next.id } : d,
+        ),
+      );
+      return;
+    }
+
+    const ids = siblingIds(moment);
+    if (ids.length === 0) return;
+
+    setError(null);
+    const { error } = await createClient()
+      .from("entries")
+      .update({ logged_by: next.id })
+      .in("id", ids);
+
+    if (error) {
+      setError(error.message);
+      return;
+    }
+
+    setEntries((prev) =>
+      prev.map((entry) =>
+        ids.includes(entry.id) ? { ...entry, logged_by: next.id } : entry,
+      ),
+    );
   }
 
   return (
     <div className="flex flex-col gap-4">
       <LastFeedWidget entries={entries} />
 
-      <form
-        onSubmit={handleLog}
-        className="flex flex-col gap-3 rounded-[10px] border border-line bg-paper-raised p-4 shadow-card"
-      >
-        <div className="flex flex-wrap items-end gap-4">
-          <Field label="Time">
-            <TextInput
-              type="datetime-local"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-              className="tabular-nums"
-            />
-          </Field>
-
-          <Field label="Logged by">
-            <div className="flex gap-1.5">
-              {members.map((member, index) => {
-                const color = personColor(index);
-                const active = loggedBy === member.id;
-                return (
-                  <button
-                    key={member.id}
-                    type="button"
-                    onClick={() => setLoggedBy(member.id)}
-                    className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-bold transition-colors ${
-                      active
-                        ? "border-sage bg-sage-soft text-ink"
-                        : "border-line-strong text-ink-soft hover:bg-paper"
-                    }`}
-                  >
-                    <span
-                      className={`flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold ${color.bg} ${color.text}`}
-                    >
-                      {initials(member.name)}
-                    </span>
-                    {member.name}
-                  </button>
-                );
-              })}
-            </div>
-          </Field>
-
-          <TypeCheckbox
-            checked={feedChecked}
-            onChange={setFeedChecked}
-            color="amber"
-            label="Feed"
-          />
-
-          <Field label="mL">
-            <div className="flex items-center gap-1.5">
-              <TextInput
-                type="number"
-                step="0.1"
-                min="0"
-                value={amountMl}
-                disabled={!feedChecked}
-                onChange={(e) => setAmountMl(e.target.value)}
-                focusColor="amber"
-                className="w-20 text-right tabular-nums"
-              />
-              <span className="text-[13.5px] text-ink-soft">ml</span>
-            </div>
-          </Field>
-
-          <TypeCheckbox
-            checked={peeChecked}
-            onChange={setPeeChecked}
-            color="brand-blue"
-            label="Pee"
-          />
-
-          <TypeCheckbox
-            checked={poopChecked}
-            onChange={setPoopChecked}
-            color="terracotta"
-            label="Poo"
-          />
-
-          <Field label="Notes">
-            <input
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add a note…"
-              className="min-w-40 rounded-[10px] border border-transparent bg-transparent px-3 py-2 text-[13.5px] text-ink placeholder:text-line-strong placeholder:italic hover:border-line focus:border-line-strong focus:bg-paper focus:outline-none"
-            />
-          </Field>
-
-          <PrimaryButton type="submit" disabled={submitting}>
-            {submitting ? "Logging…" : "Log a moment"}
-          </PrimaryButton>
-        </div>
+      <div className="flex items-center justify-between gap-4">
+        <PrimaryButton type="button" onClick={handleLogMoment}>
+          Log a moment
+        </PrimaryButton>
         {error && <p className="text-sm text-terracotta">{error}</p>}
-      </form>
+      </div>
 
       <MomentsTable
         moments={moments}
         memberNames={memberNames}
         emptyMessage="No entries yet — log the first moment above."
         flashMomentKey={flashKey}
+        editable
+        members={members}
+        onToggleType={handleToggleType}
+        onTimeCommit={handleTimeCommit}
+        onNotesCommit={handleNotesCommit}
+        onAmountCommit={handleAmountCommit}
+        onLoggedByCycle={handleLoggedByCycle}
       />
     </div>
   );
