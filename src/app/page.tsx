@@ -29,14 +29,21 @@ export default async function Home() {
 
   const baby = babies?.[0] ?? null;
 
-  const { data: entries } = baby
+  const HOME_LIMIT = 100;
+
+  const { data: fetchedEntries } = baby
     ? await supabase
         .from("entries")
         .select("*")
         .eq("baby_id", baby.id)
         .order("timestamp", { ascending: false })
-        .limit(100)
+        .limit(HOME_LIMIT + 1)
     : { data: [] };
+
+  const hasMoreEntries = (fetchedEntries?.length ?? 0) > HOME_LIMIT;
+  const entries = hasMoreEntries
+    ? fetchedEntries!.slice(0, HOME_LIMIT)
+    : (fetchedEntries ?? []);
 
   return (
     <div className="min-h-screen bg-paper p-4 sm:p-8">
@@ -56,7 +63,8 @@ export default async function Home() {
             babyId={baby.id}
             currentUserId={user.id}
             members={members ?? []}
-            initialEntries={entries ?? []}
+            initialEntries={entries}
+            hasMoreEntries={hasMoreEntries}
           />
         )}
       </div>

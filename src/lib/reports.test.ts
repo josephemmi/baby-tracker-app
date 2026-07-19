@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { computeDailyStats, computeOverallStats, formatMinutes } from "@/lib/reports";
+import {
+  availableYears,
+  computeDailyStats,
+  computeOverallStats,
+  currentMonthValue,
+  filterEntriesByRange,
+  formatMinutes,
+} from "@/lib/reports";
 import { makeEntry } from "@/lib/test-helpers";
 
 describe("computeOverallStats", () => {
@@ -100,6 +107,64 @@ describe("computeDailyStats", () => {
     ];
 
     expect(computeDailyStats(entries)[0].avgMlPerFeed).toBe(40);
+  });
+});
+
+describe("filterEntriesByRange", () => {
+  const now = new Date("2026-07-19T12:00:00.000Z");
+  const entries = [
+    makeEntry({ id: "recent", timestamp: "2026-07-18T12:00:00.000Z" }), // 1 day ago
+    makeEntry({ id: "10d", timestamp: "2026-07-09T12:00:00.000Z" }), // 10 days ago
+    makeEntry({ id: "60d", timestamp: "2026-05-20T12:00:00.000Z" }), // 60 days ago
+    makeEntry({ id: "lastYear", timestamp: "2025-03-01T12:00:00.000Z" }),
+  ];
+
+  it("'all' returns everything", () => {
+    expect(filterEntriesByRange(entries, { kind: "all" }, now)).toHaveLength(4);
+  });
+
+  it("'7d' keeps only entries within the last 7 days", () => {
+    const result = filterEntriesByRange(entries, { kind: "7d" }, now);
+    expect(result.map((e) => e.id)).toEqual(["recent"]);
+  });
+
+  it("'30d' keeps entries within the last 30 days", () => {
+    const result = filterEntriesByRange(entries, { kind: "30d" }, now);
+    expect(result.map((e) => e.id).sort()).toEqual(["10d", "recent"]);
+  });
+
+  it("'month' keeps entries in the given calendar month", () => {
+    const result = filterEntriesByRange(entries, { kind: "month", month: "2026-05" }, now);
+    expect(result.map((e) => e.id)).toEqual(["60d"]);
+  });
+
+  it("'year' keeps entries in the given calendar year", () => {
+    const result = filterEntriesByRange(entries, { kind: "year", year: 2025 }, now);
+    expect(result.map((e) => e.id)).toEqual(["lastYear"]);
+  });
+});
+
+describe("availableYears", () => {
+  it("returns distinct years present in the data, most recent first", () => {
+    const entries = [
+      makeEntry({ timestamp: "2026-01-01T00:00:00.000Z" }),
+      makeEntry({ timestamp: "2025-06-01T00:00:00.000Z" }),
+      makeEntry({ timestamp: "2026-06-01T00:00:00.000Z" }),
+    ];
+
+    expect(availableYears(entries)).toEqual([2026, 2025]);
+  });
+
+  it("returns an empty array for no entries", () => {
+    expect(availableYears([])).toEqual([]);
+  });
+});
+
+describe("currentMonthValue", () => {
+  it("formats as YYYY-MM", () => {
+    expect(currentMonthValue(new Date("2026-03-05T00:00:00.000Z"))).toMatch(
+      /^\d{4}-\d{2}$/,
+    );
   });
 });
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import {
   createDraftMoment,
@@ -24,6 +25,7 @@ interface LogMatrixProps {
   currentUserId: string;
   members: Member[];
   initialEntries: EntryRow[];
+  hasMoreEntries?: boolean;
 }
 
 function siblingIds(moment: Moment): string[] {
@@ -37,6 +39,7 @@ export function LogMatrix({
   currentUserId,
   members,
   initialEntries,
+  hasMoreEntries = false,
 }: LogMatrixProps) {
   const [entries, setEntries] = useState(initialEntries);
   const [drafts, setDrafts] = useState<Moment[]>([]);
@@ -326,6 +329,15 @@ export function LogMatrix({
         onAmountCommit={handleAmountCommit}
         onLoggedByCycle={handleLoggedByCycle}
       />
+
+      {hasMoreEntries && (
+        <Link
+          href="/timeline"
+          className="self-center text-[13.5px] font-bold text-sage hover:underline"
+        >
+          View more in Timeline →
+        </Link>
+      )}
     </div>
   );
 }

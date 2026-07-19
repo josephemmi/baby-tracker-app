@@ -23,6 +23,56 @@ function localDayKey(timestamp: string): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+function localMonthKey(timestamp: string): string {
+  const date = new Date(timestamp);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}`;
+}
+
+export type ReportRange =
+  | { kind: "7d" }
+  | { kind: "30d" }
+  | { kind: "month"; month: string } // "YYYY-MM", local calendar month
+  | { kind: "year"; year: number } // local calendar year
+  | { kind: "all" };
+
+export function filterEntriesByRange(
+  entries: EntryRow[],
+  range: ReportRange,
+  now: Date,
+): EntryRow[] {
+  switch (range.kind) {
+    case "all":
+      return entries;
+    case "7d": {
+      const cutoff = now.getTime() - 7 * 24 * 60 * 60 * 1000;
+      return entries.filter((e) => new Date(e.timestamp).getTime() >= cutoff);
+    }
+    case "30d": {
+      const cutoff = now.getTime() - 30 * 24 * 60 * 60 * 1000;
+      return entries.filter((e) => new Date(e.timestamp).getTime() >= cutoff);
+    }
+    case "month":
+      return entries.filter((e) => localMonthKey(e.timestamp) === range.month);
+    case "year":
+      return entries.filter(
+        (e) => new Date(e.timestamp).getFullYear() === range.year,
+      );
+  }
+}
+
+// Distinct calendar years present in the data, most recent first — used to
+// populate the "Yearly" range picker.
+export function availableYears(entries: EntryRow[]): number[] {
+  const years = new Set(entries.map((e) => new Date(e.timestamp).getFullYear()));
+  return Array.from(years).sort((a, b) => b - a);
+}
+
+export function currentMonthValue(now: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
+}
+
 function localDayLabel(dayKey: string): string {
   const [year, month, day] = dayKey.split("-").map(Number);
   return new Date(year, month - 1, day).toLocaleDateString(undefined, {
