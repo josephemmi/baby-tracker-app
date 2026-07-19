@@ -21,21 +21,20 @@ export async function getCurrentUserAndProfile(): Promise<CurrentUserAndProfile>
     return { user: null, profile: null, household: null };
   }
 
-  const { data: profile } = await supabase
+  // Single round trip via embedded select instead of two sequential
+  // queries — this runs on every navigation, so the extra round trip
+  // was adding real latency to every tab switch.
+  const { data: row } = await supabase
     .from("users")
-    .select("*")
+    .select("*, households(*)")
     .eq("id", user.id)
-    .maybeSingle();
+    .maybeSingle<Profile & { households: Household | null }>();
 
-  if (!profile) {
+  if (!row) {
     return { user, profile: null, household: null };
   }
 
-  const { data: household } = await supabase
-    .from("households")
-    .select("*")
-    .eq("id", profile.household_id)
-    .maybeSingle();
+  const { households: household, ...profile } = row;
 
   return { user, profile, household };
 }
