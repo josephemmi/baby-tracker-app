@@ -160,8 +160,12 @@ export function computeDailyStats(entries: EntryRow[]): DailyStat[] {
 }
 
 export function formatMinutes(minutes: number): string {
-  const hours = Math.floor(minutes / 60);
-  const mins = Math.round(minutes % 60);
+  // Round the total first, then split — rounding hours and the leftover
+  // minutes separately can produce a bogus "Xh 60m" when the remainder
+  // rounds up to a full hour.
+  const totalMinutes = Math.round(minutes);
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
   if (hours === 0) return `${mins}m`;
   return mins === 0 ? `${hours}h` : `${hours}h ${mins}m`;
 }

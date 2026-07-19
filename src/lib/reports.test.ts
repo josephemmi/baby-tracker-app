@@ -180,4 +180,9 @@ describe("formatMinutes", () => {
   it("formats hours and minutes together", () => {
     expect(formatMinutes(150)).toBe("2h 30m");
   });
+
+  it("carries a rounded-up remainder into the next hour instead of showing '60m'", () => {
+    // 3190h 59.6m should round to 3191h, not "3190h 60m".
+    expect(formatMinutes(3190 * 60 + 59.6)).toBe("3191h");
+  });
 });
