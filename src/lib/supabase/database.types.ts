@@ -90,6 +90,8 @@ export interface Database {
           timestamp: string;
           notes: string | null;
           amount_ml: number | null;
+          bottle: boolean;
+          breast: boolean;
           created_at: string;
         };
         Insert: {
@@ -100,6 +102,8 @@ export interface Database {
           timestamp?: string;
           notes?: string | null;
           amount_ml?: number | null;
+          bottle?: boolean;
+          breast?: boolean;
           created_at?: string;
         };
         Update: {
@@ -110,6 +114,8 @@ export interface Database {
           timestamp?: string;
           notes?: string | null;
           amount_ml?: number | null;
+          bottle?: boolean;
+          breast?: boolean;
           created_at?: string;
         };
         Relationships: [];

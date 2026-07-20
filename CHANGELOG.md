@@ -9,6 +9,21 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+### Added
+- Feed logging now splits into independent Bottle and Breast toggles
+  (previously a single "Feed" checkbox) — either, both, or neither can be
+  checked on a row, matching how real feeds actually happen
+- Reports: split Bottle feeds/Breastfeeds stat cards, a bottle-only mL chart
+  with a breastfeeding indicator on relevant days, and a grouped Bottle vs.
+  Breast bar chart
+- Daily summary table now splits Bottle feeds and Breastfeeds into separate
+  columns
+
+### Changed
+- `entries` schema: added `bottle`/`breast` boolean columns, additively —
+  the existing `type`/`amount_ml` columns and all historical rows are
+  untouched; historical feeds were backfilled as bottle feeds
+
 ## [1.0.0] - 2026-07-20
 
 First release — live and in use.

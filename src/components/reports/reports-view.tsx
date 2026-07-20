@@ -13,6 +13,7 @@ import {
 } from "@/lib/reports";
 import { StatCard } from "@/components/reports/stat-card";
 import { BarChart } from "@/components/reports/bar-chart";
+import { GroupedBarChart } from "@/components/reports/grouped-bar-chart";
 
 type RangeKind = ReportRange["kind"];
 
@@ -111,14 +112,9 @@ export function ReportsView({ entries }: { entries: EntryRow[] }) {
       ) : (
         <>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <StatCard label="Total entries" value={String(stats.totalEntries)} />
             <StatCard label="Total feeds" value={String(stats.totalFeeds)} />
-            <StatCard
-              label="Avg mL / feed"
-              value={
-                stats.avgMlPerFeed != null ? stats.avgMlPerFeed.toFixed(1) : "—"
-              }
-            />
+            <StatCard label="Bottle feeds" value={String(stats.bottleFeeds)} />
+            <StatCard label="Breastfeeds" value={String(stats.breastFeeds)} />
             <StatCard
               label="Avg gap between feeds"
               value={
@@ -129,34 +125,55 @@ export function ReportsView({ entries }: { entries: EntryRow[] }) {
             />
           </div>
 
-          <div className="grid grid-cols-1 gap-6 rounded-[10px] border border-line bg-paper-raised p-4 shadow-card sm:grid-cols-2">
+          <div className="rounded-[10px] border border-line bg-paper-raised p-4 shadow-card">
+            <div className="mb-3 flex items-center gap-4 text-[11.5px] text-ink-soft">
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-amber" />
+                Bottle mL logged
+              </span>
+            </div>
             <BarChart
-              title="Feed volume per day"
+              title="Bottle volume per day"
               data={dailyStats.map((day) => ({
                 label: day.dayLabel,
                 value: day.totalMl,
               }))}
               valueFormatter={(value) => `${value} mL`}
               color="amber"
+              indicators={dailyStats.map((day) => day.breastCount > 0)}
             />
-            <BarChart
-              title="Feed count per day"
+          </div>
+
+          <div className="rounded-[10px] border border-line bg-paper-raised p-4 shadow-card">
+            <div className="mb-3 flex items-center gap-4 text-[11.5px] text-ink-soft">
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-amber" />
+                Bottle
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-rose" />
+                Breast
+              </span>
+            </div>
+            <GroupedBarChart
+              title="Feeds by day, by method"
               data={dailyStats.map((day) => ({
                 label: day.dayLabel,
-                value: day.feedCount,
+                bottle: day.bottleCount,
+                breast: day.breastCount,
               }))}
-              color="sage"
             />
           </div>
 
           <div className="overflow-x-auto rounded-[10px] border border-line bg-paper-raised shadow-card">
-            <table className="w-full min-w-[560px] border-collapse text-[13.5px]">
+            <table className="w-full min-w-[640px] border-collapse text-[13.5px]">
               <thead>
                 <tr className="border-b border-line-strong text-left text-[11px] font-bold tracking-[0.05em] text-ink-soft uppercase">
                   <th className="px-3 py-2.5">Day</th>
-                  <th className="px-3 py-2.5">Feeds</th>
+                  <th className="px-3 py-2.5">Bottle feeds</th>
+                  <th className="px-3 py-2.5">Breastfeeds</th>
                   <th className="px-3 py-2.5">Total mL</th>
-                  <th className="px-3 py-2.5">Avg mL/feed</th>
+                  <th className="px-3 py-2.5">Avg mL/bottle</th>
                   <th className="px-3 py-2.5">Poo count</th>
                   <th className="px-3 py-2.5">Pee count</th>
                 </tr>
@@ -169,13 +186,16 @@ export function ReportsView({ entries }: { entries: EntryRow[] }) {
                   >
                     <td className="px-3 py-2.5 text-ink">{day.dayLabel}</td>
                     <td className="px-3 py-2.5 tabular-nums text-ink">
-                      {day.feedCount}
+                      {day.bottleCount}
+                    </td>
+                    <td className="px-3 py-2.5 tabular-nums text-ink">
+                      {day.breastCount}
                     </td>
                     <td className="px-3 py-2.5 tabular-nums text-ink">
                       {day.totalMl || ""}
                     </td>
                     <td className="px-3 py-2.5 tabular-nums text-ink">
-                      {day.avgMlPerFeed != null ? day.avgMlPerFeed.toFixed(1) : ""}
+                      {day.avgMlPerBottle != null ? day.avgMlPerBottle.toFixed(1) : ""}
                     </td>
                     <td className="px-3 py-2.5 tabular-nums text-ink">
                       {day.poopCount}

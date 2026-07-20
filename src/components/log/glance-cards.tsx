@@ -33,11 +33,23 @@ export function GlanceCards({ entries }: { entries: EntryRow[] }) {
             {latest ? (
               <p className="text-2xl font-bold tabular-nums text-ink">
                 {formatTimeAgo(latest.timestamp, now)}
-                {type === "feed" && latest.amount_ml != null && (
-                  <span className="ml-2 text-sm font-normal text-ink-soft">
-                    {latest.amount_ml} mL
-                  </span>
-                )}
+                {type === "feed" &&
+                  (() => {
+                    const parts = [
+                      latest.bottle &&
+                        (latest.amount_ml != null
+                          ? `${latest.amount_ml} mL`
+                          : "Bottle"),
+                      latest.breast && "Breastfed",
+                    ].filter(Boolean);
+                    return (
+                      parts.length > 0 && (
+                        <span className="ml-2 text-sm font-normal text-ink-soft">
+                          {parts.join(" + ")}
+                        </span>
+                      )
+                    );
+                  })()}
               </p>
             ) : (
               <p className="text-2xl font-bold text-ink-soft">Not logged yet</p>

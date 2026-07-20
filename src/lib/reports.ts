@@ -1,18 +1,19 @@
 import type { EntryRow } from "@/lib/entries";
 
 export interface OverallStats {
-  totalEntries: number;
   totalFeeds: number;
-  avgMlPerFeed: number | null;
+  bottleFeeds: number;
+  breastFeeds: number;
   avgGapMinutes: number | null;
 }
 
 export interface DailyStat {
   dayKey: string;
   dayLabel: string;
-  feedCount: number;
+  bottleCount: number;
+  breastCount: number;
   totalMl: number;
-  avgMlPerFeed: number | null;
+  avgMlPerBottle: number | null;
   poopCount: number;
   peeCount: number;
 }
@@ -82,13 +83,11 @@ function localDayLabel(dayKey: string): string {
 }
 
 export function computeOverallStats(entries: EntryRow[]): OverallStats {
-  const feeds = entries.filter((entry) => entry.type === "feed");
-  const mlValues = feeds
-    .map((feed) => feed.amount_ml)
-    .filter((value): value is number => value != null);
-  const avgMlPerFeed = mlValues.length
-    ? mlValues.reduce((sum, value) => sum + value, 0) / mlValues.length
-    : null;
+  const feeds = entries.filter(
+    (entry) => entry.type === "feed" && (entry.bottle || entry.breast),
+  );
+  const bottleFeeds = feeds.filter((entry) => entry.bottle).length;
+  const breastFeeds = feeds.filter((entry) => entry.breast).length;
 
   const feedTimes = feeds
     .map((feed) => new Date(feed.timestamp).getTime())
@@ -104,9 +103,9 @@ export function computeOverallStats(entries: EntryRow[]): OverallStats {
   }
 
   return {
-    totalEntries: entries.length,
     totalFeeds: feeds.length,
-    avgMlPerFeed,
+    bottleFeeds,
+    breastFeeds,
     avgGapMinutes,
   };
 }
@@ -115,9 +114,10 @@ export function computeDailyStats(entries: EntryRow[]): DailyStat[] {
   interface Accumulator {
     dayKey: string;
     dayLabel: string;
-    feedCount: number;
+    bottleCount: number;
+    breastCount: number;
     totalMl: number;
-    feedsWithMl: number;
+    bottleFeedsWithMl: number;
     poopCount: number;
     peeCount: number;
   }
@@ -129,18 +129,24 @@ export function computeDailyStats(entries: EntryRow[]): DailyStat[] {
     const day = days.get(dayKey) ?? {
       dayKey,
       dayLabel: localDayLabel(dayKey),
-      feedCount: 0,
+      bottleCount: 0,
+      breastCount: 0,
       totalMl: 0,
-      feedsWithMl: 0,
+      bottleFeedsWithMl: 0,
       poopCount: 0,
       peeCount: 0,
     };
 
     if (entry.type === "feed") {
-      day.feedCount += 1;
-      if (entry.amount_ml != null) {
-        day.totalMl += entry.amount_ml;
-        day.feedsWithMl += 1;
+      if (entry.bottle) {
+        day.bottleCount += 1;
+        if (entry.amount_ml != null) {
+          day.totalMl += entry.amount_ml;
+          day.bottleFeedsWithMl += 1;
+        }
+      }
+      if (entry.breast) {
+        day.breastCount += 1;
       }
     } else if (entry.type === "poop") {
       day.poopCount += 1;
@@ -152,9 +158,9 @@ export function computeDailyStats(entries: EntryRow[]): DailyStat[] {
   }
 
   return Array.from(days.values())
-    .map(({ feedsWithMl, ...day }) => ({
+    .map(({ bottleFeedsWithMl, ...day }) => ({
       ...day,
-      avgMlPerFeed: feedsWithMl > 0 ? day.totalMl / feedsWithMl : null,
+      avgMlPerBottle: bottleFeedsWithMl > 0 ? day.totalMl / bottleFeedsWithMl : null,
     }))
     .sort((a, b) => a.dayKey.localeCompare(b.dayKey));
 }

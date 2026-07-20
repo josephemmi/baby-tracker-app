@@ -12,6 +12,10 @@ interface BarChartProps {
   data: BarChartDatum[];
   valueFormatter?: (value: number) => string;
   color?: "amber" | "sage";
+  // Marks specific bars (by index) with a small indicator under the day
+  // label — used for "also had a breastfeed" on the bottle-only mL chart.
+  indicators?: boolean[];
+  indicatorLabel?: string;
 }
 
 const BAR_COLOR = {
@@ -24,6 +28,8 @@ export function BarChart({
   data,
   valueFormatter = (value) => String(value),
   color = "sage",
+  indicators,
+  indicatorLabel = "Also breastfed",
 }: BarChartProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const max = Math.max(1, ...data.map((d) => d.value));
@@ -67,6 +73,16 @@ export function BarChart({
             className="flex-1 truncate text-center"
           >
             {d.label}
+            {indicators?.[index] && (
+              <span
+                className="ml-0.5"
+                role="img"
+                aria-label={indicatorLabel}
+                title={indicatorLabel}
+              >
+                🤱
+              </span>
+            )}
           </div>
         ))}
       </div>

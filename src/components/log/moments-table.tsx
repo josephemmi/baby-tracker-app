@@ -18,7 +18,14 @@ interface MomentsTableProps {
   // used on Home. Timeline omits these and stays read-only.
   editable?: boolean;
   members?: Member[];
+  // Poo/Pee — each is its own entry row, toggling inserts/deletes it.
   onToggleType?: (moment: Moment, type: EntryType, checked: boolean) => void;
+  // Bottle/Breast — independent sub-flags on the same feed-type row.
+  onToggleFeedFlag?: (
+    moment: Moment,
+    flag: "bottle" | "breast",
+    checked: boolean,
+  ) => void;
   onTimeCommit?: (moment: Moment, value: string) => void;
   onNotesCommit?: (moment: Moment, value: string) => void;
   onAmountCommit?: (moment: Moment, value: string) => void;
@@ -73,16 +80,35 @@ const TYPE_STYLES: Record<
   },
 };
 
-function EditableTypeCheckbox({
-  type,
+// Bottle/Breast are sub-flags on a feed-type row, not their own EntryType —
+// same tick/checkmark treatment as Poo/Pee, just color-coded differently.
+const FEED_FLAG_STYLES: Record<
+  "bottle" | "breast",
+  { border: string; bg: string; check: string; label: string }
+> = {
+  bottle: {
+    border: "border-amber",
+    bg: "bg-amber-soft",
+    check: "text-amber",
+    label: "Bottle",
+  },
+  breast: {
+    border: "border-rose",
+    bg: "bg-rose-soft",
+    check: "text-rose",
+    label: "Breast",
+  },
+};
+
+function EditableCheckbox({
+  style,
   checked,
   onChange,
 }: {
-  type: EntryType;
+  style: { border: string; bg: string; check: string; label: string };
   checked: boolean;
   onChange: (checked: boolean) => void;
 }) {
-  const c = TYPE_STYLES[type];
   return (
     <label className="flex cursor-pointer items-center justify-center">
       <span className="relative inline-flex h-[30px] w-[30px] shrink-0 items-center justify-center">
@@ -90,17 +116,17 @@ function EditableTypeCheckbox({
           type="checkbox"
           checked={checked}
           onChange={(e) => onChange(e.target.checked)}
-          aria-label={c.label}
+          aria-label={style.label}
           className="peer absolute inset-0 h-full w-full cursor-pointer opacity-0"
         />
         <span
           className={`pointer-events-none flex h-full w-full items-center justify-center rounded-[8px] border-[1.5px] transition-colors duration-100 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-1 peer-focus-visible:outline-sage ${
             checked
-              ? `${c.border} ${c.bg}`
+              ? `${style.border} ${style.bg}`
               : "border-line-strong bg-transparent"
           }`}
         >
-          {checked && <Check colorClass={c.check} />}
+          {checked && <Check colorClass={style.check} />}
         </span>
       </span>
     </label>
@@ -116,6 +142,7 @@ export function MomentsTable({
   editable = false,
   members = [],
   onToggleType,
+  onToggleFeedFlag,
   onTimeCommit,
   onNotesCommit,
   onAmountCommit,
@@ -126,12 +153,13 @@ export function MomentsTable({
 }: MomentsTableProps) {
   return (
     <div className="overflow-x-auto rounded-[10px] border border-line bg-paper-raised shadow-card">
-      <table className="w-full min-w-[720px] border-collapse text-[13.5px]">
+      <table className="w-full min-w-[820px] border-collapse text-[13.5px]">
         <thead>
           <tr className="border-b border-line-strong text-left text-[11px] font-bold tracking-[0.05em] text-ink-soft uppercase">
             {selectMode && <th className="w-10 px-3 py-2.5" aria-hidden="true" />}
             <th className="px-3 py-2.5">Time</th>
-            <th className="px-3 py-2.5">Feed</th>
+            <th className="px-3 py-2.5">Breast</th>
+            <th className="px-3 py-2.5">Bottle</th>
             <th className="px-3 py-2.5">mL</th>
             <th className="px-3 py-2.5">Poo</th>
             <th className="px-3 py-2.5">Pee</th>
@@ -143,7 +171,7 @@ export function MomentsTable({
           {moments.length === 0 ? (
             <tr>
               <td
-                colSpan={selectMode ? 8 : 7}
+                colSpan={selectMode ? 9 : 8}
                 className="px-3 py-6 text-center text-ink-soft"
               >
                 {emptyMessage}
@@ -205,15 +233,28 @@ export function MomentsTable({
                   </td>
                   <td className="px-3 py-2.5">
                     {editable ? (
-                      <EditableTypeCheckbox
-                        type="feed"
-                        checked={!!moment.feed}
+                      <EditableCheckbox
+                        style={FEED_FLAG_STYLES.breast}
+                        checked={!!moment.feed?.breast}
                         onChange={(checked) =>
-                          onToggleType?.(moment, "feed", checked)
+                          onToggleFeedFlag?.(moment, "breast", checked)
                         }
                       />
                     ) : (
-                      moment.feed && <Check colorClass="text-amber" />
+                      moment.feed?.breast && <Check colorClass="text-rose" />
+                    )}
+                  </td>
+                  <td className="px-3 py-2.5">
+                    {editable ? (
+                      <EditableCheckbox
+                        style={FEED_FLAG_STYLES.bottle}
+                        checked={!!moment.feed?.bottle}
+                        onChange={(checked) =>
+                          onToggleFeedFlag?.(moment, "bottle", checked)
+                        }
+                      />
+                    ) : (
+                      moment.feed?.bottle && <Check colorClass="text-amber" />
                     )}
                   </td>
                   <td className="px-3 py-2.5 tabular-nums text-ink">
@@ -225,7 +266,7 @@ export function MomentsTable({
                           step="0.1"
                           min="0"
                           defaultValue={moment.feed?.amount_ml ?? ""}
-                          disabled={!moment.feed}
+                          disabled={!moment.feed?.bottle}
                           onBlur={(e) =>
                             onAmountCommit?.(moment, e.target.value)
                           }
@@ -241,8 +282,8 @@ export function MomentsTable({
                   </td>
                   <td className="px-3 py-2.5">
                     {editable ? (
-                      <EditableTypeCheckbox
-                        type="poop"
+                      <EditableCheckbox
+                        style={TYPE_STYLES.poop}
                         checked={!!moment.poop}
                         onChange={(checked) =>
                           onToggleType?.(moment, "poop", checked)
@@ -254,8 +295,8 @@ export function MomentsTable({
                   </td>
                   <td className="px-3 py-2.5">
                     {editable ? (
-                      <EditableTypeCheckbox
-                        type="pee"
+                      <EditableCheckbox
+                        style={TYPE_STYLES.pee}
                         checked={!!moment.pee}
                         onChange={(checked) =>
                           onToggleType?.(moment, "pee", checked)

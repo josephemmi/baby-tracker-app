@@ -185,6 +185,95 @@ export function LogMatrix({
     }
   }
 
+  async function handleToggleFeedFlag(
+    moment: Moment,
+    flag: "bottle" | "breast",
+    checked: boolean,
+  ) {
+    setError(null);
+    const supabase = createClient();
+
+    if (!moment.feed) {
+      // No feed row on this moment yet — checking Bottle or Breast creates one.
+      if (!checked) return;
+
+      const { data, error } = await supabase
+        .from("entries")
+        .insert({
+          baby_id: babyId,
+          logged_by: moment.loggedBy,
+          type: "feed",
+          timestamp: moment.timestamp,
+          notes: moment.notes,
+          amount_ml: null,
+          bottle: flag === "bottle",
+          breast: flag === "breast",
+        })
+        .select()
+        .single();
+
+      if (error) {
+        setError(error.message);
+        return;
+      }
+
+      setEntries((prev) => [data, ...prev]);
+      if (moment.isDraft) {
+        setDrafts((prev) => prev.filter((d) => d.key !== moment.key));
+      }
+      return;
+    }
+
+    const feedId = moment.feed.id;
+    const otherFlag = flag === "bottle" ? "breast" : "bottle";
+    const otherValue = moment.feed[otherFlag];
+
+    if (!checked && !otherValue) {
+      // Unchecking the only active flag — remove the feed row entirely.
+      const { error } = await supabase.from("entries").delete().eq("id", feedId);
+
+      if (error) {
+        setError(error.message);
+        return;
+      }
+
+      setEntries((prev) => prev.filter((entry) => entry.id !== feedId));
+
+      const remainingIds = siblingIds(moment).filter((id) => id !== feedId);
+      if (remainingIds.length === 0) {
+        setDrafts((prev) => [
+          {
+            key: `draft-${crypto.randomUUID()}`,
+            timestamp: moment.timestamp,
+            loggedBy: moment.loggedBy,
+            notes: moment.notes,
+            isDraft: true,
+          },
+          ...prev,
+        ]);
+      }
+      return;
+    }
+
+    const updates: { bottle?: boolean; breast?: boolean; amount_ml?: null } = {
+      [flag]: checked,
+    };
+    if (flag === "bottle" && !checked) {
+      updates.amount_ml = null;
+    }
+
+    const { error } = await supabase.from("entries").update(updates).eq("id", feedId);
+
+    if (error) {
+      setError(error.message);
+      return;
+    }
+
+    setEntries((prev) =>
+      prev.map((entry) => (entry.id === feedId ? { ...entry, ...updates } : entry)),
+    );
+  }
+
   async function handleTimeCommit(moment: Moment, value: string) {
     if (!value) return;
     const timestamp = new Date(value).toISOString();
@@ -413,6 +502,7 @@ export function LogMatrix({
         editable
         members={members}
         onToggleType={handleToggleType}
+        onToggleFeedFlag={handleToggleFeedFlag}
         onTimeCommit={handleTimeCommit}
         onNotesCommit={handleNotesCommit}
         onAmountCommit={handleAmountCommit}

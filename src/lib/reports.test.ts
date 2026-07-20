@@ -10,54 +10,41 @@ import {
 import { makeEntry } from "@/lib/test-helpers";
 
 describe("computeOverallStats", () => {
-  it("counts total entries and feeds", () => {
+  it("counts total feeds as bottle OR breast (union, not sum)", () => {
     const entries = [
-      makeEntry({ type: "feed" }),
+      makeEntry({ type: "feed", bottle: true }),
+      makeEntry({ type: "feed", breast: true }),
+      makeEntry({ type: "feed", bottle: true, breast: true }), // topped up after breastfeeding
       makeEntry({ type: "pee" }),
       makeEntry({ type: "poop" }),
     ];
 
     const stats = computeOverallStats(entries);
-    expect(stats.totalEntries).toBe(3);
-    expect(stats.totalFeeds).toBe(1);
-  });
-
-  it("averages mL only over feeds that have an amount logged", () => {
-    const entries = [
-      makeEntry({ type: "feed", amount_ml: 30 }),
-      makeEntry({ type: "feed", amount_ml: 60 }),
-      makeEntry({ type: "feed", amount_ml: null }), // e.g. "super not hungry" entry
-    ];
-
-    // (30 + 60) / 2, not / 3 — an unlogged amount shouldn't drag the average down.
-    expect(computeOverallStats(entries).avgMlPerFeed).toBe(45);
-  });
-
-  it("returns null avgMlPerFeed when no feed has an amount", () => {
-    const entries = [makeEntry({ type: "feed", amount_ml: null })];
-    expect(computeOverallStats(entries).avgMlPerFeed).toBeNull();
+    expect(stats.totalFeeds).toBe(3);
+    expect(stats.bottleFeeds).toBe(2);
+    expect(stats.breastFeeds).toBe(2);
   });
 
   it("computes average gap between consecutive feeds in minutes", () => {
     const entries = [
-      makeEntry({ type: "feed", timestamp: "2026-07-16T08:00:00.000Z" }),
-      makeEntry({ type: "feed", timestamp: "2026-07-16T10:00:00.000Z" }), // +120m
-      makeEntry({ type: "feed", timestamp: "2026-07-16T13:00:00.000Z" }), // +180m
+      makeEntry({ type: "feed", bottle: true, timestamp: "2026-07-16T08:00:00.000Z" }),
+      makeEntry({ type: "feed", breast: true, timestamp: "2026-07-16T10:00:00.000Z" }), // +120m
+      makeEntry({ type: "feed", bottle: true, timestamp: "2026-07-16T13:00:00.000Z" }), // +180m
     ];
 
     expect(computeOverallStats(entries).avgGapMinutes).toBe(150);
   });
 
   it("returns null avgGapMinutes with fewer than two feeds", () => {
-    const entries = [makeEntry({ type: "feed" })];
+    const entries = [makeEntry({ type: "feed", bottle: true })];
     expect(computeOverallStats(entries).avgGapMinutes).toBeNull();
   });
 
   it("gap calculation is order-independent (sorts by time first)", () => {
     const entries = [
-      makeEntry({ type: "feed", timestamp: "2026-07-16T13:00:00.000Z" }),
-      makeEntry({ type: "feed", timestamp: "2026-07-16T08:00:00.000Z" }),
-      makeEntry({ type: "feed", timestamp: "2026-07-16T10:00:00.000Z" }),
+      makeEntry({ type: "feed", bottle: true, timestamp: "2026-07-16T13:00:00.000Z" }),
+      makeEntry({ type: "feed", bottle: true, timestamp: "2026-07-16T08:00:00.000Z" }),
+      makeEntry({ type: "feed", bottle: true, timestamp: "2026-07-16T10:00:00.000Z" }),
     ];
 
     expect(computeOverallStats(entries).avgGapMinutes).toBe(150);
@@ -65,10 +52,10 @@ describe("computeOverallStats", () => {
 });
 
 describe("computeDailyStats", () => {
-  it("buckets entries by local calendar day and counts each type", () => {
+  it("buckets entries by local calendar day and counts bottle/breast separately", () => {
     const entries = [
-      makeEntry({ type: "feed", timestamp: "2026-07-16T08:00:00.000Z", amount_ml: 30 }),
-      makeEntry({ type: "feed", timestamp: "2026-07-16T14:00:00.000Z", amount_ml: 50 }),
+      makeEntry({ type: "feed", bottle: true, timestamp: "2026-07-16T08:00:00.000Z", amount_ml: 30 }),
+      makeEntry({ type: "feed", breast: true, timestamp: "2026-07-16T14:00:00.000Z" }),
       makeEntry({ type: "pee", timestamp: "2026-07-16T09:00:00.000Z" }),
       makeEntry({ type: "poop", timestamp: "2026-07-17T09:00:00.000Z" }),
     ];
@@ -77,36 +64,54 @@ describe("computeDailyStats", () => {
     expect(daily).toHaveLength(2);
 
     const day16 = daily.find((d) => d.dayKey === "2026-07-16");
-    expect(day16?.feedCount).toBe(2);
-    expect(day16?.totalMl).toBe(80);
-    expect(day16?.avgMlPerFeed).toBe(40);
+    expect(day16?.bottleCount).toBe(1);
+    expect(day16?.breastCount).toBe(1);
+    expect(day16?.totalMl).toBe(30);
+    expect(day16?.avgMlPerBottle).toBe(30);
     expect(day16?.peeCount).toBe(1);
     expect(day16?.poopCount).toBe(0);
 
     const day17 = daily.find((d) => d.dayKey === "2026-07-17");
     expect(day17?.poopCount).toBe(1);
-    expect(day17?.feedCount).toBe(0);
-    expect(day17?.avgMlPerFeed).toBeNull();
+    expect(day17?.bottleCount).toBe(0);
+    expect(day17?.avgMlPerBottle).toBeNull();
   });
 
   it("sorts days ascending (oldest first) for chronological charting", () => {
     const entries = [
-      makeEntry({ type: "feed", timestamp: "2026-07-17T08:00:00.000Z" }),
-      makeEntry({ type: "feed", timestamp: "2026-07-15T08:00:00.000Z" }),
-      makeEntry({ type: "feed", timestamp: "2026-07-16T08:00:00.000Z" }),
+      makeEntry({ type: "feed", bottle: true, timestamp: "2026-07-17T08:00:00.000Z" }),
+      makeEntry({ type: "feed", bottle: true, timestamp: "2026-07-15T08:00:00.000Z" }),
+      makeEntry({ type: "feed", bottle: true, timestamp: "2026-07-16T08:00:00.000Z" }),
     ];
 
     const dayKeys = computeDailyStats(entries).map((d) => d.dayKey);
     expect(dayKeys).toEqual(["2026-07-15", "2026-07-16", "2026-07-17"]);
   });
 
-  it("does not let a day's avg mL/feed be dragged down by feeds with no amount", () => {
+  it("does not let a day's avg mL/bottle be dragged down by bottle feeds with no amount", () => {
     const entries = [
-      makeEntry({ type: "feed", timestamp: "2026-07-16T08:00:00.000Z", amount_ml: 40 }),
-      makeEntry({ type: "feed", timestamp: "2026-07-16T14:00:00.000Z", amount_ml: null }),
+      makeEntry({ type: "feed", bottle: true, timestamp: "2026-07-16T08:00:00.000Z", amount_ml: 40 }),
+      makeEntry({ type: "feed", bottle: true, timestamp: "2026-07-16T14:00:00.000Z", amount_ml: null }),
     ];
 
-    expect(computeDailyStats(entries)[0].avgMlPerFeed).toBe(40);
+    expect(computeDailyStats(entries)[0].avgMlPerBottle).toBe(40);
+  });
+
+  it("counts a row with both bottle and breast toward both counts", () => {
+    const entries = [
+      makeEntry({
+        type: "feed",
+        bottle: true,
+        breast: true,
+        amount_ml: 20,
+        timestamp: "2026-07-16T08:00:00.000Z",
+      }),
+    ];
+
+    const day = computeDailyStats(entries)[0];
+    expect(day.bottleCount).toBe(1);
+    expect(day.breastCount).toBe(1);
+    expect(day.totalMl).toBe(20);
   });
 });
 
