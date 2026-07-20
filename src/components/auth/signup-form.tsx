@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { HouseholdChoiceFields } from "@/components/onboarding/household-choice-fields";
 import { GoogleOAuthButton } from "@/components/auth/google-oauth-button";
@@ -13,12 +14,17 @@ import { PrimaryButton } from "@/components/ui/primary-button";
 type Mode = "create" | "join";
 
 export function SignupForm() {
+  const searchParams = useSearchParams();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState<Mode>("create");
+  const [mode, setMode] = useState<Mode>(
+    searchParams.get("mode") === "join" ? "join" : "create",
+  );
   const [householdName, setHouseholdName] = useState("");
-  const [inviteCode, setInviteCode] = useState("");
+  const [inviteCode, setInviteCode] = useState(
+    () => searchParams.get("code") ?? "",
+  );
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [checkEmail, setCheckEmail] = useState(false);

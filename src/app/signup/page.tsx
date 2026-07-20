@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { getCurrentUserAndProfile } from "@/lib/supabase/queries";
 import { SignupForm } from "@/components/auth/signup-form";
 
@@ -10,7 +11,9 @@ export default async function SignupPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-paper p-8">
-      <SignupForm />
+      <Suspense>
+        <SignupForm />
+      </Suspense>
     </div>
   );
 }

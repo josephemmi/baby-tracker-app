@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { InviteShareButton } from "@/components/layout/invite-share-button";
 import { BrandMark } from "@/components/brand/brand-mark";
 import { initials, personColor } from "@/lib/person-colors";
 
@@ -41,10 +42,11 @@ export function AppHeader({
             >
               {initials(profileName)}
             </span>
-            <span>
-              {profileName} · Invite code:{" "}
-              <span className="tabular-nums">{inviteCode}</span>
-            </span>
+            <span>{profileName} ·</span>
+            <InviteShareButton
+              householdName={householdName}
+              inviteCode={inviteCode}
+            />
           </div>
         </div>
       </div>
