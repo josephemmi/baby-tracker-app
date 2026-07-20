@@ -9,6 +9,8 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-07-20
+
 ### Added
 - Feed logging now splits into independent Bottle and Breast toggles
   (previously a single "Feed" checkbox) — either, both, or neither can be
