@@ -45,6 +45,8 @@ export function LogMatrix({
   const [drafts, setDrafts] = useState<Moment[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [flashKey, setFlashKey] = useState<string | null>(null);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
 
   const memberNames = useMemo(
     () => Object.fromEntries(members.map((member) => [member.id, member.name])),
@@ -305,6 +307,64 @@ export function LogMatrix({
     );
   }
 
+  function toggleSelectMode() {
+    setSelectMode((prev) => !prev);
+    setSelectedKeys(new Set());
+  }
+
+  function toggleSelected(momentKey: string) {
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(momentKey)) {
+        next.delete(momentKey);
+      } else {
+        next.add(momentKey);
+      }
+      return next;
+    });
+  }
+
+  async function handleDeleteSelected() {
+    if (selectedKeys.size === 0) return;
+
+    const confirmed = window.confirm(
+      `Delete ${selectedKeys.size} logged moment${selectedKeys.size > 1 ? "s" : ""}? This can't be undone.`,
+    );
+    if (!confirmed) return;
+
+    const selectedMoments = moments.filter((moment) =>
+      selectedKeys.has(moment.key),
+    );
+    const idsToDelete = selectedMoments.flatMap(siblingIds);
+    const draftKeysToRemove = new Set(
+      selectedMoments.filter((moment) => moment.isDraft).map((m) => m.key),
+    );
+
+    if (idsToDelete.length > 0) {
+      setError(null);
+      const { error } = await createClient()
+        .from("entries")
+        .delete()
+        .in("id", idsToDelete);
+
+      if (error) {
+        setError(error.message);
+        return;
+      }
+
+      setEntries((prev) =>
+        prev.filter((entry) => !idsToDelete.includes(entry.id)),
+      );
+    }
+
+    if (draftKeysToRemove.size > 0) {
+      setDrafts((prev) => prev.filter((d) => !draftKeysToRemove.has(d.key)));
+    }
+
+    setSelectedKeys(new Set());
+    setSelectMode(false);
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <GlanceCards entries={entries} />
@@ -313,7 +373,36 @@ export function LogMatrix({
         <PrimaryButton type="button" onClick={handleLogMoment}>
           Log a moment
         </PrimaryButton>
-        {error && <p className="text-sm text-terracotta">{error}</p>}
+        <div className="flex items-center gap-2">
+          {error && <p className="text-sm text-terracotta">{error}</p>}
+          {selectMode ? (
+            <>
+              <button
+                type="button"
+                onClick={handleDeleteSelected}
+                disabled={selectedKeys.size === 0}
+                className="rounded-full border border-terracotta/40 px-3 py-1.5 text-sm font-bold text-terracotta transition-colors hover:bg-terracotta-soft disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Delete{selectedKeys.size > 0 ? ` (${selectedKeys.size})` : ""}
+              </button>
+              <button
+                type="button"
+                onClick={toggleSelectMode}
+                className="rounded-full border border-line-strong bg-paper-raised px-3 py-1.5 text-sm font-bold text-ink transition-colors hover:bg-paper"
+              >
+                Done
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={toggleSelectMode}
+              className="rounded-full border border-line-strong bg-paper-raised px-3 py-1.5 text-sm font-bold text-ink transition-colors hover:bg-paper"
+            >
+              Edit
+            </button>
+          )}
+        </div>
       </div>
 
       <MomentsTable
@@ -328,6 +417,9 @@ export function LogMatrix({
         onNotesCommit={handleNotesCommit}
         onAmountCommit={handleAmountCommit}
         onLoggedByCycle={handleLoggedByCycle}
+        selectMode={selectMode}
+        selectedKeys={selectedKeys}
+        onToggleSelect={toggleSelected}
       />
 
       {hasMoreEntries && (

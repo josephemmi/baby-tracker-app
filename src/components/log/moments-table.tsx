@@ -23,6 +23,11 @@ interface MomentsTableProps {
   onNotesCommit?: (moment: Moment, value: string) => void;
   onAmountCommit?: (moment: Moment, value: string) => void;
   onLoggedByCycle?: (moment: Moment) => void;
+  // Reveals a leading row-select checkbox column for bulk delete — the
+  // field cells stay editable regardless, this is purely for selection.
+  selectMode?: boolean;
+  selectedKeys?: Set<string>;
+  onToggleSelect?: (momentKey: string) => void;
 }
 
 function Check({ colorClass }: { colorClass: string }) {
@@ -115,12 +120,16 @@ export function MomentsTable({
   onNotesCommit,
   onAmountCommit,
   onLoggedByCycle,
+  selectMode = false,
+  selectedKeys,
+  onToggleSelect,
 }: MomentsTableProps) {
   return (
     <div className="overflow-x-auto rounded-[10px] border border-line bg-paper-raised shadow-card">
       <table className="w-full min-w-[720px] border-collapse text-[13.5px]">
         <thead>
           <tr className="border-b border-line-strong text-left text-[11px] font-bold tracking-[0.05em] text-ink-soft uppercase">
+            {selectMode && <th className="w-10 px-3 py-2.5" aria-hidden="true" />}
             <th className="px-3 py-2.5">Time</th>
             <th className="px-3 py-2.5">Feed</th>
             <th className="px-3 py-2.5">mL</th>
@@ -133,7 +142,10 @@ export function MomentsTable({
         <tbody>
           {moments.length === 0 ? (
             <tr>
-              <td colSpan={7} className="px-3 py-6 text-center text-ink-soft">
+              <td
+                colSpan={selectMode ? 8 : 7}
+                className="px-3 py-6 text-center text-ink-soft"
+              >
                 {emptyMessage}
               </td>
             </tr>
@@ -153,6 +165,17 @@ export function MomentsTable({
                     moment.key === flashMomentKey ? "row-flash" : ""
                   }`}
                 >
+                  {selectMode && (
+                    <td className="px-3 py-2.5">
+                      <input
+                        type="checkbox"
+                        checked={selectedKeys?.has(moment.key) ?? false}
+                        onChange={() => onToggleSelect?.(moment.key)}
+                        aria-label="Select row"
+                        className="h-4 w-4 accent-sage"
+                      />
+                    </td>
+                  )}
                   <td className="px-3 py-2.5 tabular-nums text-ink">
                     {editable ? (
                       <input
