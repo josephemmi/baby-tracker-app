@@ -6,16 +6,16 @@ import {
   type EntryRow,
   type Moment,
 } from "@/lib/entries";
-import type { EntryType } from "@/lib/supabase/database.types";
 import { MomentsTable } from "@/components/log/moments-table";
 
-type Filter = "all" | EntryType;
+type Filter = "all" | "bottle" | "breast" | "poop" | "pee";
 
 const FILTERS: { value: Filter; label: string }[] = [
   { value: "all", label: "All" },
-  { value: "feed", label: "Feed" },
-  { value: "pee", label: "Pee" },
+  { value: "bottle", label: "Bottle" },
+  { value: "breast", label: "Breast" },
   { value: "poop", label: "Poo" },
+  { value: "pee", label: "Pee" },
 ];
 
 interface TimelineViewProps {
@@ -28,11 +28,12 @@ export function TimelineView({ entries, memberNames }: TimelineViewProps) {
 
   const moments = useMemo(() => groupEntriesIntoMoments(entries), [entries]);
 
-  const filteredMoments = useMemo(
-    () =>
-      filter === "all" ? moments : moments.filter((moment) => moment[filter]),
-    [moments, filter],
-  );
+  const filteredMoments = useMemo(() => {
+    if (filter === "all") return moments;
+    if (filter === "bottle") return moments.filter((m) => m.feed?.bottle);
+    if (filter === "breast") return moments.filter((m) => m.feed?.breast);
+    return moments.filter((moment) => moment[filter]);
+  }, [moments, filter]);
 
   const groupedByDay = useMemo(() => {
     const groups = new Map<string, Moment[]>();
