@@ -9,6 +9,8 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-07-21
+
 ### Added
 - Phone-width (≤640px) card layout for Home and Timeline, replacing the
   horizontally-scrolling table below the existing breakpoint — same fields
