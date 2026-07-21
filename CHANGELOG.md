@@ -9,6 +9,8 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-07-21
+
 ### Added
 - Pump tracking for Jen — a Pump chip on Home and Timeline (desktop table
   and mobile card), logged as its own independent entry, with or without
