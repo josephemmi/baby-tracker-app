@@ -9,6 +9,20 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+### Added
+- Pump tracking for Jen — a Pump chip on Home and Timeline (desktop table
+  and mobile card), logged as its own independent entry, with or without
+  an accompanying feed at the same moment
+- Reports: Pump sessions and Total pumped stat cards, a pumped-mL-by-day
+  bar chart, and a Pumped mL column in the daily summary table
+- Timeline: a Pump filter chip alongside Bottle/Breast/Poo/Pee
+
+### Changed
+- `entries` schema: `type` now additionally allows `'pump'` — additive
+  only, the existing `type`/`amount_ml` columns and all historical rows
+  are untouched. Pump reuses `amount_ml` for pumped volume rather than a
+  new column.
+
 ## [1.3.0] - 2026-07-21
 
 ### Added

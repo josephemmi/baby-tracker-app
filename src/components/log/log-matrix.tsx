@@ -29,9 +29,12 @@ interface LogMatrixProps {
 }
 
 function siblingIds(moment: Moment): string[] {
-  return [moment.feed?.id, moment.pee?.id, moment.poop?.id].filter(
-    (id): id is string => !!id,
-  );
+  return [
+    moment.feed?.id,
+    moment.pee?.id,
+    moment.poop?.id,
+    moment.pump?.id,
+  ].filter((id): id is string => !!id);
 }
 
 export function LogMatrix({
@@ -361,6 +364,30 @@ export function LogMatrix({
     );
   }
 
+  async function handlePumpAmountCommit(moment: Moment, value: string) {
+    const pumpId = moment.pump?.id;
+    if (!pumpId) return;
+    const amount_ml = value.trim() ? Number(value) : null;
+    if (amount_ml === moment.pump?.amount_ml) return;
+
+    setError(null);
+    const { error } = await createClient()
+      .from("entries")
+      .update({ amount_ml })
+      .eq("id", pumpId);
+
+    if (error) {
+      setError(error.message);
+      return;
+    }
+
+    setEntries((prev) =>
+      prev.map((entry) =>
+        entry.id === pumpId ? { ...entry, amount_ml } : entry,
+      ),
+    );
+  }
+
   async function handleLoggedByCycle(moment: Moment) {
     if (members.length === 0) return;
     const currentIndex = members.findIndex((m) => m.id === moment.loggedBy);
@@ -520,6 +547,7 @@ export function LogMatrix({
         onTimeCommit={handleTimeCommit}
         onNotesCommit={handleNotesCommit}
         onAmountCommit={handleAmountCommit}
+        onPumpAmountCommit={handlePumpAmountCommit}
         onLoggedByCycle={handleLoggedByCycle}
         selectMode={selectMode}
         selectedKeys={selectedKeys}

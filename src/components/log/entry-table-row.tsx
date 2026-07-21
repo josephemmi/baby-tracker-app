@@ -2,7 +2,14 @@ import type { Moment } from "@/lib/entries";
 import type { EntryType } from "@/lib/supabase/database.types";
 import { toDatetimeLocalValue } from "@/lib/entries";
 import { initials, personColor } from "@/lib/person-colors";
-import { Check, EditableCheckbox, TYPE_STYLES, FEED_FLAG_STYLES } from "@/components/log/entry-styles";
+import {
+  Check,
+  EditableCheckbox,
+  TYPE_STYLES,
+  FEED_FLAG_STYLES,
+  PumpPill,
+  PumpPillStatic,
+} from "@/components/log/entry-styles";
 
 interface Member {
   id: string;
@@ -19,6 +26,7 @@ export interface EntryRowHandlers {
   onTimeCommit?: (moment: Moment, value: string) => void;
   onNotesCommit?: (moment: Moment, value: string) => void;
   onAmountCommit?: (moment: Moment, value: string) => void;
+  onPumpAmountCommit?: (moment: Moment, value: string) => void;
   onLoggedByCycle?: (moment: Moment) => void;
 }
 
@@ -52,6 +60,7 @@ export function EntryTableRow({
   onTimeCommit,
   onNotesCommit,
   onAmountCommit,
+  onPumpAmountCommit,
   onLoggedByCycle,
 }: EntryTableRowProps) {
   const loggedByIndex = members.findIndex((m) => m.id === moment.loggedBy);
@@ -160,6 +169,57 @@ export function EntryTableRow({
           moment.pee && <Check colorClass="text-brand-blue" />
         )}
       </td>
+      {moment.pump ? (
+        <>
+          <td className="border-l-[1.5px] border-dashed border-line-strong px-3 py-2.5 text-center">
+            {editable ? (
+              <PumpPill
+                checked
+                onChange={(checked) => onToggleType?.(moment, "pump", checked)}
+              />
+            ) : (
+              <PumpPillStatic checked />
+            )}
+          </td>
+          <td className="border-r-[1.5px] border-dashed border-line-strong px-3 py-2.5 tabular-nums text-ink">
+            {editable ? (
+              <div className="flex items-center justify-center gap-1">
+                <span aria-hidden="true" className="invisible text-[11px] text-ink-soft">
+                  ml
+                </span>
+                <input
+                  key={`pump-ml-${moment.key}-${moment.pump.amount_ml ?? ""}`}
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  placeholder="—"
+                  defaultValue={moment.pump.amount_ml ?? ""}
+                  onBlur={(e) => onPumpAmountCommit?.(moment, e.target.value)}
+                  className="w-14 rounded-[10px] border border-line-strong bg-paper-raised px-2 py-1 text-right text-[13.5px] tabular-nums text-ink focus:border-plum focus:outline focus:outline-2 focus:outline-offset-1 focus:outline-plum"
+                />
+                <span className="text-[11px] text-ink-soft">ml</span>
+              </div>
+            ) : (
+              <div className="text-center">{moment.pump.amount_ml ?? ""}</div>
+            )}
+          </td>
+        </>
+      ) : (
+        <td
+          colSpan={2}
+          className="border-x-[1.5px] border-dashed border-line-strong px-3 py-2.5 text-center"
+        >
+          {editable ? (
+            <PumpPill
+              checked={false}
+              fullWidth
+              onChange={(checked) => onToggleType?.(moment, "pump", checked)}
+            />
+          ) : (
+            <PumpPillStatic checked={false} fullWidth />
+          )}
+        </td>
+      )}
       <td className="px-3 py-2.5 text-ink">
         {editable ? (
           <input

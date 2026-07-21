@@ -5,6 +5,8 @@ export interface OverallStats {
   bottleFeeds: number;
   breastFeeds: number;
   avgGapMinutes: number | null;
+  pumpSessions: number;
+  totalPumpedMl: number;
 }
 
 export interface DailyStat {
@@ -16,6 +18,7 @@ export interface DailyStat {
   avgMlPerBottle: number | null;
   poopCount: number;
   peeCount: number;
+  pumpedMl: number;
 }
 
 function localDayKey(timestamp: string): string {
@@ -102,11 +105,16 @@ export function computeOverallStats(entries: EntryRow[]): OverallStats {
     avgGapMinutes = gaps.reduce((sum, gap) => sum + gap, 0) / gaps.length;
   }
 
+  const pumps = entries.filter((entry) => entry.type === "pump");
+  const totalPumpedMl = pumps.reduce((sum, entry) => sum + (entry.amount_ml ?? 0), 0);
+
   return {
     totalFeeds: feeds.length,
     bottleFeeds,
     breastFeeds,
     avgGapMinutes,
+    pumpSessions: pumps.length,
+    totalPumpedMl,
   };
 }
 
@@ -120,6 +128,7 @@ export function computeDailyStats(entries: EntryRow[]): DailyStat[] {
     bottleFeedsWithMl: number;
     poopCount: number;
     peeCount: number;
+    pumpedMl: number;
   }
 
   const days = new Map<string, Accumulator>();
@@ -135,6 +144,7 @@ export function computeDailyStats(entries: EntryRow[]): DailyStat[] {
       bottleFeedsWithMl: 0,
       poopCount: 0,
       peeCount: 0,
+      pumpedMl: 0,
     };
 
     if (entry.type === "feed") {
@@ -152,6 +162,10 @@ export function computeDailyStats(entries: EntryRow[]): DailyStat[] {
       day.poopCount += 1;
     } else if (entry.type === "pee") {
       day.peeCount += 1;
+    } else if (entry.type === "pump") {
+      if (entry.amount_ml != null) {
+        day.pumpedMl += entry.amount_ml;
+      }
     }
 
     days.set(dayKey, day);

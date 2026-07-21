@@ -11,7 +11,7 @@ interface BarChartProps {
   title: string;
   data: BarChartDatum[];
   valueFormatter?: (value: number) => string;
-  color?: "amber" | "sage";
+  color?: "amber" | "sage" | "plum";
   // Marks specific bars (by index) with a small indicator under the day
   // label — used for "also had a breastfeed" on the bottle-only mL chart.
   indicators?: boolean[];
@@ -21,6 +21,7 @@ interface BarChartProps {
 const BAR_COLOR = {
   amber: "bg-amber",
   sage: "bg-sage",
+  plum: "bg-plum",
 };
 
 export function BarChart({

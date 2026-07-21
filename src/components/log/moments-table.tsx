@@ -44,6 +44,7 @@ export function MomentsTable({
   onTimeCommit,
   onNotesCommit,
   onAmountCommit,
+  onPumpAmountCommit,
   onLoggedByCycle,
   selectMode = false,
   selectedKeys,
@@ -56,8 +57,15 @@ export function MomentsTable({
     onTimeCommit,
     onNotesCommit,
     onAmountCommit,
+    onPumpAmountCommit,
     onLoggedByCycle,
   };
+
+  // The Pump/mL header merges into one centered cell when nothing in this
+  // table has Pump on, and splits into two the instant any row does — scoped
+  // to whatever `moments` this instance renders (Home's whole list, or one
+  // Timeline day-group), matching each row's own per-moment merge/split.
+  const anyPumpOn = moments.some((moment) => !!moment.pump);
 
   if (moments.length === 0) {
     return (
@@ -71,7 +79,7 @@ export function MomentsTable({
     <>
       {/* iPad / desktop — table, hidden below the phone breakpoint */}
       <div className="hidden overflow-x-auto rounded-[10px] border border-line bg-paper-raised shadow-card sm:block">
-        <table className="w-full min-w-[820px] border-collapse text-[13.5px]">
+        <table className="w-full min-w-[960px] border-collapse text-[13.5px]">
           <thead>
             <tr className="border-b border-line-strong text-left text-[11px] font-bold tracking-[0.05em] text-ink-soft uppercase">
               {selectMode && <th className="w-10 px-3 py-2.5" aria-hidden="true" />}
@@ -81,6 +89,23 @@ export function MomentsTable({
               <th className="px-3 py-2.5">mL</th>
               <th className="px-3 py-2.5">Poo</th>
               <th className="px-3 py-2.5">Pee</th>
+              {anyPumpOn ? (
+                <>
+                  <th className="border-l-[1.5px] border-dashed border-line-strong px-3 py-2.5 text-center">
+                    Pump
+                  </th>
+                  <th className="border-r-[1.5px] border-dashed border-line-strong px-3 py-2.5 text-center">
+                    mL
+                  </th>
+                </>
+              ) : (
+                <th
+                  colSpan={2}
+                  className="border-x-[1.5px] border-dashed border-line-strong px-3 py-2.5 text-center"
+                >
+                  Pump
+                </th>
+              )}
               <th className="px-3 py-2.5">Notes</th>
               <th className="px-3 py-2.5">Logged by</th>
             </tr>

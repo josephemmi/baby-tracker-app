@@ -32,7 +32,9 @@ export function Check({
   );
 }
 
-export const TYPE_STYLES: Record<EntryType, CheckboxStyle> = {
+// Pump isn't part of this checkbox lineup — it's a bespoke chip (PumpPill
+// below), not an EditableCheckbox/EditableToggleTile, so it's excluded here.
+export const TYPE_STYLES: Record<Exclude<EntryType, "pump">, CheckboxStyle> = {
   feed: {
     border: "border-amber",
     bg: "bg-amber-soft",
@@ -161,5 +163,59 @@ export function StaticToggleTile({
         {style.label}
       </span>
     </div>
+  );
+}
+
+// Pump's control — a pill/chip, not a checkbox: off state has no checkmark
+// markup at all (genuinely absent, not hidden) so "Pump" centers on its
+// own; on state adds the checkmark before the label. Used compact/inline on
+// desktop and full-width/taller on mobile via the fullWidth/large props.
+const PUMP_ON = "border-plum bg-plum-soft text-plum";
+const PUMP_OFF = "border-line bg-transparent text-line-strong";
+
+export function PumpPill({
+  checked,
+  onChange,
+  fullWidth = false,
+  large = false,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  fullWidth?: boolean;
+  large?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-full border font-bold whitespace-nowrap transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-sage ${
+        large ? "px-3 py-3 text-[13px]" : "px-3 py-1.5 text-[11.5px]"
+      } ${fullWidth ? "w-full" : ""} ${checked ? PUMP_ON : PUMP_OFF}`}
+    >
+      {checked && <Check colorClass="text-plum" />}
+      Pump
+    </button>
+  );
+}
+
+// Non-interactive equivalent for read-only contexts (Timeline).
+export function PumpPillStatic({
+  checked,
+  fullWidth = false,
+  large = false,
+}: {
+  checked: boolean;
+  fullWidth?: boolean;
+  large?: boolean;
+}) {
+  return (
+    <span
+      className={`inline-flex items-center justify-center gap-1.5 rounded-full border font-bold whitespace-nowrap ${
+        large ? "px-3 py-3 text-[13px]" : "px-3 py-1.5 text-[11.5px]"
+      } ${fullWidth ? "w-full" : ""} ${checked ? PUMP_ON : PUMP_OFF}`}
+    >
+      {checked && <Check colorClass="text-plum" />}
+      Pump
+    </span>
   );
 }

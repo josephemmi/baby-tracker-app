@@ -6,7 +6,7 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
-export type EntryType = "feed" | "pee" | "poop";
+export type EntryType = "feed" | "pee" | "poop" | "pump";
 export type UserRole = "parent" | "caregiver";
 
 export interface Database {

@@ -6,6 +6,8 @@ import {
   StaticToggleTile,
   FEED_FLAG_STYLES,
   TYPE_STYLES,
+  PumpPill,
+  PumpPillStatic,
 } from "@/components/log/entry-styles";
 import type { EntryRowHandlers } from "@/components/log/entry-table-row";
 
@@ -60,6 +62,7 @@ export function EntryCard({
   onTimeCommit,
   onNotesCommit,
   onAmountCommit,
+  onPumpAmountCommit,
   onLoggedByCycle,
   onDeleteMoment,
 }: EntryCardProps) {
@@ -67,6 +70,7 @@ export function EntryCard({
   const loggedByName = (moment.loggedBy && memberNames[moment.loggedBy]) ?? "Unknown";
   const color = personColor(Math.max(0, loggedByIndex));
   const showMl = !!moment.feed?.bottle;
+  const showPumpMl = !!moment.pump;
 
   return (
     <div
@@ -197,6 +201,47 @@ export function EntryCard({
           <span className="text-[11.5px] text-ink-soft">ml</span>
         </div>
       )}
+
+      {/* Mobile's Pump treatment is deliberately its own thing, not a
+          resized desktop chip: full-width/taller, mL in its own row below
+          (Bottle's show/hide pattern), and this wrapper — not the mL row —
+          owns the bottom margin so the gap before Notes stays constant
+          whether Pump is on or off. */}
+      <div className="mb-2.5 border-t-[1.5px] border-b-[1.5px] border-dashed border-line-strong py-2.5">
+        {editable ? (
+          <PumpPill
+            checked={!!moment.pump}
+            fullWidth
+            large
+            onChange={(checked) => onToggleType?.(moment, "pump", checked)}
+          />
+        ) : (
+          <PumpPillStatic checked={!!moment.pump} fullWidth large />
+        )}
+
+        {showPumpMl && (
+          <div className="mt-2 flex items-center gap-2 rounded-[8px] border border-line-strong bg-paper px-3 py-2">
+            <span className="text-[11.5px] font-bold text-ink-soft uppercase">mL</span>
+            {editable ? (
+              <input
+                key={`pump-ml-${moment.key}-${moment.pump?.amount_ml ?? ""}`}
+                type="number"
+                step="0.1"
+                min="0"
+                placeholder="Amount"
+                defaultValue={moment.pump?.amount_ml ?? ""}
+                onBlur={(e) => onPumpAmountCommit?.(moment, e.target.value)}
+                className="flex-1 bg-transparent text-right text-[14px] tabular-nums text-ink focus:outline-none"
+              />
+            ) : (
+              <span className="flex-1 text-right text-[14px] tabular-nums text-ink">
+                {moment.pump?.amount_ml ?? ""}
+              </span>
+            )}
+            <span className="text-[11.5px] text-ink-soft">ml</span>
+          </div>
+        )}
+      </div>
 
       {editable ? (
         <input

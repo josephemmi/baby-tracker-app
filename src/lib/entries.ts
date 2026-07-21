@@ -12,6 +12,7 @@ export interface Moment {
   feed?: EntryRow;
   pee?: EntryRow;
   poop?: EntryRow;
+  pump?: EntryRow;
   // True for a row the user just created that has no entry rows in the DB
   // yet — exists only client-side until the first checkbox is ticked.
   isDraft?: boolean;

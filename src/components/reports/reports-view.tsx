@@ -123,6 +123,16 @@ export function ReportsView({ entries }: { entries: EntryRow[] }) {
                   : "—"
               }
             />
+            <StatCard
+              label="Pump sessions"
+              value={String(stats.pumpSessions)}
+              accent="plum"
+            />
+            <StatCard
+              label="Total pumped"
+              value={`${stats.totalPumpedMl} mL`}
+              accent="plum"
+            />
           </div>
 
           <div className="rounded-[10px] border border-line bg-paper-raised p-4 shadow-card">
@@ -165,6 +175,24 @@ export function ReportsView({ entries }: { entries: EntryRow[] }) {
             />
           </div>
 
+          <div className="rounded-[10px] border border-line bg-paper-raised p-4 shadow-card">
+            <div className="mb-3 flex items-center gap-4 text-[11.5px] text-ink-soft">
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-plum" />
+                Pumped mL (Jen)
+              </span>
+            </div>
+            <BarChart
+              title="Pumped volume per day"
+              data={dailyStats.map((day) => ({
+                label: day.dayLabel,
+                value: day.pumpedMl,
+              }))}
+              valueFormatter={(value) => `${value} mL`}
+              color="plum"
+            />
+          </div>
+
           <div className="overflow-x-auto rounded-[10px] border border-line bg-paper-raised shadow-card">
             <table className="w-full min-w-[640px] border-collapse text-[13.5px]">
               <thead>
@@ -176,6 +204,7 @@ export function ReportsView({ entries }: { entries: EntryRow[] }) {
                   <th className="px-3 py-2.5">Avg mL/bottle</th>
                   <th className="px-3 py-2.5">Poo count</th>
                   <th className="px-3 py-2.5">Pee count</th>
+                  <th className="px-3 py-2.5">Pumped mL</th>
                 </tr>
               </thead>
               <tbody>
@@ -202,6 +231,9 @@ export function ReportsView({ entries }: { entries: EntryRow[] }) {
                     </td>
                     <td className="px-3 py-2.5 tabular-nums text-ink">
                       {day.peeCount}
+                    </td>
+                    <td className="px-3 py-2.5 tabular-nums text-ink">
+                      {day.pumpedMl || ""}
                     </td>
                   </tr>
                 ))}

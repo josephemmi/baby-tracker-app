@@ -8,7 +8,7 @@ import {
 } from "@/lib/entries";
 import { MomentsTable } from "@/components/log/moments-table";
 
-type Filter = "all" | "bottle" | "breast" | "poop" | "pee";
+type Filter = "all" | "bottle" | "breast" | "poop" | "pee" | "pump";
 
 const FILTERS: { value: Filter; label: string }[] = [
   { value: "all", label: "All" },
@@ -16,6 +16,7 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: "breast", label: "Breast" },
   { value: "poop", label: "Poo" },
   { value: "pee", label: "Pee" },
+  { value: "pump", label: "Pump" },
 ];
 
 interface TimelineViewProps {
