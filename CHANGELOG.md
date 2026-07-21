@@ -9,6 +9,14 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+### Added
+- Phone-width (≤640px) card layout for Home and Timeline, replacing the
+  horizontally-scrolling table below the existing breakpoint — same fields
+  (Breast, Bottle, mL, Poo, Pee, Notes, logged-by), reordered into a
+  stacked card. Home's cards are fully editable with a per-card delete
+  control; Timeline's stay read-only, matching the desktop split.
+- iPad and desktop keep the existing table layout, unchanged.
+
 ## [1.1.0] - 2026-07-20
 
 ### Added

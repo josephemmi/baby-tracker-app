@@ -413,20 +413,10 @@ export function LogMatrix({
     });
   }
 
-  async function handleDeleteSelected() {
-    if (selectedKeys.size === 0) return;
-
-    const confirmed = window.confirm(
-      `Delete ${selectedKeys.size} logged moment${selectedKeys.size > 1 ? "s" : ""}? This can't be undone.`,
-    );
-    if (!confirmed) return;
-
-    const selectedMoments = moments.filter((moment) =>
-      selectedKeys.has(moment.key),
-    );
-    const idsToDelete = selectedMoments.flatMap(siblingIds);
+  async function deleteMoments(momentsToDelete: Moment[]) {
+    const idsToDelete = momentsToDelete.flatMap(siblingIds);
     const draftKeysToRemove = new Set(
-      selectedMoments.filter((moment) => moment.isDraft).map((m) => m.key),
+      momentsToDelete.filter((moment) => moment.isDraft).map((m) => m.key),
     );
 
     if (idsToDelete.length > 0) {
@@ -449,9 +439,33 @@ export function LogMatrix({
     if (draftKeysToRemove.size > 0) {
       setDrafts((prev) => prev.filter((d) => !draftKeysToRemove.has(d.key)));
     }
+  }
+
+  async function handleDeleteSelected() {
+    if (selectedKeys.size === 0) return;
+
+    const confirmed = window.confirm(
+      `Delete ${selectedKeys.size} logged moment${selectedKeys.size > 1 ? "s" : ""}? This can't be undone.`,
+    );
+    if (!confirmed) return;
+
+    const selectedMoments = moments.filter((moment) =>
+      selectedKeys.has(moment.key),
+    );
+    await deleteMoments(selectedMoments);
 
     setSelectedKeys(new Set());
     setSelectMode(false);
+  }
+
+  // Phone-card-only quick delete — a single moment, no need to enter
+  // select mode first (matching the prototype's inline card ✕).
+  async function handleDeleteMoment(moment: Moment) {
+    const confirmed = window.confirm(
+      "Delete this logged moment? This can't be undone.",
+    );
+    if (!confirmed) return;
+    await deleteMoments([moment]);
   }
 
   return (
@@ -510,6 +524,7 @@ export function LogMatrix({
         selectMode={selectMode}
         selectedKeys={selectedKeys}
         onToggleSelect={toggleSelected}
+        onDeleteMoment={handleDeleteMoment}
       />
 
       {hasMoreEntries && (
