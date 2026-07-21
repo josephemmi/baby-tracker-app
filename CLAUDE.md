@@ -10,3 +10,7 @@
   fixes, minor for new features, major for breaking/major redesigns).
 - Confirm the version bump with the user rather than assuming which level
   (patch/minor/major) applies.
+- Every release gets a standalone `Nestlog-Release-Notes-v{version}.pdf`
+  scoped to just that version's CHANGELOG section (not a cumulative
+  history) — generate one automatically as part of cutting the release,
+  no need to ask each time.
