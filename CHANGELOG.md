@@ -9,6 +9,8 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-07-21
+
 ### Added
 - Installable as a PWA — "Add to Home Screen" now launches Nestlog
   fullscreen with its own icon (brand mark, generated at 192/512/maskable
