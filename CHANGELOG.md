@@ -9,6 +9,14 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+### Added
+- Installable as a PWA — "Add to Home Screen" now launches Nestlog
+  fullscreen with its own icon (brand mark, generated at 192/512/maskable
+  sizes) instead of opening as a browser tab/bookmark
+- A minimal service worker caches static build assets for faster repeat
+  loads; it deliberately never caches navigation, API, or Supabase
+  requests, so logged data is always fresh
+
 ## [1.2.0] - 2026-07-21
 
 ### Added
