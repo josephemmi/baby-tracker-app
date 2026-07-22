@@ -9,6 +9,17 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+### Fixed
+- iPad PWA: relaunching the app no longer pops the native date/time picker
+  open by itself — WebKit was restoring focus to whatever input was last
+  focused before the app was backgrounded, reopening its picker along with
+  it
+- Home: newly logged entries from another device could go missing until
+  the app was force-closed and reopened — realtime updates can silently
+  stop arriving while the tab/PWA is backgrounded (iOS suspends the
+  websocket); Home now refetches and re-subscribes automatically as soon
+  as it's foregrounded again
+
 ## [1.4.0] - 2026-07-21
 
 ### Added

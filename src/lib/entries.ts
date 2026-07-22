@@ -2,6 +2,10 @@ import type { Database } from "@/lib/supabase/database.types";
 
 export type EntryRow = Database["public"]["Tables"]["entries"]["Row"];
 
+// Shared between the Home page's initial server-side fetch and its
+// client-side resync (on realtime reconnect) so the two never drift apart.
+export const HOME_ENTRIES_LIMIT = 100;
+
 // A "moment" is the matrix UI's clustering of same-instant entries (e.g. a
 // feed logged alongside a pee) back into one row, mirroring the paper log.
 export interface Moment {

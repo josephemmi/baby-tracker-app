@@ -5,6 +5,7 @@ import { AppHeader } from "@/components/layout/app-header";
 import { AddBabyForm } from "@/components/baby/add-baby-form";
 import { LogMatrix } from "@/components/log/log-matrix";
 import { colorIndexFor } from "@/lib/person-colors";
+import { HOME_ENTRIES_LIMIT } from "@/lib/entries";
 
 export default async function Home() {
   const { user, profile, household } = await getCurrentUserAndProfile();
@@ -29,20 +30,18 @@ export default async function Home() {
 
   const baby = babies?.[0] ?? null;
 
-  const HOME_LIMIT = 100;
-
   const { data: fetchedEntries } = baby
     ? await supabase
         .from("entries")
         .select("*")
         .eq("baby_id", baby.id)
         .order("timestamp", { ascending: false })
-        .limit(HOME_LIMIT + 1)
+        .limit(HOME_ENTRIES_LIMIT + 1)
     : { data: [] };
 
-  const hasMoreEntries = (fetchedEntries?.length ?? 0) > HOME_LIMIT;
+  const hasMoreEntries = (fetchedEntries?.length ?? 0) > HOME_ENTRIES_LIMIT;
   const entries = hasMoreEntries
-    ? fetchedEntries!.slice(0, HOME_LIMIT)
+    ? fetchedEntries!.slice(0, HOME_ENTRIES_LIMIT)
     : (fetchedEntries ?? []);
 
   return (

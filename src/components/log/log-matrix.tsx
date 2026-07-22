@@ -7,6 +7,7 @@ import {
   createDraftMoment,
   groupEntriesIntoMoments,
   mergeMoments,
+  HOME_ENTRIES_LIMIT,
   type EntryRow,
   type Moment,
 } from "@/lib/entries";
@@ -50,6 +51,7 @@ export function LogMatrix({
   const [flashKey, setFlashKey] = useState<string | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const [hasMore, setHasMore] = useState(hasMoreEntries);
 
   const memberNames = useMemo(
     () => Object.fromEntries(members.map((member) => [member.id, member.name])),
@@ -63,59 +65,121 @@ export function LogMatrix({
 
   useEffect(() => {
     const supabase = createClient();
-    const channel = supabase
-      .channel(`entries-${babyId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "entries",
-          filter: `baby_id=eq.${babyId}`,
-        },
-        (payload) => {
-          const newEntry = payload.new as EntryRow;
-          setEntries((prev) =>
-            prev.some((entry) => entry.id === newEntry.id)
-              ? prev
-              : [newEntry, ...prev],
-          );
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "entries",
-          filter: `baby_id=eq.${babyId}`,
-        },
-        (payload) => {
-          const updated = payload.new as EntryRow;
-          setEntries((prev) =>
-            prev.map((entry) => (entry.id === updated.id ? updated : entry)),
-          );
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "DELETE",
-          schema: "public",
-          table: "entries",
-          filter: `baby_id=eq.${babyId}`,
-        },
-        (payload) => {
-          const removedId = (payload.old as Partial<EntryRow>).id;
-          setEntries((prev) => prev.filter((entry) => entry.id !== removedId));
-        },
-      )
-      .subscribe();
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    function subscribe() {
+      channel = supabase
+        .channel(`entries-${babyId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "entries",
+            filter: `baby_id=eq.${babyId}`,
+          },
+          (payload) => {
+            const newEntry = payload.new as EntryRow;
+            setEntries((prev) =>
+              prev.some((entry) => entry.id === newEntry.id)
+                ? prev
+                : [newEntry, ...prev],
+            );
+          },
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "entries",
+            filter: `baby_id=eq.${babyId}`,
+          },
+          (payload) => {
+            const updated = payload.new as EntryRow;
+            setEntries((prev) =>
+              prev.map((entry) => (entry.id === updated.id ? updated : entry)),
+            );
+          },
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "DELETE",
+            schema: "public",
+            table: "entries",
+            filter: `baby_id=eq.${babyId}`,
+          },
+          (payload) => {
+            const removedId = (payload.old as Partial<EntryRow>).id;
+            setEntries((prev) => prev.filter((entry) => entry.id !== removedId));
+          },
+        )
+        .subscribe();
+    }
+
+    subscribe();
+
+    // Realtime can silently miss events while the tab/PWA is backgrounded —
+    // iOS in particular suspends the websocket, so an INSERT logged
+    // elsewhere while backgrounded never arrives until a hard reload.
+    // Resync on foreground: refetch fresh (self-heals regardless of why
+    // something was missed) and re-subscribe in case the socket itself
+    // needs replacing.
+    async function resync() {
+      const { data } = await supabase
+        .from("entries")
+        .select("*")
+        .eq("baby_id", babyId)
+        .order("timestamp", { ascending: false })
+        .limit(HOME_ENTRIES_LIMIT + 1);
+
+      if (data) {
+        const more = data.length > HOME_ENTRIES_LIMIT;
+        setEntries(more ? data.slice(0, HOME_ENTRIES_LIMIT) : data);
+        setHasMore(more);
+      }
+
+      if (channel) supabase.removeChannel(channel);
+      subscribe();
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        resync();
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      supabase.removeChannel(channel);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      if (channel) supabase.removeChannel(channel);
     };
   }, [babyId]);
+
+  useEffect(() => {
+    // iOS home-screen PWAs can relaunch with a native picker still open —
+    // WebKit restores focus to whatever was focused before the app was
+    // backgrounded, and for a datetime-local input that means its picker
+    // pops back open uninvited. Blur proactively on mount and whenever the
+    // app is backgrounded, so nothing is left focused for iOS to restore a
+    // picker onto when it's foregrounded again.
+    function blurActiveElement() {
+      (document.activeElement as HTMLElement | null)?.blur?.();
+    }
+
+    blurActiveElement();
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "hidden") {
+        blurActiveElement();
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, []);
 
   function handleLogMoment() {
     const draft = createDraftMoment(currentUserId);
@@ -555,7 +619,7 @@ export function LogMatrix({
         onDeleteMoment={handleDeleteMoment}
       />
 
-      {hasMoreEntries && (
+      {hasMore && (
         <Link
           href="/timeline"
           className="self-center text-[13.5px] font-bold text-sage hover:underline"
