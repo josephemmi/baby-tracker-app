@@ -9,6 +9,8 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-07-22
+
 ### Fixed
 - iPad PWA: relaunching the app no longer pops the native date/time picker
   open by itself — WebKit was restoring focus to whatever input was last
