@@ -15,10 +15,15 @@ feature, and PATCH is a fix with no new functionality.
   focused before the app was backgrounded, reopening its picker along with
   it
 - Home: newly logged entries from another device could go missing until
-  the app was force-closed and reopened — realtime updates can silently
-  stop arriving while the tab/PWA is backgrounded (iOS suspends the
-  websocket); Home now refetches and re-subscribes automatically as soon
-  as it's foregrounded again
+  the app was force-closed and reopened. Realtime can go silently stale
+  while backgrounded (confirmed in Supabase's own logs — the realtime
+  connection is torn down after a period with no active clients and has
+  to cold-start again), and a single foreground event wasn't a reliable
+  enough signal to catch it on its own. Home now resyncs on every
+  plausible "we're back" signal (tab foregrounded, page restored from
+  cache, window refocused) and additionally polls every 20s while open,
+  so it can never drift for more than that regardless of which signal
+  the device actually fires
 
 ## [1.4.0] - 2026-07-21
 

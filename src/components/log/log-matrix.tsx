@@ -120,12 +120,15 @@ export function LogMatrix({
 
     subscribe();
 
-    // Realtime can silently miss events while the tab/PWA is backgrounded —
-    // iOS in particular suspends the websocket, so an INSERT logged
-    // elsewhere while backgrounded never arrives until a hard reload.
-    // Resync on foreground: refetch fresh (self-heals regardless of why
-    // something was missed) and re-subscribe in case the socket itself
-    // needs replacing.
+    // Realtime can silently go stale while the tab/PWA is backgrounded —
+    // Supabase's own logs show this project's realtime tenant repeatedly
+    // shutting down ("no connected users") and cold-starting again on the
+    // next connection, and iOS's support for visibilitychange in standalone
+    // PWAs is inconsistent in practice, so a single foreground event isn't
+    // reliable enough on its own. Belt-and-braces: resync (refetch +
+    // re-subscribe) on every plausible "we're back" signal, AND poll on an
+    // interval while visible as a hard guarantee that Home can never drift
+    // for more than ~20s no matter which signal the platform actually fires.
     async function resync() {
       const { data } = await supabase
         .from("entries")
@@ -144,16 +147,25 @@ export function LogMatrix({
       subscribe();
     }
 
-    function handleVisibilityChange() {
+    function handleForeground() {
       if (document.visibilityState === "visible") {
         resync();
       }
     }
 
-    document.addEventListener("visibilitychange", handleVisibilityChange);
+    document.addEventListener("visibilitychange", handleForeground);
+    window.addEventListener("pageshow", handleForeground);
+    window.addEventListener("focus", handleForeground);
+
+    const pollId = window.setInterval(() => {
+      if (document.visibilityState === "visible") resync();
+    }, 20_000);
 
     return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      document.removeEventListener("visibilitychange", handleForeground);
+      window.removeEventListener("pageshow", handleForeground);
+      window.removeEventListener("focus", handleForeground);
+      window.clearInterval(pollId);
       if (channel) supabase.removeChannel(channel);
     };
   }, [babyId]);
