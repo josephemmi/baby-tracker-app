@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -52,6 +52,7 @@ export function LogMatrix({
   const [selectMode, setSelectMode] = useState(false);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [hasMore, setHasMore] = useState(hasMoreEntries);
+  const lastRefetchAt = useRef(0);
 
   const memberNames = useMemo(
     () => Object.fromEntries(members.map((member) => [member.id, member.name])),
@@ -66,6 +67,7 @@ export function LogMatrix({
   useEffect(() => {
     const supabase = createClient();
     let channel: ReturnType<typeof supabase.channel> | null = null;
+    lastRefetchAt.current = Date.now();
 
     function subscribe() {
       channel = supabase
@@ -137,6 +139,7 @@ export function LogMatrix({
     // mode we're working around in the first place), so the frequent poll
     // deliberately leaves the existing channel alone and only refetches.
     async function refetch() {
+      lastRefetchAt.current = Date.now();
       const { data } = await supabase
         .from("entries")
         .select("*")
@@ -166,10 +169,25 @@ export function LogMatrix({
       if (document.visibilityState === "visible") refetch();
     }, 10_000);
 
+    // Last resort, event-agnostic: relaunching a standalone PWA from its
+    // home-screen icon can resume an already-alive-but-suspended process
+    // without reliably firing visibilitychange/pageshow/focus at all on
+    // iOS — a documented WebKit inconsistency, not something any of the
+    // above can be made to catch with certainty. But the user WILL touch
+    // the screen to do anything with a resumed app, so treat any tap as a
+    // trigger to refetch if it's been a while since the last one.
+    function handleInteraction() {
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - lastRefetchAt.current > 5_000) refetch();
+    }
+
+    document.addEventListener("pointerdown", handleInteraction, { passive: true });
+
     return () => {
       document.removeEventListener("visibilitychange", handleForeground);
       window.removeEventListener("pageshow", handleForeground);
       window.removeEventListener("focus", handleForeground);
+      document.removeEventListener("pointerdown", handleInteraction);
       window.clearInterval(pollId);
       if (channel) supabase.removeChannel(channel);
     };

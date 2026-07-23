@@ -17,6 +17,14 @@ feature, and PATCH is a fix with no new functionality.
   place. The poll now only refetches; the channel is only torn down and
   rebuilt on an actual "we're back" signal, and the poll interval is down
   to 10s
+- Home: confirmed Vercel serves Home fully dynamic and uncached
+  (`Cache-Control: no-store`), so a genuine cold launch always gets live
+  data — the remaining gap is iOS resuming an already-open standalone PWA
+  from its home-screen icon without reliably firing any of
+  visibilitychange/pageshow/focus, a documented WebKit inconsistency.
+  Home now also refetches on the first tap after a while, regardless of
+  whether any lifecycle event fired, since that doesn't depend on iOS
+  cooperating at all
 
 ## [1.4.1] - 2026-07-22
 
