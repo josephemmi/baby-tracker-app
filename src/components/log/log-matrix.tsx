@@ -125,11 +125,18 @@ export function LogMatrix({
     // shutting down ("no connected users") and cold-starting again on the
     // next connection, and iOS's support for visibilitychange in standalone
     // PWAs is inconsistent in practice, so a single foreground event isn't
-    // reliable enough on its own. Belt-and-braces: resync (refetch +
-    // re-subscribe) on every plausible "we're back" signal, AND poll on an
-    // interval while visible as a hard guarantee that Home can never drift
-    // for more than ~20s no matter which signal the platform actually fires.
-    async function resync() {
+    // reliable enough on its own. Belt-and-braces: refetch on every
+    // plausible "we're back" signal, AND poll on a short interval while
+    // visible as a hard guarantee that Home can never drift for long no
+    // matter which signal the platform actually fires.
+    //
+    // Only re-subscribe the realtime channel on genuine foreground
+    // transitions, not on every poll tick — tearing a channel down and
+    // recreating it is exactly the kind of churn that can make a tenant
+    // briefly look like it has "no connected users" (which is the failure
+    // mode we're working around in the first place), so the frequent poll
+    // deliberately leaves the existing channel alone and only refetches.
+    async function refetch() {
       const { data } = await supabase
         .from("entries")
         .select("*")
@@ -142,15 +149,13 @@ export function LogMatrix({
         setEntries(more ? data.slice(0, HOME_ENTRIES_LIMIT) : data);
         setHasMore(more);
       }
-
-      if (channel) supabase.removeChannel(channel);
-      subscribe();
     }
 
     function handleForeground() {
-      if (document.visibilityState === "visible") {
-        resync();
-      }
+      if (document.visibilityState !== "visible") return;
+      refetch();
+      if (channel) supabase.removeChannel(channel);
+      subscribe();
     }
 
     document.addEventListener("visibilitychange", handleForeground);
@@ -158,8 +163,8 @@ export function LogMatrix({
     window.addEventListener("focus", handleForeground);
 
     const pollId = window.setInterval(() => {
-      if (document.visibilityState === "visible") resync();
-    }, 20_000);
+      if (document.visibilityState === "visible") refetch();
+    }, 10_000);
 
     return () => {
       document.removeEventListener("visibilitychange", handleForeground);

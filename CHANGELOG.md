@@ -9,6 +9,15 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+### Fixed
+- Home: the v1.4.1 sync fix re-subscribed the realtime channel on every
+  20s poll tick, not just on genuine foreground events — that churn
+  (tear down + recreate a channel every ~20s, on every connected device)
+  is plausibly what was keeping the realtime tenant unstable in the first
+  place. The poll now only refetches; the channel is only torn down and
+  rebuilt on an actual "we're back" signal, and the poll interval is down
+  to 10s
+
 ## [1.4.1] - 2026-07-22
 
 ### Fixed
