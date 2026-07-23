@@ -1,5 +1,5 @@
 import type { Moment } from "@/lib/entries";
-import { toDatetimeLocalValue } from "@/lib/entries";
+import { formatTime, toDatetimeLocalValue } from "@/lib/entries";
 import { initials, personColor } from "@/lib/person-colors";
 import {
   EditableToggleTile,
@@ -9,6 +9,7 @@ import {
   PumpPill,
   PumpPillStatic,
 } from "@/components/log/entry-styles";
+import { NotesCell } from "@/components/log/notes-cell";
 import type { EntryRowHandlers } from "@/components/log/entry-table-row";
 
 interface Member {
@@ -27,20 +28,6 @@ interface EntryCardProps extends EntryRowHandlers {
   selectedKeys?: Set<string>;
   onToggleSelect?: (momentKey: string) => void;
   onDeleteMoment?: (moment: Moment) => void;
-}
-
-function formatTime(timestamp: string, timeFormat: "datetime" | "time") {
-  return timeFormat === "time"
-    ? new Date(timestamp).toLocaleTimeString(undefined, {
-        hour: "numeric",
-        minute: "2-digit",
-      })
-    : new Date(timestamp).toLocaleString(undefined, {
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      });
 }
 
 // Phone-only stacked-card presentation of a moment (≤640px) — same data and
@@ -243,17 +230,13 @@ export function EntryCard({
         )}
       </div>
 
-      {editable ? (
-        <input
-          key={`notes-${moment.key}-${moment.notes ?? ""}`}
-          defaultValue={moment.notes ?? ""}
-          placeholder="Add a note…"
-          onBlur={(e) => onNotesCommit?.(moment, e.target.value)}
-          className="w-full rounded-[8px] border border-line bg-paper px-2.5 py-2 text-[13px] text-ink placeholder:text-line-strong placeholder:italic focus:border-line-strong focus:bg-paper-raised focus:outline-none"
-        />
-      ) : (
-        moment.notes && <p className="text-[13px] text-ink">{moment.notes}</p>
-      )}
+      <NotesCell
+        moment={moment}
+        editable={editable}
+        timeLabel={formatTime(moment.timestamp, timeFormat)}
+        onNotesCommit={onNotesCommit}
+        size="card"
+      />
     </div>
   );
 }

@@ -106,7 +106,7 @@ export function MomentsTable({
                   Pump
                 </th>
               )}
-              <th className="px-3 py-2.5">Notes</th>
+              <th className="max-w-[280px] px-3 py-2.5">Notes</th>
               <th className="px-3 py-2.5">Logged by</th>
             </tr>
           </thead>

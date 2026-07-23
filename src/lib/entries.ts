@@ -66,6 +66,20 @@ export function groupEntriesIntoMoments(entries: EntryRow[]): Moment[] {
   );
 }
 
+export function formatTime(timestamp: string, timeFormat: "datetime" | "time"): string {
+  return timeFormat === "time"
+    ? new Date(timestamp).toLocaleTimeString(undefined, {
+        hour: "numeric",
+        minute: "2-digit",
+      })
+    : new Date(timestamp).toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      });
+}
+
 export function toDatetimeLocalValue(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;

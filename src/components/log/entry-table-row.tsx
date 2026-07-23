@@ -1,6 +1,6 @@
 import type { Moment } from "@/lib/entries";
 import type { EntryType } from "@/lib/supabase/database.types";
-import { toDatetimeLocalValue } from "@/lib/entries";
+import { formatTime, toDatetimeLocalValue } from "@/lib/entries";
 import { initials, personColor } from "@/lib/person-colors";
 import {
   Check,
@@ -10,6 +10,7 @@ import {
   PumpPill,
   PumpPillStatic,
 } from "@/components/log/entry-styles";
+import { NotesCell } from "@/components/log/notes-cell";
 
 interface Member {
   id: string;
@@ -221,17 +222,13 @@ export function EntryTableRow({
         </td>
       )}
       <td className="px-3 py-2.5 text-ink">
-        {editable ? (
-          <input
-            key={`notes-${moment.key}-${moment.notes ?? ""}`}
-            defaultValue={moment.notes ?? ""}
-            placeholder="Add a note…"
-            onBlur={(e) => onNotesCommit?.(moment, e.target.value)}
-            className="w-full min-w-40 rounded-[10px] border border-transparent bg-transparent px-2 py-1.5 text-[13.5px] text-ink placeholder:text-line-strong placeholder:italic hover:border-line focus:border-line-strong focus:bg-paper focus:outline-none"
-          />
-        ) : (
-          moment.notes
-        )}
+        <NotesCell
+          moment={moment}
+          editable={editable}
+          timeLabel={formatTime(moment.timestamp, timeFormat)}
+          onNotesCommit={onNotesCommit}
+          size="table"
+        />
       </td>
       <td className="px-3 py-2.5 text-ink-soft">
         {editable ? (
