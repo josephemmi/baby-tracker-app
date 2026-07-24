@@ -4,9 +4,8 @@ import { useEffect, useState } from "react";
 import type { Moment } from "@/lib/entries";
 
 // Shared by the desktop table row and the mobile card (and, since both
-// reuse the same row components, Timeline too): empty notes stay a plain
-// inline input; once a note has real content, the field becomes a tappable
-// preview that opens a modal for comfortable reading/editing/deleting,
+// reuse the same row components, Timeline too): tapping the notes field —
+// empty or not — opens the same modal for reading/writing/editing/deleting,
 // rather than a small inline field that gets cramped once real text exists.
 export function NotesCell({
   moment,
@@ -24,57 +23,51 @@ export function NotesCell({
   const [modalOpen, setModalOpen] = useState(false);
   const hasNotes = !!moment.notes && moment.notes.trim() !== "";
 
-  if (hasNotes) {
-    return (
-      <>
-        <button
-          type="button"
-          onClick={() => setModalOpen(true)}
-          className={
-            size === "table"
-              ? "flex w-full max-w-[280px] items-center gap-1.5 truncate rounded-[10px] px-2 py-1.5 text-left text-[13.5px] text-ink hover:bg-sage-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-sage"
-              : "flex w-full items-center gap-1.5 truncate rounded-[8px] border border-line bg-paper px-2.5 py-2 text-left text-[13px] text-ink hover:bg-paper-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-sage"
-          }
-        >
-          <NoteIcon />
-          <span className="block min-w-0 flex-1 truncate">{moment.notes}</span>
-        </button>
-        {modalOpen && (
-          <NotesModal
-            initialValue={moment.notes ?? ""}
-            timeLabel={timeLabel}
-            editable={editable}
-            onSave={(value) => {
-              onNotesCommit?.(moment, value);
-              setModalOpen(false);
-            }}
-            onDelete={() => {
-              onNotesCommit?.(moment, "");
-              setModalOpen(false);
-            }}
-            onClose={() => setModalOpen(false)}
-          />
-        )}
-      </>
-    );
-  }
-
   // Timeline is read-only and never had an inline input here — nothing to
   // show for an empty note, matching existing behavior.
-  if (!editable) return null;
+  if (!hasNotes && !editable) return null;
 
   return (
-    <input
-      key={`notes-${moment.key}-${moment.notes ?? ""}`}
-      defaultValue={moment.notes ?? ""}
-      placeholder="Add a note…"
-      onBlur={(e) => onNotesCommit?.(moment, e.target.value)}
-      className={
-        size === "table"
-          ? "w-full min-w-40 rounded-[10px] border border-transparent bg-transparent px-2 py-1.5 text-[13.5px] text-ink placeholder:text-line-strong placeholder:italic hover:border-line focus:border-line-strong focus:bg-paper focus:outline-none"
-          : "w-full rounded-[8px] border border-line bg-paper px-2.5 py-2 text-[13px] text-ink placeholder:text-line-strong placeholder:italic focus:border-line-strong focus:bg-paper-raised focus:outline-none"
-      }
-    />
+    <>
+      <button
+        type="button"
+        onClick={() => setModalOpen(true)}
+        className={
+          hasNotes
+            ? size === "table"
+              ? "flex w-full max-w-[280px] items-center gap-1.5 truncate rounded-[10px] px-2 py-1.5 text-left text-[13.5px] text-ink hover:bg-sage-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-sage"
+              : "flex w-full items-center gap-1.5 truncate rounded-[8px] border border-line bg-paper px-2.5 py-2 text-left text-[13px] text-ink hover:bg-paper-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-sage"
+            : size === "table"
+              ? "w-full min-w-40 rounded-[10px] border border-transparent bg-transparent px-2 py-1.5 text-left text-[13.5px] text-line-strong italic hover:border-line hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-sage"
+              : "w-full rounded-[8px] border border-line bg-paper px-2.5 py-2 text-left text-[13px] text-line-strong italic hover:bg-paper-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-sage"
+        }
+      >
+        {hasNotes ? (
+          <>
+            <NoteIcon />
+            <span className="block min-w-0 flex-1 truncate">{moment.notes}</span>
+          </>
+        ) : (
+          "Add a note…"
+        )}
+      </button>
+      {modalOpen && (
+        <NotesModal
+          initialValue={moment.notes ?? ""}
+          timeLabel={timeLabel}
+          editable={editable}
+          onSave={(value) => {
+            onNotesCommit?.(moment, value);
+            setModalOpen(false);
+          }}
+          onDelete={() => {
+            onNotesCommit?.(moment, "");
+            setModalOpen(false);
+          }}
+          onClose={() => setModalOpen(false)}
+        />
+      )}
+    </>
   );
 }
 
@@ -115,6 +108,7 @@ function NotesModal({
 }) {
   const [value, setValue] = useState(initialValue);
   const hasChanged = value !== initialValue;
+  const hasExisting = initialValue.trim() !== "";
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -157,14 +151,16 @@ function NotesModal({
           className="min-h-[120px] w-full resize-y rounded-[10px] border border-line-strong bg-paper p-3 text-[14.5px] leading-relaxed text-ink placeholder:text-line-strong placeholder:italic focus:border-sage focus:outline focus:outline-2 focus:outline-offset-1 focus:outline-sage"
         />
         {editable && (
-          <div className="mt-3.5 flex items-center justify-between">
-            <button
-              type="button"
-              onClick={onDelete}
-              className="rounded-full border border-terracotta bg-terracotta-soft px-4 py-2 text-[13px] font-bold text-terracotta transition-colors hover:brightness-95"
-            >
-              Delete note
-            </button>
+          <div className={`mt-3.5 flex items-center ${hasExisting ? "justify-between" : "justify-end"}`}>
+            {hasExisting && (
+              <button
+                type="button"
+                onClick={onDelete}
+                className="rounded-full border border-terracotta bg-terracotta-soft px-4 py-2 text-[13px] font-bold text-terracotta transition-colors hover:brightness-95"
+              >
+                Delete note
+              </button>
+            )}
             <button
               type="button"
               onClick={() => onSave(value)}

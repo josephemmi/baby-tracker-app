@@ -10,17 +10,17 @@ feature, and PATCH is a fix with no new functionality.
 ## [Unreleased]
 
 ### Added
-- Notes: once a logged moment has a note, it's now a tappable preview
-  (icon + truncated text) instead of a small inline field that got
-  cramped once real text existed. Tapping it opens a modal for
-  comfortable reading, editing, and deleting — it doesn't auto-focus the
-  textarea on open (so it doesn't pull up the mobile keyboard just to
-  read a note), and Save stays disabled until the text genuinely differs
-  from what was loaded, re-disabling if you edit your way back to the
-  original. Applies on Home, Timeline, desktop, and mobile via one
-  shared component; Timeline's version is read-only (view/close only, no
-  Save or Delete), matching Timeline's existing read-only behavior
-  elsewhere
+- Notes: tapping the notes field — whether it's empty or already has a
+  note — now opens a modal for reading, writing, editing, and deleting,
+  instead of a small inline field that got cramped once real text
+  existed. It doesn't auto-focus the textarea on open (so it doesn't pull
+  up the mobile keyboard just to read a note), Save stays disabled until
+  the text genuinely differs from what was loaded (re-disabling if you
+  edit your way back to the original), and Delete only appears once
+  there's an existing note to delete. Applies on Home, Timeline, desktop,
+  and mobile via one shared component; Timeline's version is read-only
+  (view/close only, no Save or Delete), matching Timeline's existing
+  read-only behavior elsewhere
 
 ### Fixed
 - Home: the v1.4.1 sync fix re-subscribed the realtime channel on every
