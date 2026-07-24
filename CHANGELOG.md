@@ -9,19 +9,6 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
-### Added
-- Notes: tapping the notes field — whether it's empty or already has a
-  note — now opens a modal for reading, writing, editing, and deleting,
-  instead of a small inline field that got cramped once real text
-  existed. It doesn't auto-focus the textarea on open (so it doesn't pull
-  up the mobile keyboard just to read a note), Save stays disabled until
-  the text genuinely differs from what was loaded (re-disabling if you
-  edit your way back to the original), and Delete only appears once
-  there's an existing note to delete. Applies on Home, Timeline, desktop,
-  and mobile via one shared component; Timeline's version is read-only
-  (view/close only, no Save or Delete), matching Timeline's existing
-  read-only behavior elsewhere
-
 ### Fixed
 - Home: the v1.4.1 sync fix re-subscribed the realtime channel on every
   20s poll tick, not just on genuine foreground events — that churn
@@ -38,6 +25,21 @@ feature, and PATCH is a fix with no new functionality.
   Home now also refetches on the first tap after a while, regardless of
   whether any lifecycle event fired, since that doesn't depend on iOS
   cooperating at all
+
+## [1.5.0] - 2026-07-24
+
+### Added
+- Notes: tapping the notes field — whether it's empty or already has a
+  note — now opens a modal for reading, writing, editing, and deleting,
+  instead of a small inline field that got cramped once real text
+  existed. It doesn't auto-focus the textarea on open (so it doesn't pull
+  up the mobile keyboard just to read a note), Save stays disabled until
+  the text genuinely differs from what was loaded (re-disabling if you
+  edit your way back to the original), and Delete only appears once
+  there's an existing note to delete. Applies on Home, Timeline, desktop,
+  and mobile via one shared component; Timeline's version is read-only
+  (view/close only, no Save or Delete), matching Timeline's existing
+  read-only behavior elsewhere
 
 ## [1.4.1] - 2026-07-22
 
