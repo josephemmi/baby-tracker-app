@@ -18,6 +18,7 @@ export interface DailyStat {
   avgMlPerBottle: number | null;
   poopCount: number;
   peeCount: number;
+  pumpCount: number;
   pumpedMl: number;
 }
 
@@ -128,6 +129,7 @@ export function computeDailyStats(entries: EntryRow[]): DailyStat[] {
     bottleFeedsWithMl: number;
     poopCount: number;
     peeCount: number;
+    pumpCount: number;
     pumpedMl: number;
   }
 
@@ -144,6 +146,7 @@ export function computeDailyStats(entries: EntryRow[]): DailyStat[] {
       bottleFeedsWithMl: 0,
       poopCount: 0,
       peeCount: 0,
+      pumpCount: 0,
       pumpedMl: 0,
     };
 
@@ -163,6 +166,7 @@ export function computeDailyStats(entries: EntryRow[]): DailyStat[] {
     } else if (entry.type === "pee") {
       day.peeCount += 1;
     } else if (entry.type === "pump") {
+      day.pumpCount += 1;
       if (entry.amount_ml != null) {
         day.pumpedMl += entry.amount_ml;
       }

@@ -187,6 +187,7 @@ export function ReportsView({ entries }: { entries: EntryRow[] }) {
               data={dailyStats.map((day) => ({
                 label: day.dayLabel,
                 value: day.pumpedMl,
+                subLabel: day.pumpCount === 1 ? "1 session" : `${day.pumpCount} sessions`,
               }))}
               valueFormatter={(value) => `${value} mL`}
               color="plum"
@@ -194,17 +195,18 @@ export function ReportsView({ entries }: { entries: EntryRow[] }) {
           </div>
 
           <div className="overflow-x-auto rounded-[10px] border border-line bg-paper-raised shadow-card">
-            <table className="w-full min-w-[640px] border-collapse text-[13.5px]">
+            <table className="w-full min-w-[760px] border-collapse text-[13.5px]">
               <thead>
                 <tr className="border-b border-line-strong text-left text-[11px] font-bold tracking-[0.05em] text-ink-soft uppercase">
                   <th className="px-3 py-2.5">Day</th>
-                  <th className="px-3 py-2.5">Bottle feeds</th>
-                  <th className="px-3 py-2.5">Breastfeeds</th>
-                  <th className="px-3 py-2.5">Total mL</th>
-                  <th className="px-3 py-2.5">Avg mL/bottle</th>
-                  <th className="px-3 py-2.5">Poo count</th>
-                  <th className="px-3 py-2.5">Pee count</th>
-                  <th className="px-3 py-2.5">Pumped mL</th>
+                  <th className="px-3 py-2.5 text-center">Bottle feeds</th>
+                  <th className="px-3 py-2.5 text-center">Breastfeeds</th>
+                  <th className="px-3 py-2.5 text-center">Total mL</th>
+                  <th className="px-3 py-2.5 text-center">Avg mL/bottle</th>
+                  <th className="px-3 py-2.5 text-center">Poo count</th>
+                  <th className="px-3 py-2.5 text-center">Pee count</th>
+                  <th className="px-3 py-2.5 text-center">Pump sessions</th>
+                  <th className="px-3 py-2.5 text-center">Pumped mL</th>
                 </tr>
               </thead>
               <tbody>
@@ -214,25 +216,28 @@ export function ReportsView({ entries }: { entries: EntryRow[] }) {
                     className="border-b border-line last:border-0"
                   >
                     <td className="px-3 py-2.5 text-ink">{day.dayLabel}</td>
-                    <td className="px-3 py-2.5 tabular-nums text-ink">
+                    <td className="px-3 py-2.5 text-center tabular-nums text-ink">
                       {day.bottleCount}
                     </td>
-                    <td className="px-3 py-2.5 tabular-nums text-ink">
+                    <td className="px-3 py-2.5 text-center tabular-nums text-ink">
                       {day.breastCount}
                     </td>
-                    <td className="px-3 py-2.5 tabular-nums text-ink">
+                    <td className="px-3 py-2.5 text-center tabular-nums text-ink">
                       {day.totalMl || ""}
                     </td>
-                    <td className="px-3 py-2.5 tabular-nums text-ink">
+                    <td className="px-3 py-2.5 text-center tabular-nums text-ink">
                       {day.avgMlPerBottle != null ? day.avgMlPerBottle.toFixed(1) : ""}
                     </td>
-                    <td className="px-3 py-2.5 tabular-nums text-ink">
+                    <td className="px-3 py-2.5 text-center tabular-nums text-ink">
                       {day.poopCount}
                     </td>
-                    <td className="px-3 py-2.5 tabular-nums text-ink">
+                    <td className="px-3 py-2.5 text-center tabular-nums text-ink">
                       {day.peeCount}
                     </td>
-                    <td className="px-3 py-2.5 tabular-nums text-ink">
+                    <td className="px-3 py-2.5 text-center tabular-nums text-ink">
+                      {day.pumpCount}
+                    </td>
+                    <td className="px-3 py-2.5 text-center tabular-nums text-ink">
                       {day.pumpedMl || ""}
                     </td>
                   </tr>

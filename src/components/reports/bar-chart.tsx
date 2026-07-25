@@ -5,6 +5,11 @@ import { useState } from "react";
 interface BarChartDatum {
   label: string;
   value: number;
+  // When set, shown as a second, smaller plum-colored line stacked under
+  // the primary value — and switches that bar from a hover-only tooltip to
+  // a permanent label, since the point (e.g. "150 mL / 5 sessions") only
+  // reads at a glance if it's always visible, not hidden behind a hover.
+  subLabel?: string;
 }
 
 interface BarChartProps {
@@ -53,10 +58,17 @@ export function BarChart({
             onMouseEnter={() => setHoveredIndex(index)}
             onMouseLeave={() => setHoveredIndex(null)}
           >
-            {hoveredIndex === index && (
-              <div className="absolute -top-7 z-10 whitespace-nowrap rounded-full bg-ink px-2 py-1 text-xs font-bold text-paper-raised">
-                {valueFormatter(d.value)}
+            {d.subLabel ? (
+              <div className="mb-1 flex flex-col items-center gap-0.5 whitespace-nowrap text-[11px] font-bold text-ink">
+                <span>{valueFormatter(d.value)}</span>
+                <span className="text-[10px] font-semibold text-plum">{d.subLabel}</span>
               </div>
+            ) : (
+              hoveredIndex === index && (
+                <div className="absolute -top-7 z-10 whitespace-nowrap rounded-full bg-ink px-2 py-1 text-xs font-bold text-paper-raised">
+                  {valueFormatter(d.value)}
+                </div>
+              )
             )}
             <div
               className={`w-full max-w-6 rounded-t-[4px] ${BAR_COLOR[color]}`}
