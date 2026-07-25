@@ -13,4 +13,12 @@
 - Every release gets a standalone `Nestlog-Release-Notes-v{version}.pdf`
   scoped to just that version's CHANGELOG section (not a cumulative
   history) — generate one automatically as part of cutting the release,
-  no need to ask each time.
+  no need to ask each time. Use `scripts/generate-release-notes.py
+  <version> CHANGELOG.md <out_path>` (requires `reportlab`) rather than
+  writing this from scratch.
+- The PDF's home is Google Drive, not the chat: create a new
+  `Release Notes v{version}` folder inside the project's Drive
+  "Release Notes" folder (id `1yAyDoPTxjhcOI9DsOG69vIBTVoeVik-K`, a
+  sibling of the "Docs" folder used for feature specs/prototypes), upload
+  the PDF there, and give the user the Drive link to that folder —
+  don't send the file itself via chat.
