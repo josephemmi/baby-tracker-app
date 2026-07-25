@@ -9,16 +9,6 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
-### Added
-- Reports: the "Pumped volume by day" chart now shows session count
-  alongside volume — each bar's label is stacked two lines (mL, then
-  correctly pluralized session count in plum), so a day with lower
-  volume but far more sessions reads at a glance instead of needing a
-  second chart. The Daily Summary table gets a new "Pump sessions"
-  column (before "Pumped mL"), and every column except "Day" is now
-  center-aligned — not just the new one, the whole table. Pure
-  display/aggregation change, no schema change
-
 ### Fixed
 - Home: the v1.4.1 sync fix re-subscribed the realtime channel on every
   20s poll tick, not just on genuine foreground events — that churn
@@ -35,6 +25,18 @@ feature, and PATCH is a fix with no new functionality.
   Home now also refetches on the first tap after a while, regardless of
   whether any lifecycle event fired, since that doesn't depend on iOS
   cooperating at all
+
+## [1.6.0] - 2026-07-25
+
+### Added
+- Reports: the "Pumped volume by day" chart now shows session count
+  alongside volume — each bar's label is stacked two lines (mL, then
+  correctly pluralized session count in plum), so a day with lower
+  volume but far more sessions reads at a glance instead of needing a
+  second chart. The Daily Summary table gets a new "Pump sessions"
+  column (before "Pumped mL"), and every column except "Day" is now
+  center-aligned — not just the new one, the whole table. Pure
+  display/aggregation change, no schema change
 
 ## [1.5.0] - 2026-07-24
 
