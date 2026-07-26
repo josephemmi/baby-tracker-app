@@ -9,6 +9,8 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-07-26
+
 ### Fixed
 - Home: the v1.4.1 sync fix re-subscribed the realtime channel on every
   20s poll tick, not just on genuine foreground events — that churn
