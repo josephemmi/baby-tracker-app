@@ -3,11 +3,14 @@ Reads the version's section straight out of CHANGELOG.md so the PDF can
 never drift from what's actually documented there.
 
 Usage:
-    python3 scripts/generate-release-notes.py <version> <changelog_path> <out_path>
+    python3 scripts/generate-release-notes.py <version> <changelog_path> <out_path> [screenshot ...]
 
 Example:
     python3 scripts/generate-release-notes.py 1.6.0 CHANGELOG.md \
-        /tmp/Nestlog-Release-Notes-v1.6.0.pdf
+        /tmp/Nestlog-Release-Notes-v1.6.0.pdf /tmp/shot1.png /tmp/shot2.png
+
+Trailing arguments are optional screenshots of the shipped feature(s),
+embedded after the changelog bullets in the order given.
 
 Requires reportlab (pip install reportlab). Per CLAUDE.md's release
 process, the resulting PDF gets uploaded to a new "Release Notes v{version}"
@@ -23,7 +26,7 @@ from reportlab.lib.pagesizes import LETTER
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.colors import HexColor
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable, Image
 
 PAPER = HexColor("#fbf7ec")
 INK = HexColor("#2a2a26")
@@ -69,7 +72,7 @@ def parse_changelog_section(changelog_path, version):
     return date_str, sections
 
 
-def build_pdf(version, date_str, sections, out_path):
+def build_pdf(version, date_str, sections, out_path, screenshots=None):
     doc = SimpleDocTemplate(
         out_path,
         pagesize=LETTER,
@@ -119,6 +122,19 @@ def build_pdf(version, date_str, sections, out_path):
         for item in items:
             story.append(Paragraph(f"&bull;&nbsp;&nbsp;{item}", bullet_style))
 
+    content_width = LETTER[0] - 1.8 * inch
+    for shot in screenshots or []:
+        img = Image(shot)
+        # Read imageWidth/imageHeight before setting drawWidth/drawHeight —
+        # reportlab lazily computes the former on first access and that
+        # computation clobbers drawWidth/drawHeight back to native pixel
+        # size, undoing an override made beforehand.
+        aspect = img.imageHeight / img.imageWidth
+        img.drawWidth = content_width
+        img.drawHeight = content_width * aspect
+        story.append(Spacer(1, 14))
+        story.append(img)
+
     story.append(Spacer(1, 24))
     story.append(HRFlowable(width="100%", thickness=0.5, color=LINE_STRONG, spaceAfter=6))
     story.append(Paragraph(
@@ -136,13 +152,14 @@ def build_pdf(version, date_str, sections, out_path):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 4:
+    if len(sys.argv) < 4:
         raise SystemExit(__doc__)
     version = sys.argv[1]
     changelog_path = sys.argv[2]
     out_path = sys.argv[3]
+    screenshots = sys.argv[4:]
     date_str, sections = parse_changelog_section(changelog_path, version)
-    build_pdf(version, date_str, sections, out_path)
+    build_pdf(version, date_str, sections, out_path, screenshots)
     print(f"Wrote {out_path} ({date_str})")
     for kind, items in sections.items():
         print(f"  {kind}: {len(items)} item(s)")
