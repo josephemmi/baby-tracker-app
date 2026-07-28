@@ -9,6 +9,18 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+### Fixed
+- Reports on phones: the pump chart's permanent two-line bar labels
+  ("1130 mL" / "6 sessions") couldn't shrink or wrap, so on a 9-bar range
+  they forced the whole chart — and the whole page — wider than the
+  viewport, clipping the last bar or two off-screen. The bottle/breast
+  grouped chart had the same root cause with its date labels, squeezing
+  them down to unreadable "20 …" ellipsis instead. Both charts now scroll
+  horizontally within their own card once there's more data than
+  comfortably fits, the same pattern the Daily Summary table already
+  used — labels stay fully legible and the page itself never overflows
+  sideways. Desktop is unaffected (charts already had room to spare)
+
 ## [1.6.1] - 2026-07-26
 
 ### Fixed

@@ -39,6 +39,10 @@ export function BarChart({
 }: BarChartProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const max = Math.max(1, ...data.map((d) => d.value));
+  // Permanent two-line labels (subLabel) need more room per bar than a
+  // hover-only tooltip does — without a floor, "6 sessions" can't shrink
+  // (whitespace-nowrap) and forces the row wider than its card on phones.
+  const minBarWidth = data.some((d) => d.subLabel) ? 56 : 34;
 
   return (
     <div className="flex flex-col gap-2">
@@ -50,54 +54,61 @@ export function BarChart({
           {valueFormatter(max)}
         </span>
       </div>
-      <div className="flex h-36 items-end gap-1.5 border-b border-line-strong">
-        {data.map((d, index) => (
-          <div
-            key={`${d.label}-${index}`}
-            className="group relative flex h-full flex-1 flex-col items-center justify-end"
-            onMouseEnter={() => setHoveredIndex(index)}
-            onMouseLeave={() => setHoveredIndex(null)}
-          >
-            {d.subLabel ? (
-              <div className="mb-1 flex flex-col items-center gap-0.5 whitespace-nowrap text-[11px] font-bold text-ink">
-                <span>{valueFormatter(d.value)}</span>
-                <span className="text-[10px] font-semibold text-plum">{d.subLabel}</span>
-              </div>
-            ) : (
-              hoveredIndex === index && (
-                <div className="absolute -top-7 z-10 whitespace-nowrap rounded-full bg-ink px-2 py-1 text-xs font-bold text-paper-raised">
-                  {valueFormatter(d.value)}
-                </div>
-              )
-            )}
-            <div
-              className={`w-full max-w-6 rounded-t-[4px] ${BAR_COLOR[color]}`}
-              style={{
-                height: `${Math.max((d.value / max) * 100, 4)}%`,
-              }}
-            />
-          </div>
-        ))}
-      </div>
-      <div className="flex gap-1.5 text-[10px] tabular-nums text-ink-soft">
-        {data.map((d, index) => (
-          <div
-            key={`${d.label}-${index}`}
-            className="flex-1 truncate text-center"
-          >
-            {d.label}
-            {indicators?.[index] && (
-              <span
-                className="ml-0.5"
-                role="img"
-                aria-label={indicatorLabel}
-                title={indicatorLabel}
+      <div className="overflow-x-auto">
+        <div
+          className="flex flex-col gap-2"
+          style={{ minWidth: data.length * minBarWidth }}
+        >
+          <div className="flex h-36 items-end gap-1.5 border-b border-line-strong">
+            {data.map((d, index) => (
+              <div
+                key={`${d.label}-${index}`}
+                className="group relative flex h-full min-w-0 flex-1 flex-col items-center justify-end"
+                onMouseEnter={() => setHoveredIndex(index)}
+                onMouseLeave={() => setHoveredIndex(null)}
               >
-                🤱
-              </span>
-            )}
+                {d.subLabel ? (
+                  <div className="mb-1 flex flex-col items-center gap-0.5 whitespace-nowrap text-[11px] font-bold text-ink">
+                    <span>{valueFormatter(d.value)}</span>
+                    <span className="text-[10px] font-semibold text-plum">{d.subLabel}</span>
+                  </div>
+                ) : (
+                  hoveredIndex === index && (
+                    <div className="absolute -top-7 z-10 whitespace-nowrap rounded-full bg-ink px-2 py-1 text-xs font-bold text-paper-raised">
+                      {valueFormatter(d.value)}
+                    </div>
+                  )
+                )}
+                <div
+                  className={`w-full max-w-6 rounded-t-[4px] ${BAR_COLOR[color]}`}
+                  style={{
+                    height: `${Math.max((d.value / max) * 100, 4)}%`,
+                  }}
+                />
+              </div>
+            ))}
           </div>
-        ))}
+          <div className="flex gap-1.5 text-[10px] tabular-nums text-ink-soft">
+            {data.map((d, index) => (
+              <div
+                key={`${d.label}-${index}`}
+                className="min-w-0 flex-1 truncate text-center"
+              >
+                {d.label}
+                {indicators?.[index] && (
+                  <span
+                    className="ml-0.5"
+                    role="img"
+                    aria-label={indicatorLabel}
+                    title={indicatorLabel}
+                  >
+                    🤱
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
