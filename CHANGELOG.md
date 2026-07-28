@@ -9,6 +9,8 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+## [1.6.2] - 2026-07-26
+
 ### Fixed
 - Reports on phones: the pump chart's permanent two-line bar labels
   ("1130 mL" / "6 sessions") couldn't shrink or wrap, so on a 9-bar range
