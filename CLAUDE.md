@@ -1,5 +1,17 @@
 @AGENTS.md
 
+## Work tracking
+
+- Work for this app (referred to internally as "Momentini") is tracked in
+  Linear, not GitHub Issues.
+- Team: **Josephemmi** (key `JOS`) —
+  https://linear.app/josephemmi/team/JOS/overview
+- Project: **Momentini** —
+  https://linear.app/josephemmi/project/momentini-44315b2952c7/overview
+- All product backlog issues for this repo live in that project. When
+  creating or updating issues for work here, use this team/project rather
+  than asking which one to use.
+
 ## Release process
 
 - `CHANGELOG.md` (Keep a Changelog format) is the version record for this
