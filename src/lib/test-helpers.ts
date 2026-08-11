@@ -14,6 +14,11 @@ export function makeEntry(overrides: Partial<EntryRow>): EntryRow {
     amount_ml: null,
     bottle: false,
     breast: false,
+    breast_right_seconds: 0,
+    breast_left_seconds: 0,
+    breast_active_side: null,
+    breast_active_started_at: null,
+    breast_session_ended: false,
     created_at: "2026-07-16T10:00:00.000Z",
     ...overrides,
   };

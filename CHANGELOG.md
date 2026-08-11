@@ -9,6 +9,34 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+### Added
+- Per-side breastfeeding timer (Right/Left) — checking Breast opens an inline
+  panel (a detail row on desktop, an inline panel on mobile, no modal) with
+  Left/Right start-pause buttons; tapping one side auto-pauses the other, and
+  the session stays open across any number of pauses/switches until an
+  explicit "End Session" finalizes it. Elapsed time is computed from a
+  stored start timestamp rather than counted tick-by-tick, so it's exactly
+  right even after the app is backgrounded and iOS/Android throttle timers.
+  In-progress session state (which side, since when) is synced through the
+  same `entries` row and realtime pipeline every other field already uses,
+  so a session started on one device shows as "in progress" — live, ticking,
+  read-only — on every other connected device, including Timeline. Once
+  ended, a compact total shows under the Breast checkbox on desktop
+  (tap-to-expand for the Right/Left breakdown) or a full inline summary line
+  on mobile. Unchecking Breast with real recorded time prompts a
+  confirmation before clearing it. Reports gets two new stat cards
+  (Breastfeed sessions, Avg. session length), a "Breastfeeding time by day"
+  Right-vs-Left chart, and three new Daily Summary columns (Right, Left,
+  Breast total) — all computed only from ended sessions, excluding anything
+  still in progress.
+
+### Changed
+- `entries` schema: added `breast_right_seconds`/`breast_left_seconds`
+  (finalized accumulated seconds per side), `breast_active_side`/
+  `breast_active_started_at` (live in-progress state), and
+  `breast_session_ended` — additive only, existing columns and rows
+  untouched.
+
 ## [1.6.2] - 2026-07-26
 
 ### Fixed

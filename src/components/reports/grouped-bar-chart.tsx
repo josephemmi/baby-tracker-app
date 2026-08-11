@@ -2,20 +2,31 @@
 
 import { useState } from "react";
 
+export interface GroupedBarChartSeries {
+  key: string;
+  className: string;
+}
+
 interface GroupedBarChartDatum {
   label: string;
-  bottle: number;
-  breast: number;
+  values: Record<string, number>;
 }
 
 interface GroupedBarChartProps {
   title: string;
   data: GroupedBarChartDatum[];
+  series: GroupedBarChartSeries[];
+  valueFormatter?: (value: number) => string;
 }
 
-export function GroupedBarChart({ title, data }: GroupedBarChartProps) {
+export function GroupedBarChart({
+  title,
+  data,
+  series,
+  valueFormatter = (value) => String(value),
+}: GroupedBarChartProps) {
   const [hovered, setHovered] = useState<string | null>(null);
-  const max = Math.max(1, ...data.flatMap((d) => [d.bottle, d.breast]));
+  const max = Math.max(1, ...data.flatMap((d) => series.map((s) => d.values[s.key] ?? 0)));
 
   // Two bars + inter-bar gap per day needs more room than a single-bar
   // chart — without a floor, the date labels get squeezed into ellipsis
@@ -38,12 +49,8 @@ export function GroupedBarChart({ title, data }: GroupedBarChartProps) {
                 key={`${d.label}-${index}`}
                 className="flex h-full min-w-0 flex-1 items-end justify-center gap-1"
               >
-                {(
-                  [
-                    { key: "bottle", value: d.bottle, className: "bg-amber" },
-                    { key: "breast", value: d.breast, className: "bg-rose" },
-                  ] as const
-                ).map((bar) => {
+                {series.map((s) => {
+                  const bar = { key: s.key, value: d.values[s.key] ?? 0, className: s.className };
                   const hoverKey = `${index}-${bar.key}`;
                   return (
                     <div
@@ -54,7 +61,7 @@ export function GroupedBarChart({ title, data }: GroupedBarChartProps) {
                     >
                       {hovered === hoverKey && (
                         <div className="absolute -top-7 z-10 whitespace-nowrap rounded-full bg-ink px-2 py-1 text-xs font-bold text-paper-raised">
-                          {bar.value}
+                          {valueFormatter(bar.value)}
                         </div>
                       )}
                       <div

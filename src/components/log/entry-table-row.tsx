@@ -1,5 +1,6 @@
+import { useState } from "react";
 import type { Moment } from "@/lib/entries";
-import type { EntryType } from "@/lib/supabase/database.types";
+import type { BreastSide, EntryType } from "@/lib/supabase/database.types";
 import { formatTime, toDatetimeLocalValue } from "@/lib/entries";
 import { initials, personColor } from "@/lib/person-colors";
 import {
@@ -11,6 +12,7 @@ import {
   PumpPillStatic,
 } from "@/components/log/entry-styles";
 import { NotesCell } from "@/components/log/notes-cell";
+import { BreastSessionSummary, BreastTimerPanel } from "@/components/log/breast-timer-panel";
 
 interface Member {
   id: string;
@@ -28,6 +30,8 @@ export interface EntryRowHandlers {
   onNotesCommit?: (moment: Moment, value: string) => void;
   onAmountCommit?: (moment: Moment, value: string) => void;
   onPumpAmountCommit?: (moment: Moment, value: string) => void;
+  onBreastSideToggle?: (moment: Moment, side: BreastSide) => void;
+  onEndBreastSession?: (moment: Moment) => void;
   onLoggedByCycle?: (moment: Moment) => void;
 }
 
@@ -62,12 +66,20 @@ export function EntryTableRow({
   onNotesCommit,
   onAmountCommit,
   onPumpAmountCommit,
+  onBreastSideToggle,
+  onEndBreastSession,
   onLoggedByCycle,
 }: EntryTableRowProps) {
   const loggedByIndex = members.findIndex((m) => m.id === moment.loggedBy);
   const loggedByName = (moment.loggedBy && memberNames[moment.loggedBy]) ?? "Unknown";
+  const [breastSummaryExpanded, setBreastSummaryExpanded] = useState(false);
+  const showBreastPanel = !!moment.feed?.breast && !moment.feed?.breast_session_ended;
+  // Sums to the same total either way — the Pump/mL pair always spans 2
+  // columns, merged or split, matching how the header itself decides.
+  const totalColumns = (selectMode ? 1 : 0) + 10;
 
   return (
+    <>
     <tr
       className={`border-b border-line transition-colors last:border-0 hover:bg-sage/4 ${
         moment.key === flashMomentKey ? "row-flash" : ""
@@ -108,15 +120,25 @@ export function EntryTableRow({
         )}
       </td>
       <td className="px-3 py-2.5">
-        {editable ? (
-          <EditableCheckbox
-            style={FEED_FLAG_STYLES.breast}
-            checked={!!moment.feed?.breast}
-            onChange={(checked) => onToggleFeedFlag?.(moment, "breast", checked)}
-          />
-        ) : (
-          moment.feed?.breast && <Check colorClass="text-rose" />
-        )}
+        <div className="flex flex-col items-center gap-1">
+          {editable ? (
+            <EditableCheckbox
+              style={FEED_FLAG_STYLES.breast}
+              checked={!!moment.feed?.breast}
+              onChange={(checked) => onToggleFeedFlag?.(moment, "breast", checked)}
+            />
+          ) : (
+            moment.feed?.breast && <Check colorClass="text-rose" />
+          )}
+          {moment.feed && (
+            <BreastSessionSummary
+              entry={moment.feed}
+              variant="expandable"
+              expanded={breastSummaryExpanded}
+              onToggleExpand={() => setBreastSummaryExpanded((e) => !e)}
+            />
+          )}
+        </div>
       </td>
       <td className="px-3 py-2.5">
         {editable ? (
@@ -249,5 +271,20 @@ export function EntryTableRow({
         )}
       </td>
     </tr>
+    {showBreastPanel && moment.feed && (
+      <tr className="border-b border-line last:border-0">
+        <td colSpan={totalColumns} className="bg-rose-soft/30 px-3 py-2.5">
+          <div className="mx-auto max-w-[360px]">
+            <BreastTimerPanel
+              entry={moment.feed}
+              editable={editable}
+              onToggleSide={(side) => onBreastSideToggle?.(moment, side)}
+              onEndSession={() => onEndBreastSession?.(moment)}
+            />
+          </div>
+        </td>
+      </tr>
+    )}
+    </>
   );
 }

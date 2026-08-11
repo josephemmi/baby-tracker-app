@@ -45,6 +45,8 @@ export function MomentsTable({
   onNotesCommit,
   onAmountCommit,
   onPumpAmountCommit,
+  onBreastSideToggle,
+  onEndBreastSession,
   onLoggedByCycle,
   selectMode = false,
   selectedKeys,
@@ -58,6 +60,8 @@ export function MomentsTable({
     onNotesCommit,
     onAmountCommit,
     onPumpAmountCommit,
+    onBreastSideToggle,
+    onEndBreastSession,
     onLoggedByCycle,
   };
 

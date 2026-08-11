@@ -7,6 +7,8 @@ export interface OverallStats {
   avgGapMinutes: number | null;
   pumpSessions: number;
   totalPumpedMl: number;
+  breastfeedSessions: number;
+  avgBreastfeedSessionSeconds: number | null;
 }
 
 export interface DailyStat {
@@ -20,6 +22,20 @@ export interface DailyStat {
   peeCount: number;
   pumpCount: number;
   pumpedMl: number;
+  breastRightSeconds: number;
+  breastLeftSeconds: number;
+  breastSessionCount: number;
+}
+
+// An ended breastfeed session with real recorded time — excludes anything
+// still in progress, matching how avgMlPerBottle already excludes bottle
+// feeds logged with no amount.
+function isFinishedBreastSession(entry: EntryRow): boolean {
+  return (
+    entry.type === "feed" &&
+    entry.breast_session_ended &&
+    (entry.breast_right_seconds > 0 || entry.breast_left_seconds > 0)
+  );
 }
 
 function localDayKey(timestamp: string): string {
@@ -109,6 +125,15 @@ export function computeOverallStats(entries: EntryRow[]): OverallStats {
   const pumps = entries.filter((entry) => entry.type === "pump");
   const totalPumpedMl = pumps.reduce((sum, entry) => sum + (entry.amount_ml ?? 0), 0);
 
+  const finishedBreastSessions = entries.filter(isFinishedBreastSession);
+  const avgBreastfeedSessionSeconds =
+    finishedBreastSessions.length > 0
+      ? finishedBreastSessions.reduce(
+          (sum, entry) => sum + entry.breast_right_seconds + entry.breast_left_seconds,
+          0,
+        ) / finishedBreastSessions.length
+      : null;
+
   return {
     totalFeeds: feeds.length,
     bottleFeeds,
@@ -116,6 +141,8 @@ export function computeOverallStats(entries: EntryRow[]): OverallStats {
     avgGapMinutes,
     pumpSessions: pumps.length,
     totalPumpedMl,
+    breastfeedSessions: finishedBreastSessions.length,
+    avgBreastfeedSessionSeconds,
   };
 }
 
@@ -131,6 +158,9 @@ export function computeDailyStats(entries: EntryRow[]): DailyStat[] {
     peeCount: number;
     pumpCount: number;
     pumpedMl: number;
+    breastRightSeconds: number;
+    breastLeftSeconds: number;
+    breastSessionCount: number;
   }
 
   const days = new Map<string, Accumulator>();
@@ -148,6 +178,9 @@ export function computeDailyStats(entries: EntryRow[]): DailyStat[] {
       peeCount: 0,
       pumpCount: 0,
       pumpedMl: 0,
+      breastRightSeconds: 0,
+      breastLeftSeconds: 0,
+      breastSessionCount: 0,
     };
 
     if (entry.type === "feed") {
@@ -160,6 +193,11 @@ export function computeDailyStats(entries: EntryRow[]): DailyStat[] {
       }
       if (entry.breast) {
         day.breastCount += 1;
+      }
+      if (isFinishedBreastSession(entry)) {
+        day.breastRightSeconds += entry.breast_right_seconds;
+        day.breastLeftSeconds += entry.breast_left_seconds;
+        day.breastSessionCount += 1;
       }
     } else if (entry.type === "poop") {
       day.poopCount += 1;

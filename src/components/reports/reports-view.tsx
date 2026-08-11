@@ -14,6 +14,7 @@ import {
 import { StatCard } from "@/components/reports/stat-card";
 import { BarChart } from "@/components/reports/bar-chart";
 import { GroupedBarChart } from "@/components/reports/grouped-bar-chart";
+import { fmtDuration } from "@/lib/breastfeed-timer";
 
 type RangeKind = ReportRange["kind"];
 
@@ -133,6 +134,20 @@ export function ReportsView({ entries }: { entries: EntryRow[] }) {
               value={`${stats.totalPumpedMl} mL`}
               accent="plum"
             />
+            <StatCard
+              label="Breastfeed sessions"
+              value={String(stats.breastfeedSessions)}
+              accent="rose"
+            />
+            <StatCard
+              label="Avg. session length"
+              value={
+                stats.avgBreastfeedSessionSeconds != null
+                  ? fmtDuration(stats.avgBreastfeedSessionSeconds)
+                  : "—"
+              }
+              accent="rose"
+            />
           </div>
 
           <div className="rounded-[10px] border border-line bg-paper-raised p-4 shadow-card">
@@ -167,11 +182,39 @@ export function ReportsView({ entries }: { entries: EntryRow[] }) {
             </div>
             <GroupedBarChart
               title="Feeds by day, by method"
+              series={[
+                { key: "bottle", className: "bg-amber" },
+                { key: "breast", className: "bg-rose" },
+              ]}
               data={dailyStats.map((day) => ({
                 label: day.dayLabel,
-                bottle: day.bottleCount,
-                breast: day.breastCount,
+                values: { bottle: day.bottleCount, breast: day.breastCount },
               }))}
+            />
+          </div>
+
+          <div className="rounded-[10px] border border-line bg-paper-raised p-4 shadow-card">
+            <div className="mb-3 flex items-center gap-4 text-[11.5px] text-ink-soft">
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-rose" />
+                Right
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-rose-dark" />
+                Left
+              </span>
+            </div>
+            <GroupedBarChart
+              title="Breastfeeding time by day"
+              series={[
+                { key: "right", className: "bg-rose" },
+                { key: "left", className: "bg-rose-dark" },
+              ]}
+              data={dailyStats.map((day) => ({
+                label: day.dayLabel,
+                values: { right: day.breastRightSeconds, left: day.breastLeftSeconds },
+              }))}
+              valueFormatter={fmtDuration}
             />
           </div>
 
@@ -195,12 +238,15 @@ export function ReportsView({ entries }: { entries: EntryRow[] }) {
           </div>
 
           <div className="overflow-x-auto rounded-[10px] border border-line bg-paper-raised shadow-card">
-            <table className="w-full min-w-[760px] border-collapse text-[13.5px]">
+            <table className="w-full min-w-[960px] border-collapse text-[13.5px]">
               <thead>
                 <tr className="border-b border-line-strong text-left text-[11px] font-bold tracking-[0.05em] text-ink-soft uppercase">
                   <th className="px-3 py-2.5">Day</th>
                   <th className="px-3 py-2.5 text-center">Bottle feeds</th>
                   <th className="px-3 py-2.5 text-center">Breastfeeds</th>
+                  <th className="px-3 py-2.5 text-center">Right</th>
+                  <th className="px-3 py-2.5 text-center">Left</th>
+                  <th className="px-3 py-2.5 text-center">Breast total</th>
                   <th className="px-3 py-2.5 text-center">Total mL</th>
                   <th className="px-3 py-2.5 text-center">Avg mL/bottle</th>
                   <th className="px-3 py-2.5 text-center">Poo count</th>
@@ -221,6 +267,17 @@ export function ReportsView({ entries }: { entries: EntryRow[] }) {
                     </td>
                     <td className="px-3 py-2.5 text-center tabular-nums text-ink">
                       {day.breastCount}
+                    </td>
+                    <td className="px-3 py-2.5 text-center tabular-nums text-ink">
+                      {day.breastRightSeconds > 0 ? fmtDuration(day.breastRightSeconds) : ""}
+                    </td>
+                    <td className="px-3 py-2.5 text-center tabular-nums text-ink">
+                      {day.breastLeftSeconds > 0 ? fmtDuration(day.breastLeftSeconds) : ""}
+                    </td>
+                    <td className="px-3 py-2.5 text-center tabular-nums text-ink">
+                      {day.breastRightSeconds + day.breastLeftSeconds > 0
+                        ? fmtDuration(day.breastRightSeconds + day.breastLeftSeconds)
+                        : ""}
                     </td>
                     <td className="px-3 py-2.5 text-center tabular-nums text-ink">
                       {day.totalMl || ""}

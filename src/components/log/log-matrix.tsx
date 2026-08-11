@@ -15,6 +15,8 @@ import type { EntryType } from "@/lib/supabase/database.types";
 import { GlanceCards } from "@/components/log/glance-cards";
 import { MomentsTable } from "@/components/log/moments-table";
 import { PrimaryButton } from "@/components/ui/primary-button";
+import { canEndBreastSession } from "@/lib/breastfeed-timer";
+import type { BreastSide } from "@/lib/supabase/database.types";
 
 interface Member {
   id: string;
@@ -292,8 +294,37 @@ export function LogMatrix({
     flag: "bottle" | "breast",
     checked: boolean,
   ) {
+    // Unchecking Breast loses real timed data (running or already
+    // accumulated) more easily than an accidental tap should allow —
+    // confirm before clearing it, same friction level as deleting a moment.
+    if (
+      flag === "breast" &&
+      !checked &&
+      moment.feed &&
+      canEndBreastSession(moment.feed)
+    ) {
+      const confirmed = window.confirm(
+        "This will clear the recorded breastfeeding session. Continue?",
+      );
+      if (!confirmed) return;
+    }
+
     setError(null);
     const supabase = createClient();
+
+    // Resets the timer fields whenever Breast is being unchecked — covers
+    // both the "row stays" (bottle still on) and "row gets deleted" (bottle
+    // also off) paths below; a no-op when there was nothing to reset.
+    const breastResetFields =
+      flag === "breast" && !checked
+        ? {
+            breast_right_seconds: 0,
+            breast_left_seconds: 0,
+            breast_active_side: null,
+            breast_active_started_at: null,
+            breast_session_ended: false,
+          }
+        : {};
 
     if (!moment.feed) {
       // No feed row on this moment yet — checking Bottle or Breast creates one.
@@ -357,8 +388,18 @@ export function LogMatrix({
       return;
     }
 
-    const updates: { bottle?: boolean; breast?: boolean; amount_ml?: null } = {
+    const updates: {
+      bottle?: boolean;
+      breast?: boolean;
+      amount_ml?: null;
+      breast_right_seconds?: number;
+      breast_left_seconds?: number;
+      breast_active_side?: BreastSide | null;
+      breast_active_started_at?: string | null;
+      breast_session_ended?: boolean;
+    } = {
       [flag]: checked,
+      ...breastResetFields,
     };
     if (flag === "bottle" && !checked) {
       updates.amount_ml = null;
@@ -373,6 +414,109 @@ export function LogMatrix({
 
     setEntries((prev) =>
       prev.map((entry) => (entry.id === feedId ? { ...entry, ...updates } : entry)),
+    );
+  }
+
+  // Tapping a side starts it; tapping the OTHER side auto-pauses the first
+  // and starts the second (only one side ever runs at a time); tapping the
+  // same side again pauses it. The session stays open across any number of
+  // pauses/switches — resuming a side continues from its accumulated time,
+  // it never resets. Each tap is a single atomic write (never a per-tick
+  // one) of a real timestamp, which is what lets every connected device
+  // compute the same live elapsed time locally — see src/lib/breastfeed-timer.ts.
+  async function handleBreastSideToggle(moment: Moment, side: BreastSide) {
+    const feed = moment.feed;
+    if (!feed) return;
+    setError(null);
+    const supabase = createClient();
+
+    const updates: {
+      breast_right_seconds?: number;
+      breast_left_seconds?: number;
+      breast_active_side: BreastSide | null;
+      breast_active_started_at: string | null;
+    } = { breast_active_side: null, breast_active_started_at: null };
+
+    if (feed.breast_active_side === side && feed.breast_active_started_at) {
+      // Pausing this side — fold the elapsed-since-start time into its total.
+      const elapsed = Math.max(
+        0,
+        Math.floor(
+          (Date.now() - new Date(feed.breast_active_started_at).getTime()) / 1000,
+        ),
+      );
+      if (side === "right") {
+        updates.breast_right_seconds = feed.breast_right_seconds + elapsed;
+      } else {
+        updates.breast_left_seconds = feed.breast_left_seconds + elapsed;
+      }
+    } else {
+      // Starting/resuming this side — if the OTHER side was running, fold
+      // its elapsed time in first before switching.
+      if (feed.breast_active_side && feed.breast_active_started_at) {
+        const otherElapsed = Math.max(
+          0,
+          Math.floor(
+            (Date.now() - new Date(feed.breast_active_started_at).getTime()) / 1000,
+          ),
+        );
+        if (feed.breast_active_side === "right") {
+          updates.breast_right_seconds = feed.breast_right_seconds + otherElapsed;
+        } else {
+          updates.breast_left_seconds = feed.breast_left_seconds + otherElapsed;
+        }
+      }
+      updates.breast_active_side = side;
+      updates.breast_active_started_at = new Date().toISOString();
+    }
+
+    const { error } = await supabase.from("entries").update(updates).eq("id", feed.id);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+
+    setEntries((prev) =>
+      prev.map((entry) => (entry.id === feed.id ? { ...entry, ...updates } : entry)),
+    );
+  }
+
+  async function handleEndBreastSession(moment: Moment) {
+    const feed = moment.feed;
+    if (!feed) return;
+    setError(null);
+    const supabase = createClient();
+
+    const updates = {
+      breast_right_seconds: feed.breast_right_seconds,
+      breast_left_seconds: feed.breast_left_seconds,
+      breast_active_side: null as BreastSide | null,
+      breast_active_started_at: null as string | null,
+      breast_session_ended: true,
+    };
+
+    if (feed.breast_active_side && feed.breast_active_started_at) {
+      const elapsed = Math.max(
+        0,
+        Math.floor(
+          (Date.now() - new Date(feed.breast_active_started_at).getTime()) / 1000,
+        ),
+      );
+      if (feed.breast_active_side === "right") {
+        updates.breast_right_seconds += elapsed;
+      } else {
+        updates.breast_left_seconds += elapsed;
+      }
+    }
+
+    const { error } = await supabase.from("entries").update(updates).eq("id", feed.id);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+
+    setEntries((prev) =>
+      prev.map((entry) => (entry.id === feed.id ? { ...entry, ...updates } : entry)),
     );
   }
 
@@ -647,6 +791,8 @@ export function LogMatrix({
         onNotesCommit={handleNotesCommit}
         onAmountCommit={handleAmountCommit}
         onPumpAmountCommit={handlePumpAmountCommit}
+        onBreastSideToggle={handleBreastSideToggle}
+        onEndBreastSession={handleEndBreastSession}
         onLoggedByCycle={handleLoggedByCycle}
         selectMode={selectMode}
         selectedKeys={selectedKeys}

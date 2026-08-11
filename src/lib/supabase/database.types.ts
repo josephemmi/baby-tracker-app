@@ -7,6 +7,7 @@ export type Json =
   | Json[];
 
 export type EntryType = "feed" | "pee" | "poop" | "pump";
+export type BreastSide = "right" | "left";
 export type UserRole = "parent" | "caregiver";
 
 export interface Database {
@@ -92,6 +93,11 @@ export interface Database {
           amount_ml: number | null;
           bottle: boolean;
           breast: boolean;
+          breast_right_seconds: number;
+          breast_left_seconds: number;
+          breast_active_side: BreastSide | null;
+          breast_active_started_at: string | null;
+          breast_session_ended: boolean;
           created_at: string;
         };
         Insert: {
@@ -104,6 +110,11 @@ export interface Database {
           amount_ml?: number | null;
           bottle?: boolean;
           breast?: boolean;
+          breast_right_seconds?: number;
+          breast_left_seconds?: number;
+          breast_active_side?: BreastSide | null;
+          breast_active_started_at?: string | null;
+          breast_session_ended?: boolean;
           created_at?: string;
         };
         Update: {
@@ -116,6 +127,11 @@ export interface Database {
           amount_ml?: number | null;
           bottle?: boolean;
           breast?: boolean;
+          breast_right_seconds?: number;
+          breast_left_seconds?: number;
+          breast_active_side?: BreastSide | null;
+          breast_active_started_at?: string | null;
+          breast_session_ended?: boolean;
           created_at?: string;
         };
         Relationships: [];

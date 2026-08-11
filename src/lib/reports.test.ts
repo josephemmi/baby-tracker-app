@@ -49,6 +49,35 @@ describe("computeOverallStats", () => {
 
     expect(computeOverallStats(entries).avgGapMinutes).toBe(150);
   });
+
+  it("does not let a still-in-progress breastfeed session drag down avg session length", () => {
+    const entries = [
+      makeEntry({
+        type: "feed",
+        breast: true,
+        breast_right_seconds: 120,
+        breast_left_seconds: 60,
+        breast_session_ended: true,
+      }),
+      // In progress: has an active side but was never ended — must be excluded.
+      makeEntry({
+        type: "feed",
+        breast: true,
+        breast_active_side: "right",
+        breast_active_started_at: "2026-07-16T10:00:00.000Z",
+        breast_session_ended: false,
+      }),
+    ];
+
+    const stats = computeOverallStats(entries);
+    expect(stats.breastfeedSessions).toBe(1);
+    expect(stats.avgBreastfeedSessionSeconds).toBe(180);
+  });
+
+  it("returns null avgBreastfeedSessionSeconds with no ended sessions", () => {
+    const entries = [makeEntry({ type: "feed", breast: true })];
+    expect(computeOverallStats(entries).avgBreastfeedSessionSeconds).toBeNull();
+  });
 });
 
 describe("computeDailyStats", () => {
@@ -112,6 +141,33 @@ describe("computeDailyStats", () => {
     expect(day.bottleCount).toBe(1);
     expect(day.breastCount).toBe(1);
     expect(day.totalMl).toBe(20);
+  });
+
+  it("only counts ended breastfeed sessions toward daily Right/Left/session totals", () => {
+    const entries = [
+      makeEntry({
+        type: "feed",
+        breast: true,
+        breast_right_seconds: 200,
+        breast_left_seconds: 100,
+        breast_session_ended: true,
+        timestamp: "2026-07-16T08:00:00.000Z",
+      }),
+      // In progress, not ended — must not contribute to the day's totals.
+      makeEntry({
+        type: "feed",
+        breast: true,
+        breast_active_side: "left",
+        breast_active_started_at: "2026-07-16T09:00:00.000Z",
+        breast_session_ended: false,
+        timestamp: "2026-07-16T09:00:00.000Z",
+      }),
+    ];
+
+    const day = computeDailyStats(entries)[0];
+    expect(day.breastRightSeconds).toBe(200);
+    expect(day.breastLeftSeconds).toBe(100);
+    expect(day.breastSessionCount).toBe(1);
   });
 });
 

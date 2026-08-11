@@ -10,6 +10,7 @@ import {
   PumpPillStatic,
 } from "@/components/log/entry-styles";
 import { NotesCell } from "@/components/log/notes-cell";
+import { BreastSessionSummary, BreastTimerPanel } from "@/components/log/breast-timer-panel";
 import type { EntryRowHandlers } from "@/components/log/entry-table-row";
 
 interface Member {
@@ -50,6 +51,8 @@ export function EntryCard({
   onNotesCommit,
   onAmountCommit,
   onPumpAmountCommit,
+  onBreastSideToggle,
+  onEndBreastSession,
   onLoggedByCycle,
   onDeleteMoment,
 }: EntryCardProps) {
@@ -58,6 +61,7 @@ export function EntryCard({
   const color = personColor(Math.max(0, loggedByIndex));
   const showMl = !!moment.feed?.bottle;
   const showPumpMl = !!moment.pump;
+  const showBreastPanel = !!moment.feed?.breast && !moment.feed?.breast_session_ended;
 
   return (
     <div
@@ -165,6 +169,24 @@ export function EntryCard({
           </>
         )}
       </div>
+
+      {showBreastPanel && moment.feed && (
+        <div className="mb-2.5 rounded-[10px] border border-line-strong bg-paper px-3 py-2.5">
+          <BreastTimerPanel
+            entry={moment.feed}
+            editable={editable}
+            onToggleSide={(side) => onBreastSideToggle?.(moment, side)}
+            onEndSession={() => onEndBreastSession?.(moment)}
+            large
+          />
+        </div>
+      )}
+
+      {moment.feed?.breast_session_ended && moment.feed && (
+        <div className="mb-2.5">
+          <BreastSessionSummary entry={moment.feed} variant="inline" />
+        </div>
+      )}
 
       {showMl && (
         <div className="mb-2.5 flex items-center gap-2 rounded-[8px] border border-line-strong bg-paper px-3 py-2">
