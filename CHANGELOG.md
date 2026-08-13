@@ -9,6 +9,8 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-08-13
+
 ### Added
 - Per-side breastfeeding timer (Right/Left) — checking Breast opens an inline
   panel (a detail row on desktop, an inline panel on mobile, no modal) with
