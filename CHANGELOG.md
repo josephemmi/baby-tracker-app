@@ -9,6 +9,16 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+### Fixed
+- Reports page capping out at an old date instead of showing entries through
+  today (JOS-18). The page was asking the database for a baby's entries in
+  one request, oldest first — but Supabase caps a single request at 1,000
+  rows regardless of order, so once a baby passed 1,000 logged entries, the
+  newest ones silently never made it back. Reports now pages through the
+  full history in batches until nothing's left, so every entry is included
+  no matter how large the log gets. No data was ever at risk — this was a
+  display-only gap, not a storage or data-loss issue.
+
 ## [1.7.0] - 2026-08-13
 
 ### Added
