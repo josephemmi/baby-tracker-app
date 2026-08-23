@@ -52,7 +52,7 @@ export default async function ReportsPage() {
             Add your baby from the Log tab first.
           </p>
         ) : (
-          <ReportsView entries={entries ?? []} />
+          <ReportsView entries={entries ?? []} babyId={baby.id} />
         )}
       </div>
     </div>

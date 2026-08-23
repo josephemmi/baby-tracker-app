@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import type { EntryRow } from "@/lib/entries";
 import {
   availableYears,
@@ -26,8 +27,74 @@ const RANGE_OPTIONS: { value: RangeKind; label: string }[] = [
   { value: "all", label: "All time" },
 ];
 
-export function ReportsView({ entries }: { entries: EntryRow[] }) {
-  const now = useMemo(() => new Date(), []);
+export function ReportsView({
+  entries: initialEntries,
+  babyId,
+}: {
+  entries: EntryRow[];
+  babyId: string;
+}) {
+  const [entries, setEntries] = useState(initialEntries);
+  // Refreshed alongside entries, not just captured once — otherwise a
+  // long-lived tab's date-relative ranges (Last 7 days, this month/year)
+  // stay anchored to whatever moment the page first loaded.
+  const [now, setNow] = useState(() => new Date());
+  const lastRefetchAt = useRef(0);
+
+  useEffect(() => {
+    const supabase = createClient();
+
+    // Unlike Home, this page has no realtime subscription — it's a report,
+    // not a live log — but it still needs to not go stale while left open.
+    // Same "we're back" signals and belt-and-braces poll Home already uses
+    // (v1.4.1/v1.6.1), applied here since this page had none of them: a
+    // pure one-shot server render with nothing keeping it fresh afterward.
+    async function refetch() {
+      lastRefetchAt.current = Date.now();
+      const { data } = await supabase
+        .from("entries")
+        .select("*")
+        .eq("baby_id", babyId)
+        .order("timestamp", { ascending: true });
+
+      if (data) {
+        setEntries(data);
+        setNow(new Date());
+      }
+    }
+
+    function handleForeground() {
+      if (document.visibilityState !== "visible") return;
+      refetch();
+    }
+
+    document.addEventListener("visibilitychange", handleForeground);
+    window.addEventListener("pageshow", handleForeground);
+    window.addEventListener("focus", handleForeground);
+
+    const pollId = window.setInterval(() => {
+      if (document.visibilityState === "visible") refetch();
+    }, 20_000);
+
+    // Same iOS-PWA-relaunch fallback as Home: a resumed standalone app can
+    // fail to fire any lifecycle event at all, but the user will still
+    // touch the screen, so treat that as a trigger if it's been a while.
+    function handleInteraction() {
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - lastRefetchAt.current > 5_000) refetch();
+    }
+
+    document.addEventListener("pointerdown", handleInteraction, { passive: true });
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleForeground);
+      window.removeEventListener("pageshow", handleForeground);
+      window.removeEventListener("focus", handleForeground);
+      document.removeEventListener("pointerdown", handleInteraction);
+      window.clearInterval(pollId);
+    };
+  }, [babyId]);
+
   const [rangeKind, setRangeKind] = useState<RangeKind>("all");
   const [month, setMonth] = useState(() => currentMonthValue(now));
   const years = useMemo(() => availableYears(entries), [entries]);
