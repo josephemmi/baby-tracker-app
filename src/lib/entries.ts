@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 
 export type EntryRow = Database["public"]["Tables"]["entries"]["Row"];
@@ -5,6 +6,38 @@ export type EntryRow = Database["public"]["Tables"]["entries"]["Row"];
 // Shared between the Home page's initial server-side fetch and its
 // client-side resync (on realtime reconnect) so the two never drift apart.
 export const HOME_ENTRIES_LIMIT = 100;
+
+// PostgREST caps every response at the project's max-rows setting (1000 by
+// default) no matter how the query is ordered. Reports needs a baby's full
+// history, which routinely exceeds that — an unpaginated ascending query
+// silently drops everything past row 1000, i.e. the *most recent* entries,
+// which is what made Reports look permanently stuck on an old date. Page
+// through in batches until a batch comes back short of a full page.
+const ENTRIES_PAGE_SIZE = 1000;
+
+export async function fetchAllEntries(
+  supabase: SupabaseClient<Database>,
+  babyId: string,
+): Promise<EntryRow[]> {
+  const all: EntryRow[] = [];
+  let offset = 0;
+
+  for (;;) {
+    const { data, error } = await supabase
+      .from("entries")
+      .select("*")
+      .eq("baby_id", babyId)
+      .order("timestamp", { ascending: true })
+      .range(offset, offset + ENTRIES_PAGE_SIZE - 1);
+
+    if (error || !data) break;
+    all.push(...data);
+    if (data.length < ENTRIES_PAGE_SIZE) break;
+    offset += ENTRIES_PAGE_SIZE;
+  }
+
+  return all;
+}
 
 // A "moment" is the matrix UI's clustering of same-instant entries (e.g. a
 // feed logged alongside a pee) back into one row, mirroring the paper log.

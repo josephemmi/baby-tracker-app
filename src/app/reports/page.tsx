@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AppHeader } from "@/components/layout/app-header";
 import { ReportsView } from "@/components/reports/reports-view";
 import { colorIndexFor } from "@/lib/person-colors";
+import { fetchAllEntries } from "@/lib/entries";
 
 export default async function ReportsPage() {
   const { user, profile, household } = await getCurrentUserAndProfile();
@@ -28,13 +29,7 @@ export default async function ReportsPage() {
 
   const baby = babies?.[0] ?? null;
 
-  const { data: entries } = baby
-    ? await supabase
-        .from("entries")
-        .select("*")
-        .eq("baby_id", baby.id)
-        .order("timestamp", { ascending: true })
-    : { data: [] };
+  const entries = baby ? await fetchAllEntries(supabase, baby.id) : [];
 
   return (
     <div className="min-h-screen bg-paper p-4 sm:p-8">
@@ -52,7 +47,7 @@ export default async function ReportsPage() {
             Add your baby from the Log tab first.
           </p>
         ) : (
-          <ReportsView entries={entries ?? []} babyId={baby.id} />
+          <ReportsView entries={entries} babyId={baby.id} />
         )}
       </div>
     </div>

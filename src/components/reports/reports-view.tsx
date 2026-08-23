@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { EntryRow } from "@/lib/entries";
+import { fetchAllEntries, type EntryRow } from "@/lib/entries";
 import {
   availableYears,
   computeDailyStats,
@@ -51,16 +51,9 @@ export function ReportsView({
     // pure one-shot server render with nothing keeping it fresh afterward.
     async function refetch() {
       lastRefetchAt.current = Date.now();
-      const { data } = await supabase
-        .from("entries")
-        .select("*")
-        .eq("baby_id", babyId)
-        .order("timestamp", { ascending: true });
-
-      if (data) {
-        setEntries(data);
-        setNow(new Date());
-      }
+      const data = await fetchAllEntries(supabase, babyId);
+      setEntries(data);
+      setNow(new Date());
     }
 
     // visibilitychange/pageshow/focus are transition events — a tab that's
