@@ -63,6 +63,12 @@ export function ReportsView({
       }
     }
 
+    // visibilitychange/pageshow/focus are transition events — a tab that's
+    // already visible and focused on load fires none of them, so without
+    // an explicit call here the page would just sit on the initial server
+    // render until the poll or a tap eventually caught up.
+    refetch();
+
     function handleForeground() {
       if (document.visibilityState !== "visible") return;
       refetch();
