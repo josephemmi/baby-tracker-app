@@ -28,12 +28,15 @@
   no need to ask each time. Use `scripts/generate-release-notes.py
   <version> CHANGELOG.md <out_path>` (requires `reportlab`) rather than
   writing this from scratch.
-- Do not upload the PDF to Google Drive. Generate it and hand it to the
-  user directly (send the file); they handle getting it into Drive
-  themselves. This was tried the other way (auto-upload via Drive tools)
-  and cost far more effort than it was worth for a one-page PDF — don't
-  revisit that regardless of what tooling becomes available later.
-- For each Linear ticket included in the release, post the release notes
-  (the relevant CHANGELOG section, or at minimum that ticket's entry) as a
-  comment on the ticket before moving it to Done. Release notes on the
-  ticket come first; the Done transition happens after, not before.
+- Do not upload the PDF to Google Drive. Attach it directly to the Linear
+  ticket(s) for that release (Linear supports file attachments on
+  issues) instead of sending it through chat; the user downloads it from
+  the ticket and handles getting it into Drive themselves. This was tried
+  as an auto-upload to Drive earlier and cost far more effort than it was
+  worth for a one-page PDF — don't revisit that regardless of what
+  tooling becomes available later.
+- For each Linear ticket included in the release, attach the release-notes
+  PDF and post the release notes (the relevant CHANGELOG section, or at
+  minimum that ticket's entry) as a comment on the ticket before moving it
+  to Done. Both — attachment and comment — come first; the Done transition
+  happens after, not before.
