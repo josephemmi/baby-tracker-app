@@ -9,6 +9,8 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-08-24
+
 ### Fixed
 - Reports page capping out at an old date instead of showing entries through
   today (JOS-18). The page was asking the database for a baby's entries in

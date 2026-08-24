@@ -33,3 +33,7 @@
   themselves. This was tried the other way (auto-upload via Drive tools)
   and cost far more effort than it was worth for a one-page PDF — don't
   revisit that regardless of what tooling becomes available later.
+- For each Linear ticket included in the release, post the release notes
+  (the relevant CHANGELOG section, or at minimum that ticket's entry) as a
+  comment on the ticket before moving it to Done. Release notes on the
+  ticket come first; the Done transition happens after, not before.
