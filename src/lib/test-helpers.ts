@@ -20,6 +20,8 @@ export function makeEntry(overrides: Partial<EntryRow>): EntryRow {
     breast_active_started_at: null,
     breast_session_ended: false,
     created_at: "2026-07-16T10:00:00.000Z",
+    deleted_at: null,
+    deleted_by: null,
     ...overrides,
   };
 }

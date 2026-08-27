@@ -101,9 +101,23 @@ export function LogMatrix({
           },
           (payload) => {
             const updated = payload.new as EntryRow;
-            setEntries((prev) =>
-              prev.map((entry) => (entry.id === updated.id ? updated : entry)),
-            );
+            setEntries((prev) => {
+              // Soft-deleted (here or on another device) — drop it from
+              // Home's active view, same as if it had been hard-deleted.
+              if (updated.deleted_at) {
+                return prev.filter((entry) => entry.id !== updated.id);
+              }
+              if (prev.some((entry) => entry.id === updated.id)) {
+                return prev.map((entry) => (entry.id === updated.id ? updated : entry));
+              }
+              // A restore for an entry not currently in view (e.g. it had
+              // aged past HOME_ENTRIES_LIMIT before being deleted) — insert
+              // it back in chronological order; the next poll/refetch will
+              // reconcile the exact limit/ordering if this is imprecise.
+              return [updated, ...prev].sort((a, b) =>
+                b.timestamp.localeCompare(a.timestamp),
+              );
+            });
           },
         )
         .on(
@@ -146,6 +160,7 @@ export function LogMatrix({
         .from("entries")
         .select("*")
         .eq("baby_id", babyId)
+        .is("deleted_at", null)
         .order("timestamp", { ascending: false })
         .limit(HOME_ENTRIES_LIMIT + 1);
 
@@ -262,9 +277,11 @@ export function LogMatrix({
     const existingId = moment[type]?.id;
     if (!existingId) return;
 
+    // Soft-delete (JOS-20) — recoverable for 7 days via Timeline's
+    // Recently Deleted screen, same as the explicit delete-moment actions.
     const { error } = await supabase
       .from("entries")
-      .delete()
+      .update({ deleted_at: new Date().toISOString(), deleted_by: currentUserId })
       .eq("id", existingId);
 
     if (error) {
@@ -362,8 +379,11 @@ export function LogMatrix({
     const otherValue = moment.feed[otherFlag];
 
     if (!checked && !otherValue) {
-      // Unchecking the only active flag — remove the feed row entirely.
-      const { error } = await supabase.from("entries").delete().eq("id", feedId);
+      // Unchecking the only active flag — soft-delete the feed row (JOS-20).
+      const { error } = await supabase
+        .from("entries")
+        .update({ deleted_at: new Date().toISOString(), deleted_by: currentUserId })
+        .eq("id", feedId);
 
       if (error) {
         setError(error.message);
@@ -691,9 +711,11 @@ export function LogMatrix({
 
     if (idsToDelete.length > 0) {
       setError(null);
+      // Soft-delete (JOS-20) — recoverable for 7 days via Timeline's
+      // Recently Deleted screen.
       const { error } = await createClient()
         .from("entries")
-        .delete()
+        .update({ deleted_at: new Date().toISOString(), deleted_by: currentUserId })
         .in("id", idsToDelete);
 
       if (error) {
@@ -715,7 +737,7 @@ export function LogMatrix({
     if (selectedKeys.size === 0) return;
 
     const confirmed = window.confirm(
-      `Delete ${selectedKeys.size} logged moment${selectedKeys.size > 1 ? "s" : ""}? This can't be undone.`,
+      `Delete ${selectedKeys.size} logged moment${selectedKeys.size > 1 ? "s" : ""}? You can restore ${selectedKeys.size > 1 ? "them" : "it"} from Recently Deleted in Timeline for 7 days.`,
     );
     if (!confirmed) return;
 
@@ -732,7 +754,7 @@ export function LogMatrix({
   // select mode first (matching the prototype's inline card ✕).
   async function handleDeleteMoment(moment: Moment) {
     const confirmed = window.confirm(
-      "Delete this logged moment? This can't be undone.",
+      "Delete this logged moment? You can restore it from Recently Deleted in Timeline for 7 days.",
     );
     if (!confirmed) return;
     await deleteMoments([moment]);

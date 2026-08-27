@@ -99,6 +99,8 @@ export interface Database {
           breast_active_started_at: string | null;
           breast_session_ended: boolean;
           created_at: string;
+          deleted_at: string | null;
+          deleted_by: string | null;
         };
         Insert: {
           id?: string;
@@ -116,6 +118,8 @@ export interface Database {
           breast_active_started_at?: string | null;
           breast_session_ended?: boolean;
           created_at?: string;
+          deleted_at?: string | null;
+          deleted_by?: string | null;
         };
         Update: {
           id?: string;
@@ -133,6 +137,8 @@ export interface Database {
           breast_active_started_at?: string | null;
           breast_session_ended?: boolean;
           created_at?: string;
+          deleted_at?: string | null;
+          deleted_by?: string | null;
         };
         Relationships: [];
       };

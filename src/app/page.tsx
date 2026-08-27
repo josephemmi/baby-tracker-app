@@ -35,6 +35,7 @@ export default async function Home() {
         .from("entries")
         .select("*")
         .eq("baby_id", baby.id)
+        .is("deleted_at", null)
         .order("timestamp", { ascending: false })
         .limit(HOME_ENTRIES_LIMIT + 1)
     : { data: [] };

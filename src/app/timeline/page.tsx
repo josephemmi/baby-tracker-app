@@ -5,13 +5,12 @@ import { createClient } from "@/lib/supabase/server";
 import { AppHeader } from "@/components/layout/app-header";
 import { TimelineView } from "@/components/timeline/timeline-view";
 import { colorIndexFor } from "@/lib/person-colors";
-
-const PAGE_SIZE = 100;
+import { TIMELINE_PAGE_SIZE, retentionCutoffISO } from "@/lib/entries";
 
 export default async function TimelinePage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; flash?: string }>;
 }) {
   const { user, profile, household } = await getCurrentUserAndProfile();
 
@@ -38,21 +37,35 @@ export default async function TimelinePage({
     (members ?? []).map((member) => [member.id, member.name]),
   );
 
-  const requestedPage = Number((await searchParams).page) || 1;
+  const { page: pageParam, flash } = await searchParams;
+  const requestedPage = Number(pageParam) || 1;
   const page = Math.max(1, Math.floor(requestedPage));
-  const from = (page - 1) * PAGE_SIZE;
-  const to = from + PAGE_SIZE - 1;
+  const from = (page - 1) * TIMELINE_PAGE_SIZE;
+  const to = from + TIMELINE_PAGE_SIZE - 1;
 
-  const { data: entries, count } = baby
-    ? await supabase
-        .from("entries")
-        .select("*", { count: "exact" })
-        .eq("baby_id", baby.id)
-        .order("timestamp", { ascending: false })
-        .range(from, to)
-    : { data: [], count: 0 };
+  const retentionCutoff = retentionCutoffISO();
 
-  const totalPages = Math.max(1, Math.ceil((count ?? 0) / PAGE_SIZE));
+  const [{ data: entries, count }, { count: deletedCount }] = baby
+    ? await Promise.all([
+        supabase
+          .from("entries")
+          .select("*", { count: "exact" })
+          .eq("baby_id", baby.id)
+          .is("deleted_at", null)
+          .order("timestamp", { ascending: false })
+          .range(from, to),
+        // Independent of pagination — the banner (JOS-20) reflects the
+        // household's total recoverable count, not just this page.
+        supabase
+          .from("entries")
+          .select("*", { count: "exact", head: true })
+          .eq("baby_id", baby.id)
+          .not("deleted_at", "is", null)
+          .gt("deleted_at", retentionCutoff),
+      ])
+    : [{ data: [], count: 0 }, { count: 0 }];
+
+  const totalPages = Math.max(1, Math.ceil((count ?? 0) / TIMELINE_PAGE_SIZE));
 
   return (
     <div className="min-h-screen bg-paper p-4 sm:p-8">
@@ -71,7 +84,12 @@ export default async function TimelinePage({
           </p>
         ) : (
           <>
-            <TimelineView entries={entries ?? []} memberNames={memberNames} />
+            <TimelineView
+              entries={entries ?? []}
+              memberNames={memberNames}
+              deletedCount={deletedCount ?? 0}
+              flashEntryId={flash ?? null}
+            />
 
             {totalPages > 1 && (
               <div className="flex items-center justify-center gap-4 text-[13.5px] font-bold text-ink-soft">

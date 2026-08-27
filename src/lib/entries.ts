@@ -7,6 +7,23 @@ export type EntryRow = Database["public"]["Tables"]["entries"]["Row"];
 // client-side resync (on realtime reconnect) so the two never drift apart.
 export const HOME_ENTRIES_LIMIT = 100;
 
+// Shared between Timeline's server-side pagination and the Recently
+// Deleted screen's restore flow, which needs to compute which page a
+// restored entry will land on (JOS-20) — both must agree on the same size.
+export const TIMELINE_PAGE_SIZE = 100;
+
+// How long a soft-deleted entry stays recoverable (JOS-20). Used by every
+// "active entries" query (exclude anything deleted) and the Recently
+// Deleted screen's own query (include only what's still inside the window).
+export const DELETED_RETENTION_DAYS = 7;
+
+// A plain helper, not a component body, so Date.now() doesn't trip the
+// "impure call during render" rule at the Server Component call sites that
+// need this cutoff (Timeline's banner count, Recently Deleted's query).
+export function retentionCutoffISO(): string {
+  return new Date(Date.now() - DELETED_RETENTION_DAYS * 86400000).toISOString();
+}
+
 // PostgREST caps every response at the project's max-rows setting (1000 by
 // default) no matter how the query is ordered. Reports needs a baby's full
 // history, which routinely exceeds that — an unpaginated ascending query
@@ -27,6 +44,7 @@ export async function fetchAllEntries(
       .from("entries")
       .select("*")
       .eq("baby_id", babyId)
+      .is("deleted_at", null)
       .order("timestamp", { ascending: true })
       .range(offset, offset + ENTRIES_PAGE_SIZE - 1);
 
@@ -138,6 +156,23 @@ export function formatTimeAgo(timestamp: string, now: Date): string {
   if (diffMin < 60) return `${diffMin}m ago`;
 
   const hours = Math.floor(diffMin / 60);
-  const mins = diffMin % 60;
-  return mins === 0 ? `${hours}h ago` : `${hours}h ${mins}m ago`;
+  if (hours < 24) {
+    const mins = diffMin % 60;
+    return mins === 0 ? `${hours}h ago` : `${hours}h ${mins}m ago`;
+  }
+
+  // Deleted entries can sit around for up to a week (JOS-20's Recently
+  // Deleted screen), well past where hour-granularity reads sensibly.
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+// "N days left to restore" on the Recently Deleted screen — counts down
+// from each entry's own deleted_at, independent of any other entry's
+// clock. Rounds up so an entry never visibly reads "0 days left" while
+// it's still inside the retention window (it simply stops appearing).
+export function daysLeftToRestore(deletedAt: string, now: Date): number {
+  const expiresAt = new Date(deletedAt).getTime() + DELETED_RETENTION_DAYS * 86400000;
+  const msLeft = Math.max(0, expiresAt - now.getTime());
+  return Math.max(1, Math.ceil(msLeft / 86400000));
 }

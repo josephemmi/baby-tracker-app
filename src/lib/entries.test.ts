@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createDraftMoment,
+  daysLeftToRestore,
   formatTimeAgo,
   groupEntriesIntoMoments,
   latestEntryOfType,
@@ -143,5 +144,30 @@ describe("formatTimeAgo", () => {
   it("omits minutes when exactly on the hour", () => {
     const now = new Date("2026-07-16T12:00:00.000Z");
     expect(formatTimeAgo("2026-07-16T10:00:00.000Z", now)).toBe("2h ago");
+  });
+
+  it("formats a full day as Nd ago (JOS-20 Recently Deleted needs day-level ages)", () => {
+    const now = new Date("2026-07-17T10:00:00.000Z");
+    expect(formatTimeAgo("2026-07-16T10:00:00.000Z", now)).toBe("1d ago");
+  });
+
+  it("formats multiple days as Nd ago", () => {
+    const now = new Date("2026-07-19T10:00:00.000Z");
+    expect(formatTimeAgo("2026-07-16T10:00:00.000Z", now)).toBe("3d ago");
+  });
+});
+
+describe("daysLeftToRestore", () => {
+  it("counts down from 7 days as the deletion ages", () => {
+    const deletedAt = "2026-07-16T10:00:00.000Z";
+    expect(daysLeftToRestore(deletedAt, new Date("2026-07-16T10:05:00.000Z"))).toBe(7);
+    expect(daysLeftToRestore(deletedAt, new Date("2026-07-17T10:00:01.000Z"))).toBe(6);
+    expect(daysLeftToRestore(deletedAt, new Date("2026-07-21T10:00:01.000Z"))).toBe(2);
+  });
+
+  it("never reports 0 or negative while still inside the retention window", () => {
+    const deletedAt = "2026-07-16T10:00:00.000Z";
+    // Just shy of the 7-day cutoff — still restorable, so still "1 day left".
+    expect(daysLeftToRestore(deletedAt, new Date("2026-07-23T09:59:59.000Z"))).toBe(1);
   });
 });
