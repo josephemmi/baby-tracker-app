@@ -10,15 +10,18 @@ feature, and PATCH is a fix with no new functionality.
 ## [Unreleased]
 
 ### Added
-- Restore deleted entries (JOS-20). Deleting an entry — via the checkbox
+- Restore deleted entries (JOS-20). Deleting a moment — via the checkbox
   uncheck, the phone card's ✕, or bulk select-and-delete — is now a 7-day
   recoverable soft-delete instead of a permanent one. A banner inside
-  Timeline (above the day list, not in the main nav) appears only when
-  there's something to restore and opens a "Recently Deleted" screen
-  listing what was deleted, by whom, and how long it's got left. Restoring
-  an entry navigates back to Timeline and flashes it into its correct
-  chronological position — including jumping to the right page if it's
-  further back than Timeline's current page.
+  Timeline (above the day list, not in the main nav) shows the number of
+  recoverable moments and appears only when there's something to restore,
+  opening a "Recently Deleted" screen listing what was deleted, by whom,
+  and how long it's got left — each deleted moment (e.g. a pee + poo
+  logged together) shows and restores as one card, matching how it looked
+  before deletion. Restoring navigates back to Timeline and flashes the
+  card into its correct chronological position, with a smooth transition
+  on both ends — including jumping to the right page if it's further back
+  than Timeline's current page.
 
 ## [1.7.1] - 2026-08-24
 
