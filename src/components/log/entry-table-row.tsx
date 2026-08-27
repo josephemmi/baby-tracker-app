@@ -126,18 +126,8 @@ export function EntryTableRow({
           >
             {formatTime(moment.timestamp, "time")}
           </button>
-        ) : timeFormat === "time" ? (
-          new Date(moment.timestamp).toLocaleTimeString(undefined, {
-            hour: "numeric",
-            minute: "2-digit",
-          })
         ) : (
-          new Date(moment.timestamp).toLocaleString(undefined, {
-            month: "short",
-            day: "numeric",
-            hour: "numeric",
-            minute: "2-digit",
-          })
+          formatTime(moment.timestamp, timeFormat)
         )}
       </td>
       <td className="px-3 py-2.5">

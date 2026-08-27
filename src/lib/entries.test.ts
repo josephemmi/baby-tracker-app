@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createDraftMoment,
   daysLeftToRestore,
+  formatTime,
   formatTimeAgo,
   groupEntriesIntoMoments,
   latestEntryOfType,
@@ -156,6 +157,21 @@ describe("formatTimeAgo", () => {
   it("formats multiple days as Nd ago", () => {
     const now = new Date("2026-07-19T10:00:00.000Z");
     expect(formatTimeAgo("2026-07-16T10:00:00.000Z", now)).toBe("3d ago");
+  });
+});
+
+describe("formatTime", () => {
+  // hour: "numeric" without an explicit hour12 falls back to the device's
+  // locale default, which is 24-hour in plenty of English locales too —
+  // AM/PM is this app's own convention and shouldn't shift with it. Checks
+  // for the marker generically (not which one) so the test itself doesn't
+  // depend on the runner's timezone.
+  it("always shows an AM/PM marker for the time-only format", () => {
+    expect(formatTime("2026-07-16T14:05:00.000Z", "time")).toMatch(/\b(AM|PM)\b/i);
+  });
+
+  it("always shows an AM/PM marker for the datetime format too", () => {
+    expect(formatTime("2026-07-16T14:05:00.000Z", "datetime")).toMatch(/\b(AM|PM)\b/i);
   });
 });
 

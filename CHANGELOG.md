@@ -25,6 +25,13 @@ feature, and PATCH is a fix with no new functionality.
   phone card layout and the existing iPad/desktop table, where the
   divider renders as a full-width row.
 
+### Fixed
+- Times could render in 24-hour format instead of AM/PM, depending on the
+  viewer's device/browser locale — `hour: "numeric"` alone falls back to
+  the locale's default clock convention, which is 24-hour in plenty of
+  English-language locales too. AM/PM is now forced everywhere a time
+  displays (Home, Timeline, Recently Deleted), regardless of locale.
+
 ## [1.8.0] - 2026-08-27
 
 ### Added

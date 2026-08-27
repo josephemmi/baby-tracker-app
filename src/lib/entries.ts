@@ -217,16 +217,22 @@ export function partitionHomeMoments(
 }
 
 export function formatTime(timestamp: string, timeFormat: "datetime" | "time"): string {
+  // hour12 forced true — without it, "numeric" hour falls back to the
+  // device/browser locale's default, which is 24-hour in plenty of
+  // English-language locales too. AM/PM is the app's own convention,
+  // not something that should shift under the viewer's system settings.
   return timeFormat === "time"
     ? new Date(timestamp).toLocaleTimeString(undefined, {
         hour: "numeric",
         minute: "2-digit",
+        hour12: true,
       })
     : new Date(timestamp).toLocaleString(undefined, {
         month: "short",
         day: "numeric",
         hour: "numeric",
         minute: "2-digit",
+        hour12: true,
       });
 }
 
