@@ -9,6 +9,8 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-08-27
+
 ### Changed
 - Home's entry list is now day-aware instead of a flat entry-count cap
   (JOS-21): every entry from today, in full, plus the last 3 entries — any
