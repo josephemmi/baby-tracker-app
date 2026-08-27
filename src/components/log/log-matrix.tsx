@@ -9,7 +9,8 @@ import {
   mergeMoments,
   partitionHomeMoments,
   siblingIds,
-  HOME_ENTRIES_LIMIT,
+  homeFetchWindowStartISO,
+  HOME_ROW_SAFETY_CAP,
   type EntryRow,
   type Moment,
 } from "@/lib/entries";
@@ -46,8 +47,10 @@ export function LogMatrix({
   const [flashKey, setFlashKey] = useState<string | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
-  // Whether the raw fetch itself hit HOME_ENTRIES_LIMIT — one of several
-  // inputs into whether Home's day-aware view (below) has more to show.
+  // Whether there's anything beyond the currently-loaded fetch window
+  // (JOS-21: the safety cap was hit, or real history exists older than the
+  // window) — one of several inputs into whether Home's day-aware view
+  // (below) has more to show.
   const [fetchTruncated, setFetchTruncated] = useState(hasMoreEntries);
   const lastRefetchAt = useRef(0);
   // Ticks slowly so the today/yesterday split (and GlanceCards-style
@@ -145,10 +148,10 @@ export function LogMatrix({
               if (prev.some((entry) => entry.id === updated.id)) {
                 return prev.map((entry) => (entry.id === updated.id ? updated : entry));
               }
-              // A restore for an entry not currently in view (e.g. it had
-              // aged past HOME_ENTRIES_LIMIT before being deleted) — insert
-              // it back in chronological order; the next poll/refetch will
-              // reconcile the exact limit/ordering if this is imprecise.
+              // A restore for an entry not currently in view (e.g. it fell
+              // outside the fetch window before being deleted) — insert it
+              // back in chronological order; the next poll/refetch will
+              // reconcile the exact window/ordering if this is imprecise.
               return [updated, ...prev].sort((a, b) =>
                 b.timestamp.localeCompare(a.timestamp),
               );
@@ -191,18 +194,28 @@ export function LogMatrix({
     // deliberately leaves the existing channel alone and only refetches.
     async function refetch() {
       lastRefetchAt.current = Date.now();
-      const { data } = await supabase
-        .from("entries")
-        .select("*")
-        .eq("baby_id", babyId)
-        .is("deleted_at", null)
-        .order("timestamp", { ascending: false })
-        .limit(HOME_ENTRIES_LIMIT + 1);
+      const windowStart = homeFetchWindowStartISO();
+
+      const [{ data, count: windowCount }, { count: olderCount }] = await Promise.all([
+        supabase
+          .from("entries")
+          .select("*", { count: "exact" })
+          .eq("baby_id", babyId)
+          .is("deleted_at", null)
+          .gte("timestamp", windowStart)
+          .order("timestamp", { ascending: false })
+          .limit(HOME_ROW_SAFETY_CAP),
+        supabase
+          .from("entries")
+          .select("*", { count: "exact", head: true })
+          .eq("baby_id", babyId)
+          .is("deleted_at", null)
+          .lt("timestamp", windowStart),
+      ]);
 
       if (data) {
-        const more = data.length > HOME_ENTRIES_LIMIT;
-        setEntries(more ? data.slice(0, HOME_ENTRIES_LIMIT) : data);
-        setFetchTruncated(more);
+        setEntries(data);
+        setFetchTruncated((windowCount ?? 0) > HOME_ROW_SAFETY_CAP || (olderCount ?? 0) > 0);
       }
     }
 

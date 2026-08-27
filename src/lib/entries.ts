@@ -3,9 +3,27 @@ import type { Database } from "@/lib/supabase/database.types";
 
 export type EntryRow = Database["public"]["Tables"]["entries"]["Row"];
 
-// Shared between the Home page's initial server-side fetch and its
-// client-side resync (on realtime reconnect) so the two never drift apart.
-export const HOME_ENTRIES_LIMIT = 100;
+// Home's fetch window (JOS-21) — shared between the initial server-side
+// fetch and its client-side resync (on realtime reconnect/poll) so the two
+// never drift apart. A flat row-count cap has no relationship to calendar
+// days: on a heavy 2-day stretch it could silently truncate *today*, which
+// the day-aware view (partitionHomeMoments below) promises never to cap.
+// 72 hours is a deliberately generous UTC lookback — wide enough to fully
+// contain "today + yesterday" in any IANA timezone (max UTC offset ±14h),
+// without needing to know the viewer's actual timezone server-side.
+export const HOME_FETCH_WINDOW_HOURS = 72;
+
+// A hard ceiling on top of the time window, purely as a safety valve
+// against a pathological amount of logging in 72h — not expected to ever
+// bind in practice. If it does, `hasMoreEntries` (below) still reports it.
+export const HOME_ROW_SAFETY_CAP = 500;
+
+// A plain helper, not a component body, so Date.now() doesn't trip the
+// "impure call during render" rule at the Server Component call site that
+// needs this (Home's initial fetch).
+export function homeFetchWindowStartISO(): string {
+  return new Date(Date.now() - HOME_FETCH_WINDOW_HOURS * 3600000).toISOString();
+}
 
 // Shared between Timeline's server-side pagination and the Recently
 // Deleted screen's restore flow, which needs to compute which page a

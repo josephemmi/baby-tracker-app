@@ -5,7 +5,7 @@ import { AppHeader } from "@/components/layout/app-header";
 import { AddBabyForm } from "@/components/baby/add-baby-form";
 import { LogMatrix } from "@/components/log/log-matrix";
 import { colorIndexFor } from "@/lib/person-colors";
-import { HOME_ENTRIES_LIMIT } from "@/lib/entries";
+import { HOME_ROW_SAFETY_CAP, homeFetchWindowStartISO } from "@/lib/entries";
 
 export default async function Home() {
   const { user, profile, household } = await getCurrentUserAndProfile();
@@ -30,20 +30,35 @@ export default async function Home() {
 
   const baby = babies?.[0] ?? null;
 
-  const { data: fetchedEntries } = baby
-    ? await supabase
-        .from("entries")
-        .select("*")
-        .eq("baby_id", baby.id)
-        .is("deleted_at", null)
-        .order("timestamp", { ascending: false })
-        .limit(HOME_ENTRIES_LIMIT + 1)
-    : { data: [] };
+  // Home shows today in full plus yesterday's tail (JOS-21) — fetch by a
+  // generous time window instead of a flat row count, so "today" can never
+  // be silently truncated by an arbitrary cap. A separate cheap existence
+  // check covers the case where nothing in the window is older than
+  // yesterday but real history exists further back (a logging gap) — the
+  // window fetch alone can't detect that on its own.
+  const windowStart = homeFetchWindowStartISO();
 
-  const hasMoreEntries = (fetchedEntries?.length ?? 0) > HOME_ENTRIES_LIMIT;
-  const entries = hasMoreEntries
-    ? fetchedEntries!.slice(0, HOME_ENTRIES_LIMIT)
-    : (fetchedEntries ?? []);
+  const [{ data: fetchedEntries, count: windowCount }, { count: olderCount }] = baby
+    ? await Promise.all([
+        supabase
+          .from("entries")
+          .select("*", { count: "exact" })
+          .eq("baby_id", baby.id)
+          .is("deleted_at", null)
+          .gte("timestamp", windowStart)
+          .order("timestamp", { ascending: false })
+          .limit(HOME_ROW_SAFETY_CAP),
+        supabase
+          .from("entries")
+          .select("*", { count: "exact", head: true })
+          .eq("baby_id", baby.id)
+          .is("deleted_at", null)
+          .lt("timestamp", windowStart),
+      ])
+    : [{ data: [], count: 0 }, { count: 0 }];
+
+  const entries = fetchedEntries ?? [];
+  const hasMoreEntries = (windowCount ?? 0) > HOME_ROW_SAFETY_CAP || (olderCount ?? 0) > 0;
 
   return (
     <div className="min-h-screen bg-paper p-4 sm:p-8">
