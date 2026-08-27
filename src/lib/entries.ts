@@ -129,6 +129,75 @@ export function groupEntriesIntoMoments(entries: EntryRow[]): Moment[] {
   );
 }
 
+export interface HomeDaySections {
+  todayMoments: Moment[];
+  todayLabel: string;
+  // The last 3 entries (any type) from the previous calendar day only, for
+  // midnight continuity — null when there's nothing from that day (first
+  // day of use, or a gap day with nothing logged).
+  previousDay: { label: string; moments: Moment[] } | null;
+  // True when there's anything beyond what's shown above — either the
+  // fetch itself was capped, an entry exists further back than the
+  // previous day, or the previous day has more than the 3 shown.
+  hasMore: boolean;
+}
+
+function calendarDayKey(date: Date): string {
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+function shortDayLabel(date: Date): string {
+  return date.toLocaleDateString(undefined, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+}
+
+// Home's day-aware view (JOS-21): every entry from today, in full, plus the
+// last 3 entries — any type, not just feeds — from the previous calendar
+// day only. Sized to the actual need (checking the last logged moment at
+// 2am, when today may have little or nothing yet) rather than turning Home
+// into a second Timeline. Derived entirely client-side from each moment's
+// own timestamp, against the local calendar day — no schema change.
+export function partitionHomeMoments(
+  moments: Moment[],
+  now: Date,
+  fetchTruncated: boolean,
+): HomeDaySections {
+  const todayKey = calendarDayKey(now);
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayKey = calendarDayKey(yesterday);
+
+  const todayMoments: Moment[] = [];
+  const yesterdayMoments: Moment[] = [];
+  let hasOlder = false;
+
+  for (const moment of moments) {
+    const key = calendarDayKey(new Date(moment.timestamp));
+    if (key === todayKey) {
+      todayMoments.push(moment);
+    } else if (key === yesterdayKey) {
+      yesterdayMoments.push(moment);
+    } else {
+      hasOlder = true;
+    }
+  }
+
+  const tail = yesterdayMoments.slice(0, 3);
+
+  return {
+    todayMoments,
+    todayLabel: `Today · ${shortDayLabel(now)}`,
+    previousDay:
+      tail.length > 0
+        ? { label: `Yesterday · ${shortDayLabel(yesterday)} · Last 3`, moments: tail }
+        : null,
+    hasMore: fetchTruncated || hasOlder || yesterdayMoments.length > tail.length,
+  };
+}
+
 export function formatTime(timestamp: string, timeFormat: "datetime" | "time"): string {
   return timeFormat === "time"
     ? new Date(timestamp).toLocaleTimeString(undefined, {

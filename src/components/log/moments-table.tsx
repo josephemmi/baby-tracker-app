@@ -1,14 +1,30 @@
+import { Fragment } from "react";
 import type { Moment } from "@/lib/entries";
 import { EntryTableRow, type EntryRowHandlers } from "@/components/log/entry-table-row";
 import { EntryCard } from "@/components/log/entry-card";
+import { DayDivider } from "@/components/log/day-divider";
 
 interface Member {
   id: string;
   name: string;
 }
 
+// A day-aware section of moments (JOS-21, Home only) — an optional divider
+// rendered before the group, and a "tail" styling flag applied to every
+// moment in it (the previous day's muted last-3). Timeline's flat per-day
+// tables don't use this — they just pass `moments`.
+export interface MomentGroup {
+  moments: Moment[];
+  divider?: { label: string; today?: boolean };
+  tail?: boolean;
+}
+
 interface MomentsTableProps extends EntryRowHandlers {
   moments: Moment[];
+  // Day-grouped rendering order (Home) — must contain exactly the same
+  // moments as `moments`, above, split into sections. When omitted, all of
+  // `moments` render as a single flat, divider-less group (Timeline).
+  groups?: MomentGroup[];
   memberNames: Record<string, string>;
   emptyMessage?: string;
   timeFormat?: "datetime" | "time";
@@ -33,6 +49,7 @@ interface MomentsTableProps extends EntryRowHandlers {
 // separate mobile state to keep in sync with the desktop one.
 export function MomentsTable({
   moments,
+  groups,
   memberNames,
   emptyMessage = "No entries yet.",
   timeFormat = "datetime",
@@ -70,6 +87,10 @@ export function MomentsTable({
   // to whatever `moments` this instance renders (Home's whole list, or one
   // Timeline day-group), matching each row's own per-moment merge/split.
   const anyPumpOn = moments.some((moment) => !!moment.pump);
+  // Matches EntryTableRow's own column-count calc, so a divider row's
+  // colSpan always spans every column that row renders.
+  const totalColumns = (selectMode ? 1 : 0) + 10;
+  const renderGroups: MomentGroup[] = groups ?? [{ moments }];
 
   if (moments.length === 0) {
     return (
@@ -115,8 +136,46 @@ export function MomentsTable({
             </tr>
           </thead>
           <tbody>
-            {moments.map((moment) => (
-              <EntryTableRow
+            {renderGroups.map((group, groupIndex) => (
+              <Fragment key={group.divider?.label ?? `group-${groupIndex}`}>
+                {group.divider && (
+                  <tr>
+                    <td colSpan={totalColumns} className="px-3 py-2.5">
+                      <DayDivider label={group.divider.label} today={group.divider.today} />
+                    </td>
+                  </tr>
+                )}
+                {group.moments.map((moment) => (
+                  <EntryTableRow
+                    key={moment.key}
+                    moment={moment}
+                    memberNames={memberNames}
+                    members={members}
+                    timeFormat={timeFormat}
+                    editable={editable}
+                    flashMomentKey={flashMomentKey}
+                    selectMode={selectMode}
+                    selectedKeys={selectedKeys}
+                    onToggleSelect={onToggleSelect}
+                    tail={group.tail}
+                    {...handlers}
+                  />
+                ))}
+              </Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Phone — stacked cards, hidden at and above the phone breakpoint */}
+      <div className="flex flex-col gap-2.5 sm:hidden">
+        {renderGroups.map((group, groupIndex) => (
+          <Fragment key={group.divider?.label ?? `group-${groupIndex}`}>
+            {group.divider && (
+              <DayDivider label={group.divider.label} today={group.divider.today} />
+            )}
+            {group.moments.map((moment) => (
+              <EntryCard
                 key={moment.key}
                 moment={moment}
                 memberNames={memberNames}
@@ -127,30 +186,12 @@ export function MomentsTable({
                 selectMode={selectMode}
                 selectedKeys={selectedKeys}
                 onToggleSelect={onToggleSelect}
+                onDeleteMoment={onDeleteMoment}
+                tail={group.tail}
                 {...handlers}
               />
             ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Phone — stacked cards, hidden at and above the phone breakpoint */}
-      <div className="flex flex-col gap-2.5 sm:hidden">
-        {moments.map((moment) => (
-          <EntryCard
-            key={moment.key}
-            moment={moment}
-            memberNames={memberNames}
-            members={members}
-            timeFormat={timeFormat}
-            editable={editable}
-            flashMomentKey={flashMomentKey}
-            selectMode={selectMode}
-            selectedKeys={selectedKeys}
-            onToggleSelect={onToggleSelect}
-            onDeleteMoment={onDeleteMoment}
-            {...handlers}
-          />
+          </Fragment>
         ))}
       </div>
     </>

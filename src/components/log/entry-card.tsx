@@ -29,6 +29,9 @@ interface EntryCardProps extends EntryRowHandlers {
   selectedKeys?: Set<string>;
   onToggleSelect?: (momentKey: string) => void;
   onDeleteMoment?: (moment: Moment) => void;
+  // Previous-day continuity card (JOS-21) — muted border so it reads as
+  // context, not fresh data. No other styling change.
+  tail?: boolean;
 }
 
 // Phone-only stacked-card presentation of a moment (≤640px) — same data and
@@ -55,6 +58,7 @@ export function EntryCard({
   onEndBreastSession,
   onLoggedByCycle,
   onDeleteMoment,
+  tail = false,
 }: EntryCardProps) {
   const loggedByIndex = members.findIndex((m) => m.id === moment.loggedBy);
   const loggedByName = (moment.loggedBy && memberNames[moment.loggedBy]) ?? "Unknown";
@@ -65,7 +69,7 @@ export function EntryCard({
 
   return (
     <div
-      className={`relative rounded-[12px] border border-line bg-paper-raised p-3 shadow-card ${
+      className={`relative rounded-[12px] border ${tail ? "border-line-strong" : "border-line"} bg-paper-raised p-3 shadow-card ${
         moment.key === flashMomentKey ? "row-flash" : ""
       }`}
     >

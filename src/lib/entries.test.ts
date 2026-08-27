@@ -6,6 +6,7 @@ import {
   groupEntriesIntoMoments,
   latestEntryOfType,
   mergeMoments,
+  partitionHomeMoments,
   siblingIds,
 } from "@/lib/entries";
 import { makeEntry } from "@/lib/test-helpers";
@@ -172,6 +173,96 @@ describe("siblingIds", () => {
   it("ignores draft moments with no persisted rows", () => {
     const draft = createDraftMoment("u1");
     expect(siblingIds(draft)).toEqual([]);
+  });
+});
+
+describe("partitionHomeMoments", () => {
+  // 2026-07-16 is "today" throughout; 2026-07-15 is "yesterday".
+  const now = new Date("2026-07-16T14:00:00.000Z");
+
+  it("puts every entry from today in todayMoments, uncapped", () => {
+    const entries = Array.from({ length: 5 }, (_, i) =>
+      makeEntry({
+        id: `today-${i}`,
+        type: "pee",
+        timestamp: `2026-07-16T0${i}:00:00.000Z`,
+      }),
+    );
+    const moments = groupEntriesIntoMoments(entries);
+
+    const sections = partitionHomeMoments(moments, now, false);
+
+    expect(sections.todayMoments).toHaveLength(5);
+    expect(sections.previousDay).toBeNull();
+    expect(sections.hasMore).toBe(false);
+  });
+
+  it("caps the previous day's tail at the last 3 entries by timestamp, any type", () => {
+    const entries = [
+      makeEntry({ id: "y1", type: "feed", timestamp: "2026-07-15T23:40:00.000Z" }),
+      makeEntry({ id: "y2", type: "poop", timestamp: "2026-07-15T21:15:00.000Z" }),
+      makeEntry({ id: "y3", type: "pump", timestamp: "2026-07-15T20:00:00.000Z" }),
+      makeEntry({ id: "y4", type: "pee", timestamp: "2026-07-15T18:30:00.000Z" }),
+      makeEntry({ id: "y5", type: "feed", timestamp: "2026-07-15T16:50:00.000Z" }),
+    ];
+    const moments = groupEntriesIntoMoments(entries);
+
+    const sections = partitionHomeMoments(moments, now, false);
+
+    expect(sections.todayMoments).toHaveLength(0);
+    expect(sections.previousDay?.moments.map((m) => m.timestamp)).toEqual([
+      "2026-07-15T23:40:00.000Z",
+      "2026-07-15T21:15:00.000Z",
+      "2026-07-15T20:00:00.000Z",
+    ]);
+    // More than 3 existed on the previous day, so there's more to see.
+    expect(sections.hasMore).toBe(true);
+  });
+
+  it("shows fewer than 3 tail entries when fewer exist, with no padding", () => {
+    const entries = [
+      makeEntry({ id: "y1", type: "feed", timestamp: "2026-07-15T23:40:00.000Z" }),
+    ];
+    const moments = groupEntriesIntoMoments(entries);
+
+    const sections = partitionHomeMoments(moments, now, false);
+
+    expect(sections.previousDay?.moments).toHaveLength(1);
+    expect(sections.hasMore).toBe(false);
+  });
+
+  it("shows no divider/tail on the first day of use (nothing before today)", () => {
+    const entries = [
+      makeEntry({ id: "t1", type: "feed", timestamp: "2026-07-16T09:00:00.000Z" }),
+    ];
+    const moments = groupEntriesIntoMoments(entries);
+
+    const sections = partitionHomeMoments(moments, now, false);
+
+    expect(sections.previousDay).toBeNull();
+    expect(sections.hasMore).toBe(false);
+  });
+
+  it("flags hasMore when entries exist further back than the previous day", () => {
+    const entries = [
+      makeEntry({ id: "t1", type: "feed", timestamp: "2026-07-16T09:00:00.000Z" }),
+      makeEntry({ id: "old", type: "feed", timestamp: "2026-07-10T09:00:00.000Z" }),
+    ];
+    const moments = groupEntriesIntoMoments(entries);
+
+    const sections = partitionHomeMoments(moments, now, false);
+
+    expect(sections.previousDay).toBeNull();
+    expect(sections.hasMore).toBe(true);
+  });
+
+  it("flags hasMore whenever the fetch itself was truncated, even with a small tail", () => {
+    const entries = [
+      makeEntry({ id: "t1", type: "feed", timestamp: "2026-07-16T09:00:00.000Z" }),
+    ];
+    const moments = groupEntriesIntoMoments(entries);
+
+    expect(partitionHomeMoments(moments, now, true).hasMore).toBe(true);
   });
 });
 

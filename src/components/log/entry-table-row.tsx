@@ -45,6 +45,9 @@ interface EntryTableRowProps extends EntryRowHandlers {
   selectMode: boolean;
   selectedKeys?: Set<string>;
   onToggleSelect?: (momentKey: string) => void;
+  // Previous-day continuity row (JOS-21) — muted border so it reads as
+  // context, not fresh data. No other styling change.
+  tail?: boolean;
 }
 
 // Table-row presentation — iPad/desktop only (hidden below the phone
@@ -60,6 +63,7 @@ export function EntryTableRow({
   selectMode,
   selectedKeys,
   onToggleSelect,
+  tail = false,
   onToggleType,
   onToggleFeedFlag,
   onTimeCommit,
@@ -81,7 +85,7 @@ export function EntryTableRow({
   return (
     <>
     <tr
-      className={`border-b border-line transition-colors last:border-0 hover:bg-sage/4 ${
+      className={`border-b ${tail ? "border-line-strong" : "border-line"} transition-colors last:border-0 hover:bg-sage/4 ${
         moment.key === flashMomentKey ? "row-flash" : ""
       }`}
     >

@@ -7,6 +7,7 @@ import {
   createDraftMoment,
   groupEntriesIntoMoments,
   mergeMoments,
+  partitionHomeMoments,
   siblingIds,
   HOME_ENTRIES_LIMIT,
   type EntryRow,
@@ -14,7 +15,7 @@ import {
 } from "@/lib/entries";
 import type { EntryType } from "@/lib/supabase/database.types";
 import { GlanceCards } from "@/components/log/glance-cards";
-import { MomentsTable } from "@/components/log/moments-table";
+import { MomentsTable, type MomentGroup } from "@/components/log/moments-table";
 import { PrimaryButton } from "@/components/ui/primary-button";
 import { canEndBreastSession } from "@/lib/breastfeed-timer";
 import type { BreastSide } from "@/lib/supabase/database.types";
@@ -45,8 +46,14 @@ export function LogMatrix({
   const [flashKey, setFlashKey] = useState<string | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
-  const [hasMore, setHasMore] = useState(hasMoreEntries);
+  // Whether the raw fetch itself hit HOME_ENTRIES_LIMIT — one of several
+  // inputs into whether Home's day-aware view (below) has more to show.
+  const [fetchTruncated, setFetchTruncated] = useState(hasMoreEntries);
   const lastRefetchAt = useRef(0);
+  // Ticks slowly so the today/yesterday split (and GlanceCards-style
+  // relative-time reads) can't go stale for a session left open across
+  // midnight — matches GlanceCards' own ticking `now`.
+  const [now, setNow] = useState(() => new Date());
 
   const memberNames = useMemo(
     () => Object.fromEntries(members.map((member) => [member.id, member.name])),
@@ -57,6 +64,42 @@ export function LogMatrix({
     () => mergeMoments(drafts, groupEntriesIntoMoments(entries)),
     [drafts, entries],
   );
+
+  // JOS-21: today's entries in full, plus the previous calendar day's last
+  // 3 entries for continuity — everything older stays behind "View more".
+  const homeSections = useMemo(
+    () => partitionHomeMoments(moments, now, fetchTruncated),
+    [moments, now, fetchTruncated],
+  );
+
+  const visibleMoments = useMemo(
+    () => [...homeSections.todayMoments, ...(homeSections.previousDay?.moments ?? [])],
+    [homeSections],
+  );
+
+  const momentGroups = useMemo<MomentGroup[]>(() => {
+    const groups: MomentGroup[] = [
+      {
+        moments: homeSections.todayMoments,
+        divider: homeSections.previousDay
+          ? { label: homeSections.todayLabel, today: true }
+          : undefined,
+      },
+    ];
+    if (homeSections.previousDay) {
+      groups.push({
+        moments: homeSections.previousDay.moments,
+        divider: { label: homeSections.previousDay.label },
+        tail: true,
+      });
+    }
+    return groups;
+  }, [homeSections]);
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const supabase = createClient();
@@ -159,7 +202,7 @@ export function LogMatrix({
       if (data) {
         const more = data.length > HOME_ENTRIES_LIMIT;
         setEntries(more ? data.slice(0, HOME_ENTRIES_LIMIT) : data);
-        setHasMore(more);
+        setFetchTruncated(more);
       }
     }
 
@@ -793,7 +836,8 @@ export function LogMatrix({
       </div>
 
       <MomentsTable
-        moments={moments}
+        moments={visibleMoments}
+        groups={momentGroups}
         memberNames={memberNames}
         emptyMessage="No entries yet — log the first moment above."
         flashMomentKey={flashKey}
@@ -814,7 +858,7 @@ export function LogMatrix({
         onDeleteMoment={handleDeleteMoment}
       />
 
-      {hasMore && (
+      {homeSections.hasMore && (
         <Link
           href="/timeline"
           className="self-center text-[13.5px] font-bold text-sage hover:underline"
