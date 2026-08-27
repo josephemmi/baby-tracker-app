@@ -7,6 +7,7 @@ import {
   createDraftMoment,
   groupEntriesIntoMoments,
   mergeMoments,
+  siblingIds,
   HOME_ENTRIES_LIMIT,
   type EntryRow,
   type Moment,
@@ -29,15 +30,6 @@ interface LogMatrixProps {
   members: Member[];
   initialEntries: EntryRow[];
   hasMoreEntries?: boolean;
-}
-
-function siblingIds(moment: Moment): string[] {
-  return [
-    moment.feed?.id,
-    moment.pee?.id,
-    moment.poop?.id,
-    moment.pump?.id,
-  ].filter((id): id is string => !!id);
 }
 
 export function LogMatrix({

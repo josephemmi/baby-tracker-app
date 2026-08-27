@@ -8,7 +8,10 @@ import {
   daysLeftToRestore,
   formatTime,
   formatTimeAgo,
+  groupEntriesIntoMoments,
+  siblingIds,
   type EntryRow,
+  type Moment,
 } from "@/lib/entries";
 import {
   TYPE_STYLES,
@@ -24,22 +27,39 @@ const PUMP_STYLE: CheckboxStyle = {
   label: "Pump",
 };
 
-function entryPill(entry: EntryRow): { label: string; style: CheckboxStyle } {
-  if (entry.type === "pee") return { label: "Pee", style: TYPE_STYLES.pee };
-  if (entry.type === "poop") return { label: "Poo", style: TYPE_STYLES.poop };
+function entryPill(entry: EntryRow): { key: string; label: string; style: CheckboxStyle } {
+  if (entry.type === "pee") return { key: "pee", label: "Pee", style: TYPE_STYLES.pee };
+  if (entry.type === "poop") return { key: "poop", label: "Poo", style: TYPE_STYLES.poop };
   if (entry.type === "pump") {
     const ml = entry.amount_ml != null ? ` · ${entry.amount_ml}ml` : "";
-    return { label: `Pump${ml}`, style: PUMP_STYLE };
+    return { key: "pump", label: `Pump${ml}`, style: PUMP_STYLE };
   }
 
   // feed: bottle and breast are independent flags on the same row, so a
   // single soft-deleted feed entry can represent either or both at once.
   if (entry.bottle && entry.breast) {
-    return { label: "Breast + Bottle", style: FEED_FLAG_STYLES.breast };
+    return { key: "feed", label: "Breast + Bottle", style: FEED_FLAG_STYLES.breast };
   }
-  if (entry.breast) return { label: "Breast", style: FEED_FLAG_STYLES.breast };
+  if (entry.breast) return { key: "feed", label: "Breast", style: FEED_FLAG_STYLES.breast };
   const ml = entry.bottle && entry.amount_ml != null ? ` · ${entry.amount_ml}ml` : "";
-  return { label: `Bottle${ml}`, style: FEED_FLAG_STYLES.bottle };
+  return { key: "feed", label: `Bottle${ml}`, style: FEED_FLAG_STYLES.bottle };
+}
+
+// A moment's own type fields (feed/pee/poop/pump), in the same fixed order
+// used everywhere else in the app — so a "card" here reads the same way it
+// did in the Log/Timeline screen it was deleted from.
+function momentPills(moment: Moment) {
+  return [moment.feed, moment.pee, moment.poop, moment.pump]
+    .filter((entry): entry is EntryRow => !!entry)
+    .map(entryPill);
+}
+
+// Deletion (and restore) acts on the whole moment/card at once — same unit
+// LogMatrix already deletes as a group — so every sibling entry in it
+// shares one deleted_at/deleted_by, making any single entry's a safe pick.
+function momentDeletedMeta(moment: Moment) {
+  const anyEntry = moment.feed ?? moment.pee ?? moment.poop ?? moment.pump;
+  return { deletedAt: anyEntry?.deleted_at ?? null, deletedBy: anyEntry?.deleted_by ?? null };
 }
 
 interface RecentlyDeletedViewProps {
@@ -58,31 +78,38 @@ export function RecentlyDeletedView({
   pageSize,
 }: RecentlyDeletedViewProps) {
   const [entries, setEntries] = useState(initialEntries);
-  const [collapsingId, setCollapsingId] = useState<string | null>(null);
+  const [collapsingKey, setCollapsingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const now = useMemo(() => new Date(), []);
 
-  async function handleRestore(entry: EntryRow) {
+  // Grouped the same way Log/Timeline group active entries into cards — a
+  // deleted "pee + poo" logged together shows and restores as one card,
+  // not two separate rows each needing their own tap.
+  const moments = useMemo(() => groupEntriesIntoMoments(entries), [entries]);
+
+  async function handleRestore(moment: Moment) {
     setError(null);
     const supabase = createClient();
+    const ids = siblingIds(moment);
+    if (ids.length === 0) return;
 
     // Fire the restore and the "where does this land on Timeline" lookup
     // together — Timeline is already paginated (100/page) independent of
     // this feature, so landing back on page 1 could easily miss an older
-    // entry entirely. Rank among still-active entries newer than this one
+    // moment entirely. Rank among still-active entries newer than this one
     // tells us exactly which page it now falls on.
     const [{ error: restoreError }, { count: newerActiveCount }] = await Promise.all([
       supabase
         .from("entries")
         .update({ deleted_at: null, deleted_by: null })
-        .eq("id", entry.id),
+        .in("id", ids),
       supabase
         .from("entries")
         .select("*", { count: "exact", head: true })
         .eq("baby_id", babyId)
         .is("deleted_at", null)
-        .gt("timestamp", entry.timestamp),
+        .gt("timestamp", moment.timestamp),
     ]);
 
     if (restoreError) {
@@ -92,17 +119,19 @@ export function RecentlyDeletedView({
 
     const destinationPage = Math.floor((newerActiveCount ?? 0) / pageSize) + 1;
 
-    setCollapsingId(entry.id);
+    setCollapsingKey(moment.key);
 
-    // Let the collapse play out before removing the row, then give that a
+    // Let the collapse play out before removing the card, then give that a
     // beat to register before jumping back to Timeline — the restore ->
     // navigate -> flash sequence is the actual payoff of this feature.
     window.setTimeout(() => {
-      setEntries((prev) => prev.filter((e) => e.id !== entry.id));
+      setEntries((prev) => prev.filter((e) => !ids.includes(e.id)));
     }, 300);
 
     window.setTimeout(() => {
-      router.push(`/timeline?page=${destinationPage}&flash=${entry.id}`);
+      // Any one id in the moment is enough — Timeline resolves it back to
+      // the whole card and flashes that, not just the one type.
+      router.push(`/timeline?page=${destinationPage}&flash=${ids[0]}`);
     }, 700);
   }
 
@@ -135,7 +164,7 @@ export function RecentlyDeletedView({
 
       {error && <p className="text-sm text-terracotta">{error}</p>}
 
-      {entries.length === 0 ? (
+      {moments.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-[10px] border border-line bg-paper-raised px-4 py-10 text-center shadow-card">
           <svg
             viewBox="0 0 24 24"
@@ -158,42 +187,43 @@ export function RecentlyDeletedView({
         </div>
       ) : (
         <div className="flex flex-col gap-2.5">
-          {entries.map((entry) => {
-            const pill = entryPill(entry);
-            const deletedByName =
-              (entry.deleted_by && memberNames[entry.deleted_by]) ?? "Unknown";
-            const color = personColor(
-              entry.deleted_by ? (memberColorIndex[entry.deleted_by] ?? 0) : 0,
-            );
-            // The query only ever returns rows with deleted_at set — the
-            // column is nullable in the schema for active entries, not here.
-            const deletedAt = entry.deleted_at as string;
-            const days = daysLeftToRestore(deletedAt, now);
+          {moments.map((moment) => {
+            const pills = momentPills(moment);
+            const { deletedAt, deletedBy } = momentDeletedMeta(moment);
+            const deletedByName = (deletedBy && memberNames[deletedBy]) ?? "Unknown";
+            const color = personColor(deletedBy ? (memberColorIndex[deletedBy] ?? 0) : 0);
+            // Every moment here came from the deleted-entries query, so
+            // deletedAt is always set — nullable in the type only because
+            // EntryRow itself covers active entries too.
+            const days = daysLeftToRestore(deletedAt as string, now);
 
             return (
               <div
-                key={entry.id}
+                key={moment.key}
                 className={`overflow-hidden rounded-[10px] border border-line bg-paper-raised px-3.5 py-3 shadow-card transition-all duration-300 ${
-                  collapsingId === entry.id
+                  collapsingKey === moment.key
                     ? "max-h-0 scale-95 border-transparent px-0 py-0 opacity-0"
                     : "max-h-40 opacity-100"
                 }`}
               >
                 <div className="mb-2 flex items-center gap-2">
                   <span className="text-[13.5px] font-bold tabular-nums text-ink">
-                    {formatTime(entry.timestamp, "datetime")}
+                    {formatTime(moment.timestamp, "datetime")}
                   </span>
                   <span className="rounded-full border border-line-strong bg-paper px-2 py-0.5 text-[10.5px] font-bold text-ink-soft uppercase tracking-[0.03em]">
                     Deleted
                   </span>
                 </div>
 
-                <div className="mb-2.5">
-                  <span
-                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[12px] font-bold ${pill.style.border} ${pill.style.bg} ${pill.style.check}`}
-                  >
-                    {pill.label}
-                  </span>
+                <div className="mb-2.5 flex flex-wrap gap-1.5">
+                  {pills.map((pill) => (
+                    <span
+                      key={pill.key}
+                      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[12px] font-bold ${pill.style.border} ${pill.style.bg} ${pill.style.check}`}
+                    >
+                      {pill.label}
+                    </span>
+                  ))}
                 </div>
 
                 <div className="flex items-center justify-between gap-3">
@@ -205,7 +235,7 @@ export function RecentlyDeletedView({
                         {initials(deletedByName)}
                       </span>
                       <span>
-                        {deletedByName} · {formatTimeAgo(deletedAt, now)}
+                        {deletedByName} · {formatTimeAgo(deletedAt as string, now)}
                       </span>
                     </div>
                     <div className="mt-0.5">
@@ -218,8 +248,8 @@ export function RecentlyDeletedView({
 
                   <button
                     type="button"
-                    onClick={() => handleRestore(entry)}
-                    disabled={collapsingId === entry.id}
+                    onClick={() => handleRestore(moment)}
+                    disabled={collapsingKey === moment.key}
                     className="shrink-0 rounded-full bg-sage px-4 py-2 text-[13px] font-bold text-paper-raised shadow-card transition-colors hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     Restore

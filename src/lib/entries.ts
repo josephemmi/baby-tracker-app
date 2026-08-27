@@ -93,6 +93,18 @@ export function mergeMoments(drafts: Moment[], real: Moment[]): Moment[] {
   );
 }
 
+// Every real (non-draft) entry row that makes up a moment — the unit a
+// delete or restore acts on as a whole (JOS-20: deleting/restoring "a
+// moment" means every type in it together, not one type at a time).
+export function siblingIds(moment: Moment): string[] {
+  return [
+    moment.feed?.id,
+    moment.pee?.id,
+    moment.poop?.id,
+    moment.pump?.id,
+  ].filter((id): id is string => !!id);
+}
+
 // Groups same-instant entries into moments and sorts them chronologically
 // (most recent event time first) — used by both Home and Timeline.
 export function groupEntriesIntoMoments(entries: EntryRow[]): Moment[] {

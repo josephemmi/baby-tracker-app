@@ -6,6 +6,7 @@ import {
   groupEntriesIntoMoments,
   latestEntryOfType,
   mergeMoments,
+  siblingIds,
 } from "@/lib/entries";
 import { makeEntry } from "@/lib/test-helpers";
 
@@ -154,6 +155,23 @@ describe("formatTimeAgo", () => {
   it("formats multiple days as Nd ago", () => {
     const now = new Date("2026-07-19T10:00:00.000Z");
     expect(formatTimeAgo("2026-07-16T10:00:00.000Z", now)).toBe("3d ago");
+  });
+});
+
+describe("siblingIds", () => {
+  it("collects every real entry id in a moment deleted/restored together (JOS-20)", () => {
+    const timestamp = "2026-07-16T10:00:00.000Z";
+    const [moment] = groupEntriesIntoMoments([
+      makeEntry({ id: "pee-1", type: "pee", timestamp, logged_by: "u1" }),
+      makeEntry({ id: "poop-1", type: "poop", timestamp, logged_by: "u1" }),
+    ]);
+
+    expect(siblingIds(moment).sort()).toEqual(["pee-1", "poop-1"]);
+  });
+
+  it("ignores draft moments with no persisted rows", () => {
+    const draft = createDraftMoment("u1");
+    expect(siblingIds(draft)).toEqual([]);
   });
 });
 
