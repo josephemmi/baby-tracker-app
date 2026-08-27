@@ -13,12 +13,16 @@ feature, and PATCH is a fix with no new functionality.
 - Home's entry list is now day-aware instead of a flat entry-count cap
   (JOS-21): every entry from today, in full, plus the last 3 entries — any
   type, not just feeds — from the previous calendar day only, for
-  continuity when checking the last logged moment overnight. A hairline
-  divider with a bold uppercase label marks the boundary between the two,
-  and the previous day's tail entries get a muted border so they read as
-  context rather than fresh data. Everything older is unchanged — the same
-  "View more in Timeline" link appears, just reached sooner. Applies to
-  both the phone card layout and the existing iPad/desktop table, where the
+  continuity when checking the last logged moment overnight. Both "Today"
+  and "Yesterday" get an equally prominent sage-green divider (bigger
+  label, green rule) with extra breathing room above it, so the boundary
+  reads clearly even scrolling quickly, and the previous day's tail
+  entries get a muted border so they read as context rather than fresh
+  data. Since the divider now states the day, each entry's field only
+  shows its time, not the full date — tapping it still opens the full
+  date+time editor. Everything older is unchanged — the same "View more
+  in Timeline" link appears, just reached sooner. Applies to both the
+  phone card layout and the existing iPad/desktop table, where the
   divider renders as a full-width row.
 
 ## [1.8.0] - 2026-08-27

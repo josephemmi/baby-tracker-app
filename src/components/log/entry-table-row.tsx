@@ -77,6 +77,11 @@ export function EntryTableRow({
   const loggedByIndex = members.findIndex((m) => m.id === moment.loggedBy);
   const loggedByName = (moment.loggedBy && memberNames[moment.loggedBy]) ?? "Unknown";
   const [breastSummaryExpanded, setBreastSummaryExpanded] = useState(false);
+  // See EntryCard's identical comment: a native datetime-local input always
+  // shows its full date + time when not focused, regardless of timeFormat.
+  // Home's day dividers (JOS-21) now carry the date, so show just the time
+  // at rest, matching Timeline; tapping still opens the full picker.
+  const [timeEditing, setTimeEditing] = useState(false);
   const showBreastPanel = !!moment.feed?.breast && !moment.feed?.breast_session_ended;
   // Sums to the same total either way — the Pump/mL pair always spans 2
   // columns, merged or split, matching how the header itself decides.
@@ -101,14 +106,26 @@ export function EntryTableRow({
         </td>
       )}
       <td className="px-3 py-2.5 tabular-nums text-ink">
-        {editable ? (
+        {editable && timeEditing ? (
           <input
             key={`time-${moment.key}-${moment.timestamp}`}
             type="datetime-local"
+            autoFocus
             defaultValue={toDatetimeLocalValue(new Date(moment.timestamp))}
-            onBlur={(e) => onTimeCommit?.(moment, e.target.value)}
+            onBlur={(e) => {
+              onTimeCommit?.(moment, e.target.value);
+              setTimeEditing(false);
+            }}
             className="w-full rounded-[10px] border border-transparent bg-transparent px-2 py-1.5 text-[13.5px] tabular-nums text-ink hover:border-line focus:border-line-strong focus:bg-paper focus:outline-none"
           />
+        ) : editable ? (
+          <button
+            type="button"
+            onClick={() => setTimeEditing(true)}
+            className="rounded-[10px] px-2 py-1.5 -mx-2 text-[13.5px] whitespace-nowrap tabular-nums text-ink hover:bg-paper"
+          >
+            {formatTime(moment.timestamp, "time")}
+          </button>
         ) : timeFormat === "time" ? (
           new Date(moment.timestamp).toLocaleTimeString(undefined, {
             hour: "numeric",

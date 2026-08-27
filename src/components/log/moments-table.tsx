@@ -15,7 +15,7 @@ interface Member {
 // tables don't use this — they just pass `moments`.
 export interface MomentGroup {
   moments: Moment[];
-  divider?: { label: string; today?: boolean };
+  divider?: { label: string };
   tail?: boolean;
 }
 
@@ -141,7 +141,7 @@ export function MomentsTable({
                 {group.divider && (
                   <tr>
                     <td colSpan={totalColumns} className="px-3 py-2.5">
-                      <DayDivider label={group.divider.label} today={group.divider.today} />
+                      <DayDivider label={group.divider.label} />
                     </td>
                   </tr>
                 )}
@@ -172,7 +172,7 @@ export function MomentsTable({
         {renderGroups.map((group, groupIndex) => (
           <Fragment key={group.divider?.label ?? `group-${groupIndex}`}>
             {group.divider && (
-              <DayDivider label={group.divider.label} today={group.divider.today} />
+              <DayDivider label={group.divider.label} />
             )}
             {group.moments.map((moment) => (
               <EntryCard

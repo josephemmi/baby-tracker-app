@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Moment } from "@/lib/entries";
 import { formatTime, toDatetimeLocalValue } from "@/lib/entries";
 import { initials, personColor } from "@/lib/person-colors";
@@ -64,6 +65,13 @@ export function EntryCard({
   const loggedByName = (moment.loggedBy && memberNames[moment.loggedBy]) ?? "Unknown";
   const color = personColor(Math.max(0, loggedByIndex));
   const showMl = !!moment.feed?.bottle;
+  // A native datetime-local input always displays its full date + time
+  // when not focused — that's browser rendering, not something the
+  // timeFormat prop can override. Home's day dividers (JOS-21) now carry
+  // the date, so at rest this shows just the time, matching Timeline;
+  // tapping it still opens the real date+time picker, so nothing about
+  // editing capability is lost, only what's shown before you tap in.
+  const [timeEditing, setTimeEditing] = useState(false);
   const showPumpMl = !!moment.pump;
   const showBreastPanel = !!moment.feed?.breast && !moment.feed?.breast_session_ended;
 
@@ -107,14 +115,26 @@ export function EntryCard({
               className="h-4 w-4 accent-sage"
             />
           )}
-          {editable ? (
+          {editable && timeEditing ? (
             <input
               key={`time-${moment.key}-${moment.timestamp}`}
               type="datetime-local"
+              autoFocus
               defaultValue={toDatetimeLocalValue(new Date(moment.timestamp))}
-              onBlur={(e) => onTimeCommit?.(moment, e.target.value)}
+              onBlur={(e) => {
+                onTimeCommit?.(moment, e.target.value);
+                setTimeEditing(false);
+              }}
               className="rounded-md border border-transparent bg-transparent text-[15px] font-bold tabular-nums text-ink hover:border-line focus:border-line-strong focus:bg-paper focus:outline-none"
             />
+          ) : editable ? (
+            <button
+              type="button"
+              onClick={() => setTimeEditing(true)}
+              className="rounded-md px-1 -mx-1 text-[15px] font-bold whitespace-nowrap tabular-nums text-ink hover:bg-paper"
+            >
+              {formatTime(moment.timestamp, "time")}
+            </button>
           ) : (
             <span className="text-[15px] font-bold tabular-nums text-ink">
               {formatTime(moment.timestamp, timeFormat)}

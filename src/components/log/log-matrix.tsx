@@ -85,7 +85,7 @@ export function LogMatrix({
       {
         moments: homeSections.todayMoments,
         divider: homeSections.previousDay
-          ? { label: homeSections.todayLabel, today: true }
+          ? { label: homeSections.todayLabel }
           : undefined,
       },
     ];
@@ -853,6 +853,7 @@ export function LogMatrix({
         groups={momentGroups}
         memberNames={memberNames}
         emptyMessage="No entries yet — log the first moment above."
+        timeFormat="time"
         flashMomentKey={flashKey}
         editable
         members={members}
