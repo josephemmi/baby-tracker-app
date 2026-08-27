@@ -40,6 +40,11 @@ export function TimelineView({
   flashEntryId,
 }: TimelineViewProps) {
   const [filter, setFilter] = useState<Filter>("all");
+  // Arriving via a restore (Recently Deleted -> Restore) fades this screen
+  // in rather than popping in instantly, to match the fade-out Recently
+  // Deleted plays on its way out — a plain page visit skips the fade
+  // entirely (starts visible) so ordinary browsing stays snappy.
+  const [visible, setVisible] = useState(() => !flashEntryId);
   const router = useRouter();
 
   const moments = useMemo(() => groupEntriesIntoMoments(entries), [entries]);
@@ -56,6 +61,14 @@ export function TimelineView({
     );
     return match?.key ?? null;
   }, [moments, flashEntryId]);
+
+  useEffect(() => {
+    // Runs once on mount only. Starts at opacity-0 (set in the useState
+    // initializer above when arriving with ?flash=) and flips on the next
+    // tick so the CSS transition has a starting frame to animate from.
+    const id = window.setTimeout(() => setVisible(true), 20);
+    return () => window.clearTimeout(id);
+  }, []);
 
   useEffect(() => {
     if (!flashMomentKey) return;
@@ -98,7 +111,9 @@ export function TimelineView({
   }, [filteredMoments]);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div
+      className={`flex flex-col gap-6 transition-opacity duration-300 ${visible ? "opacity-100" : "opacity-0"}`}
+    >
       <div role="tablist" aria-label="Filter by type" className="flex gap-2">
         {FILTERS.map((f) => (
           <button

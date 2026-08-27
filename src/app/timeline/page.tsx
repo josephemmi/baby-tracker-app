@@ -5,7 +5,11 @@ import { createClient } from "@/lib/supabase/server";
 import { AppHeader } from "@/components/layout/app-header";
 import { TimelineView } from "@/components/timeline/timeline-view";
 import { colorIndexFor } from "@/lib/person-colors";
-import { TIMELINE_PAGE_SIZE, retentionCutoffISO } from "@/lib/entries";
+import {
+  TIMELINE_PAGE_SIZE,
+  retentionCutoffISO,
+  groupEntriesIntoMoments,
+} from "@/lib/entries";
 
 export default async function TimelinePage({
   searchParams,
@@ -45,7 +49,7 @@ export default async function TimelinePage({
 
   const retentionCutoff = retentionCutoffISO();
 
-  const [{ data: entries, count }, { count: deletedCount }] = baby
+  const [{ data: entries, count }, { data: deletedEntries }] = baby
     ? await Promise.all([
         supabase
           .from("entries")
@@ -55,17 +59,22 @@ export default async function TimelinePage({
           .order("timestamp", { ascending: false })
           .range(from, to),
         // Independent of pagination — the banner (JOS-20) reflects the
-        // household's total recoverable count, not just this page.
+        // household's total recoverable count, not just this page. Fetched
+        // as rows (not a head-count) because the banner counts cards
+        // (moments), the same unit delete/restore operate on — a deleted
+        // "pee + poo" is one card, not two, so a raw row count would
+        // overcount it. The retention window keeps this small.
         supabase
           .from("entries")
-          .select("*", { count: "exact", head: true })
+          .select("*")
           .eq("baby_id", baby.id)
           .not("deleted_at", "is", null)
           .gt("deleted_at", retentionCutoff),
       ])
-    : [{ data: [], count: 0 }, { count: 0 }];
+    : [{ data: [], count: 0 }, { data: [] }];
 
   const totalPages = Math.max(1, Math.ceil((count ?? 0) / TIMELINE_PAGE_SIZE));
+  const deletedCount = groupEntriesIntoMoments(deletedEntries ?? []).length;
 
   return (
     <div className="min-h-screen bg-paper p-4 sm:p-8">
@@ -87,7 +96,7 @@ export default async function TimelinePage({
             <TimelineView
               entries={entries ?? []}
               memberNames={memberNames}
-              deletedCount={deletedCount ?? 0}
+              deletedCount={deletedCount}
               flashEntryId={flash ?? null}
             />
 

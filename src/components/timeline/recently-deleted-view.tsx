@@ -79,6 +79,7 @@ export function RecentlyDeletedView({
 }: RecentlyDeletedViewProps) {
   const [entries, setEntries] = useState(initialEntries);
   const [collapsingKey, setCollapsingKey] = useState<string | null>(null);
+  const [leaving, setLeaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const now = useMemo(() => new Date(), []);
@@ -121,12 +122,17 @@ export function RecentlyDeletedView({
 
     setCollapsingKey(moment.key);
 
-    // Let the collapse play out before removing the card, then give that a
-    // beat to register before jumping back to Timeline — the restore ->
-    // navigate -> flash sequence is the actual payoff of this feature.
+    // Let the collapse play out before removing the card, then fade the
+    // whole screen out before the hard navigation cut — a straight
+    // router.push right after the collapse read as an abrupt jump-cut in
+    // testing; this gives the eye somewhere to land instead of a hard snap.
     window.setTimeout(() => {
       setEntries((prev) => prev.filter((e) => !ids.includes(e.id)));
     }, 300);
+
+    window.setTimeout(() => {
+      setLeaving(true);
+    }, 400);
 
     window.setTimeout(() => {
       // Any one id in the moment is enough — Timeline resolves it back to
@@ -136,7 +142,9 @@ export function RecentlyDeletedView({
   }
 
   return (
-    <>
+    <div
+      className={`flex flex-col gap-6 transition-opacity duration-300 ${leaving ? "opacity-0" : "opacity-100"}`}
+    >
       <Link
         href="/timeline"
         className="flex w-fit items-center gap-1.5 text-[13.5px] font-bold text-ink-soft transition-colors hover:text-ink"
@@ -260,6 +268,6 @@ export function RecentlyDeletedView({
           })}
         </div>
       )}
-    </>
+    </div>
   );
 }
