@@ -9,6 +9,8 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-08-27
+
 ### Added
 - Restore deleted entries (JOS-20). Deleting a moment — via the checkbox
   uncheck, the phone card's ✕, or bulk select-and-delete — is now a 7-day
