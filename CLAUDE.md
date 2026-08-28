@@ -99,3 +99,54 @@ time.
   config` to change commit identity yourself, even if asked — this hook
   (or its retroactive counterpart) is the sanctioned mechanism, not manual
   intervention mid-session.
+- **"App not loading" diagnostic playbook (2026-08-27 incident).** Joseph
+  reported `baby-tracker-app-bay.vercel.app` unreachable from every real
+  device (phone on WiFi and cellular, iPad), while every server-side
+  signal said healthy. This is the order that actually narrowed it down —
+  follow it before improvising:
+  1. `mcp__Vercel__get_project_deployment_protection` — check
+     `ssoProtection`/`passwordProtection` aren't silently on. This *was*
+     the first real cause found that night (SSO protection enabled on a
+     `*.vercel.app` alias blocks anyone without a Vercel login — looks
+     exactly like "not loading").
+  2. `mcp__Vercel__web_fetch_vercel_url` / `get_deployment` /
+     `get_runtime_errors` / `get_deployment_build_logs` to confirm the
+     deployment itself is READY with no errors. Vercel's own API fetch
+     bypasses normal public DNS/routing, so a clean result here does
+     *not* prove real-world reachability — it only proves the deployment
+     isn't broken.
+  3. Independent, non-Anthropic-infra confirmation:
+     `https://downforeveryoneorjustme.com/<domain>` from the user's own
+     browser. This is the one check that's genuinely external to both
+     Vercel's API and this sandbox's (egress-blocked) network.
+  4. Query Supabase directly with `mcp__Supabase__query_logs` against
+     `source = 'edge_logs'` for the failure window — this shows whether
+     the user's actual requests ever arrived at the backend at all. One
+     real finding that night: a browser's CORS preflight
+     (`OPTIONS .../auth/v1/token?grant_type=password`) succeeded but the
+     following POST never showed up in the logs — proof the request was
+     dropping in transit, not being rejected by the app or Supabase.
+  5. Device-side checks (VPN, Private DNS, Chrome Secure DNS/Safe
+     Browsing) ruled things out one at a time but never definitively
+     confirmed a cause — don't expect this step to resolve it alone.
+  6. **What was never resolved with certainty**: whether a second Vercel
+     project on the same Hobby-tier team
+     (`joseph-emmi-website`, mid-buildout by another session that night)
+     was actually interfering. Pausing it (`mcp__Vercel__pause_project`)
+     coincided with `-bay` stabilizing, but `-bay` had also briefly
+     worked once earlier with nothing changed, so this is correlation,
+     not confirmed causation. The genuine gap: **no tool in this
+     environment can read Vercel's Attack Challenge Mode / firewall
+     state or account-level usage limits** — only the authenticated
+     `vercel` CLI or the dashboard can (the CLI here has no stored
+     login). If this recurs, that's the next thing to get real access
+     to, not another round of device/network troubleshooting.
+  7. As a same-project workaround with zero setup, the project's other
+     auto-assigned domain (e.g. `baby-tracker-app-josephemmis-projects.
+     vercel.app`) is worth having the user try immediately — same code,
+     same env vars, no config needed, and it isolates whether the
+     problem is specific to one alias.
+  - `joseph-emmi-website` was left **paused** at the end of this incident
+    as a precaution. Check its state
+    (`mcp__Vercel__get_project`/`list_projects`) before assuming it's
+    live, and don't unpause it without telling Joseph.
