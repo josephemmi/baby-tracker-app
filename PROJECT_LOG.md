@@ -37,7 +37,19 @@ picks this up next.
   down before this. Merged via PR #3.
 - Created the `retro` skill (personal, works across projects, not just
   this repo) — an end-of-work retrospective that surfaces process/tooling
-  friction and maintains this log.
+  friction and maintains this log. Also set up a global Stop hook
+  (`~/.claude/hooks/retro-reminder.sh`) as a throttled nudge to actually
+  run it, since a skill's own proactive-trigger description alone felt
+  too easy to forget.
+- First real run of `retro` (this entry) surfaced one gap: the dev-preview
+  verification workflow (`CLAUDE.md`'s "No live Supabase session" section)
+  doesn't mention that even a route with zero real Supabase calls needs
+  dummy `NEXT_PUBLIC_SUPABASE_URL`/`_ANON_KEY` values in `.env.local` just
+  to get `npm run dev` past the proxy middleware, that ad-hoc Playwright
+  scripts (outside `npm test`) need an absolute import path since
+  `playwright` isn't a project dependency, or that deleting a dev-preview
+  route can leave a stale `.next` cache reference that looks like a false
+  typecheck failure. Documented inline in that section.
 
 **In flight / open:**
 - JOS-42 needs on-device confirmation on a real Android Chrome phone

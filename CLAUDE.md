@@ -90,7 +90,25 @@ time.
   Playwright (`chromium`, `executablePath: "/opt/pw-browsers/chromium"`),
   then **delete the route before committing** — never leave dev-preview
   routes in the tree. This is the standard way to catch layout/rendering
-  bugs before shipping when you can't just log in and look.
+  bugs before shipping when you can't just log in and look. Three gotchas
+  in this flow that cost real time to rediscover (JOS-42 session):
+  - `npm run dev` won't even start without *something* in `.env.local` —
+    `proxy.ts` calls `createServerClient` unconditionally on every
+    request, so a dev-preview route with zero real Supabase calls still
+    needs syntactically-plausible dummy values (e.g.
+    `NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321`, any non-empty
+    `NEXT_PUBLIC_SUPABASE_ANON_KEY`) or it throws before rendering
+    anything. `.env.local.example`'s blank values aren't enough on their
+    own — fill them with dummy non-empty strings, not just copy the file.
+  - A one-off Playwright script run via plain `node script.mjs` (not
+    through `npm test`) needs an absolute import path —
+    `/opt/node22/lib/node_modules/playwright/index.mjs` — since
+    `playwright` isn't a project dependency and bare `import "playwright"`
+    won't resolve.
+  - After deleting the dev-preview route, also `rm -rf .next` before your
+    final `npx tsc --noEmit` — Next's dev-server build cache can keep a
+    stale type-checker reference to the deleted route's page file, which
+    reads exactly like a real type error until you clear it.
 - **This is a bleeding-edge/pre-release Next.js** (see `AGENTS.md`) —
   read `node_modules/next/dist/docs/` before writing server-side code,
   don't assume training-data behavior. One concrete trap: calling
