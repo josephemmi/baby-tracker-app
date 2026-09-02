@@ -12,6 +12,40 @@
   creating or updating issues for work here, use this team/project rather
   than asking which one to use.
 
+## Git & deploy workflow
+
+- This repo has no staging environment — Vercel auto-deploys straight to
+  production on every push to whatever branch its project settings name as
+  "Production Branch." Currently that's `claude/baby-tracker-nextjs-setup-9gocr2`
+  (a leftover name from early setup, tracked for a rename to something
+  conventional in JOS-43) — go by Vercel's actual setting, not the name, if
+  the two ever seem to disagree.
+- Every piece of work — fix, feature, or infra change — gets its own new
+  branch, named for that work (e.g. `claude/bottle-ml-silent-save-6qtn1i`).
+  Never reuse an old branch for unrelated new work, and never push
+  directly to the production branch.
+- Every branch gets a PR back into the production branch before merging,
+  even for docs-only or config-only changes. There's no CI pipeline
+  configured for this repo, so the PR — and the checks below, run by
+  hand — are the entire gate between "written" and "live." Use
+  `.github/pull_request_template.md`'s structure for the description.
+- Run these locally before opening or updating a PR — they're the full
+  check suite this repo has, since nothing runs them automatically:
+  `npm run lint`, `npx tsc --noEmit`, `npm run test`, `npm run build`.
+- Merging the PR is the actual "go live" moment — production deploys
+  immediately once it lands, no staging gate. Don't merge until Joseph has
+  reviewed the diff, unless he's explicitly said to go ahead without
+  review.
+- Every piece of work gets a Linear ticket in the JOS team / Momentini
+  project — including process or tooling fixes noticed along the way
+  (like this section, or JOS-43), not just product features and bugs.
+- When wrapping up a significant unit of work (closing a ticket, merging
+  a PR, cutting a release), run the `retro` skill before ending the
+  session — it looks back at what just happened for process, tooling, or
+  workflow friction worth fixing, even if it never came up in
+  conversation, and turns anything worth acting on into a Linear ticket
+  or a small fix made right then.
+
 ## Release process
 
 - `CHANGELOG.md` (Keep a Changelog format) is the version record for this
