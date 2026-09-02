@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { Moment } from "@/lib/entries";
 import type { BreastSide, EntryType } from "@/lib/supabase/database.types";
 import { formatTime, toDatetimeLocalValue } from "@/lib/entries";
+import { useDebouncedCommit } from "@/lib/debounced-commit";
 import { initials, personColor } from "@/lib/person-colors";
 import {
   Check,
@@ -83,6 +84,15 @@ export function EntryTableRow({
   // at rest, matching Timeline; tapping still opens the full picker.
   const [timeEditing, setTimeEditing] = useState(false);
   const showBreastPanel = !!moment.feed?.breast && !moment.feed?.breast_session_ended;
+  // JOS-42: debounce the mL commit alongside onBlur — see debounced-commit.ts.
+  const amountCommit = useDebouncedCommit<string>(
+    (value) => onAmountCommit?.(moment, value),
+    600,
+  );
+  const pumpAmountCommit = useDebouncedCommit<string>(
+    (value) => onPumpAmountCommit?.(moment, value),
+    600,
+  );
   // Sums to the same total either way — the Pump/mL pair always spans 2
   // columns, merged or split, matching how the header itself decides.
   const totalColumns = (selectMode ? 1 : 0) + 10;
@@ -115,6 +125,9 @@ export function EntryTableRow({
             onBlur={(e) => {
               onTimeCommit?.(moment, e.target.value);
               setTimeEditing(false);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
             }}
             className="w-full rounded-[10px] border border-transparent bg-transparent px-2 py-1.5 text-[13.5px] tabular-nums text-ink hover:border-line focus:border-line-strong focus:bg-paper focus:outline-none"
           />
@@ -172,7 +185,11 @@ export function EntryTableRow({
               min="0"
               defaultValue={moment.feed?.amount_ml ?? ""}
               disabled={!moment.feed?.bottle}
-              onBlur={(e) => onAmountCommit?.(moment, e.target.value)}
+              onChange={(e) => amountCommit.trigger(e.target.value)}
+              onBlur={(e) => amountCommit.flush(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.currentTarget.blur();
+              }}
               className="w-16 rounded-[10px] border border-line-strong bg-paper-raised px-2 py-1 text-right text-[13.5px] tabular-nums text-ink focus:border-amber focus:outline focus:outline-2 focus:outline-offset-1 focus:outline-amber disabled:cursor-not-allowed disabled:border-line disabled:text-line-strong"
             />
             <span className="text-[13.5px] text-ink-soft">ml</span>
@@ -228,7 +245,11 @@ export function EntryTableRow({
                   min="0"
                   placeholder="—"
                   defaultValue={moment.pump.amount_ml ?? ""}
-                  onBlur={(e) => onPumpAmountCommit?.(moment, e.target.value)}
+                  onChange={(e) => pumpAmountCommit.trigger(e.target.value)}
+                  onBlur={(e) => pumpAmountCommit.flush(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") e.currentTarget.blur();
+                  }}
                   className="w-14 rounded-[10px] border border-line-strong bg-paper-raised px-2 py-1 text-right text-[13.5px] tabular-nums text-ink focus:border-plum focus:outline focus:outline-2 focus:outline-offset-1 focus:outline-plum"
                 />
                 <span className="text-[11px] text-ink-soft">ml</span>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Moment } from "@/lib/entries";
 import { formatTime, toDatetimeLocalValue } from "@/lib/entries";
+import { useDebouncedCommit } from "@/lib/debounced-commit";
 import { initials, personColor } from "@/lib/person-colors";
 import {
   EditableToggleTile,
@@ -74,6 +75,15 @@ export function EntryCard({
   const [timeEditing, setTimeEditing] = useState(false);
   const showPumpMl = !!moment.pump;
   const showBreastPanel = !!moment.feed?.breast && !moment.feed?.breast_session_ended;
+  // JOS-42: debounce the mL commit alongside onBlur — see debounced-commit.ts.
+  const amountCommit = useDebouncedCommit<string>(
+    (value) => onAmountCommit?.(moment, value),
+    600,
+  );
+  const pumpAmountCommit = useDebouncedCommit<string>(
+    (value) => onPumpAmountCommit?.(moment, value),
+    600,
+  );
 
   return (
     <div
@@ -124,6 +134,9 @@ export function EntryCard({
               onBlur={(e) => {
                 onTimeCommit?.(moment, e.target.value);
                 setTimeEditing(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.currentTarget.blur();
               }}
               className="rounded-md border border-transparent bg-transparent text-[15px] font-bold tabular-nums text-ink hover:border-line focus:border-line-strong focus:bg-paper focus:outline-none"
             />
@@ -223,7 +236,11 @@ export function EntryCard({
               min="0"
               placeholder="Amount"
               defaultValue={moment.feed?.amount_ml ?? ""}
-              onBlur={(e) => onAmountCommit?.(moment, e.target.value)}
+              onChange={(e) => amountCommit.trigger(e.target.value)}
+              onBlur={(e) => amountCommit.flush(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.currentTarget.blur();
+              }}
               className="flex-1 bg-transparent text-right text-[14px] tabular-nums text-ink focus:outline-none"
             />
           ) : (
@@ -263,7 +280,11 @@ export function EntryCard({
                 min="0"
                 placeholder="Amount"
                 defaultValue={moment.pump?.amount_ml ?? ""}
-                onBlur={(e) => onPumpAmountCommit?.(moment, e.target.value)}
+                onChange={(e) => pumpAmountCommit.trigger(e.target.value)}
+                onBlur={(e) => pumpAmountCommit.flush(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") e.currentTarget.blur();
+                }}
                 className="flex-1 bg-transparent text-right text-[14px] tabular-nums text-ink focus:outline-none"
               />
             ) : (
