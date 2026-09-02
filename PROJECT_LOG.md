@@ -50,6 +50,14 @@ picks this up next.
   `playwright` isn't a project dependency, or that deleting a dev-preview
   route can leave a stale `.next` cache reference that looks like a false
   typecheck failure. Documented inline in that section.
+- Cut **v1.9.1** (patch — JOS-42 was the only entry, fix-only, no new
+  functionality): moved `[Unreleased]` into a dated section, bumped
+  `package.json`, generated `Nestlog-Release-Notes-v1.9.1.pdf`, attached
+  it to JOS-42 and posted the release notes as a comment there (left the
+  ticket open rather than moving to Done — see below). Merged via PR #5.
+  Second `retro` run of the session, right after the release: nothing new
+  to flag — the release process was already fully documented from a
+  prior session and the Linear attachment flow worked cleanly first try.
 
 **In flight / open:**
 - JOS-42 needs on-device confirmation on a real Android Chrome phone
