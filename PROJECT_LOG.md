@@ -57,6 +57,22 @@ picks this up next.
   `Nestlog-Release-Notes-v1.10.0.pdf`, attached it to both JOS-44 and
   JOS-45 and posted the release notes as a comment on each. Merged via
   PR #12.
+- Joseph flagged three gaps in that first release-notes pass: the PDF
+  needed screenshots (both JOS-44/JOS-45 are visible UI changes — the
+  first PDF had none), he wants the PDF sent through chat every time (not
+  just attached to Linear, so he can grab it himself and put it in
+  Drive), and JOS-46 was sitting labelless since none of Bug/Feature/
+  Polish actually described a fix to Claude's own process. Fixed all
+  three: regenerated the PDF with tight, element-scoped screenshots of
+  the modal and banner (two earlier attempts leaked the Next.js dev
+  toolbar badge and a too-narrow test container that wrapped text
+  differently than production — both caught and fixed before finalizing,
+  by framing the shot to match the real page's actual container), sent
+  it via `SendUserFile`, re-attached the corrected PDF to both tickets
+  (replacing the screenshot-less one), and added a new **Process** Type
+  label (workspace-level, alongside Bug/Feature/Polish) applied to JOS-46
+  and retrofitted onto JOS-43. All three now standing rules in
+  `CLAUDE.md`, not just one-off fixes. Merged via PR #14.
 
 **Worth knowing:**
 - Both delete-entry `window.confirm()` call sites are gone; a third,
