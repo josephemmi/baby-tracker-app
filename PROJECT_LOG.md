@@ -19,6 +19,45 @@ picks this up next.
 
 ---
 
+## 2026-09-02 (JOS-44/JOS-45)
+
+**Done:**
+- [JOS-44](https://linear.app/josephemmi/issue/JOS-44) (Medium, Done):
+  replaced the native `window.confirm()` on delete-entry with a custom
+  in-app modal (`src/components/ui/confirm-delete-modal.tsx`) — spec and
+  reference prototype pulled from Drive. Title "Delete this moment?",
+  unchanged body copy, rose (`#B15E7C`) Delete button per the prototype's
+  decided direction over terracotta. Swapped into both the single quick
+  delete and the multi-select bulk delete in `log-matrix.tsx`; left the
+  unrelated breastfeeding-session-clear `confirm()` alone, out of scope.
+  Merged via PR #8, confirmed working on a real device.
+- [JOS-45](https://linear.app/josephemmi/issue/JOS-45) (Low, Done): found
+  during JOS-44's device review — the modal's copy pointed to "Recently
+  Deleted in Timeline," but Timeline's own banner never used that phrase
+  (it said "N deleted entries · tap to restore"; "Recently Deleted" only
+  existed on the destination screen's `<h1>`). Fixed the banner to lead
+  with the section name: "Recently Deleted (N) · Tap to restore" (capital
+  T, caught in the same device review). Filed as its own ticket and
+  branched from production rather than folded into JOS-44's PR, since it
+  touches a different component and was outside that ticket's stated
+  scope. Merged via PR #9.
+- Also merged PR #10 (CHANGELOG entries for both, docs-only).
+- Session flagged one real process gap, documented inline in `CLAUDE.md`'s
+  gotchas section rather than left implicit: a Vercel preview URL was
+  guessed from another branch's alias pattern instead of fetched via
+  `list_deployments`, and the guess was wrong — cost Joseph a 404 and a
+  round trip. Always fetch the actual `branchAlias` before sharing a link.
+
+**Worth knowing:**
+- Both delete-entry `window.confirm()` call sites are gone; a third,
+  unrelated one remains intentionally (clearing an in-progress
+  breastfeeding session on Breast-uncheck) — not a delete action, out of
+  JOS-44's scope.
+- Production branch is still `claude/baby-tracker-nextjs-setup-9gocr2`
+  until JOS-43 lands.
+
+---
+
 ## 2026-09-02
 
 **Done:**
