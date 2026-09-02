@@ -47,6 +47,16 @@ picks this up next.
   guessed from another branch's alias pattern instead of fetched via
   `list_deployments`, and the guess was wrong — cost Joseph a 404 and a
   round trip. Always fetch the actual `branchAlias` before sharing a link.
+  Filed as [JOS-46](https://linear.app/josephemmi/issue/JOS-46) (Low,
+  Done) per the "every process fix gets a ticket" rule, closed
+  immediately since the fix had already shipped.
+- Cut **v1.10.0** (minor — confirmed with Joseph rather than assumed,
+  since both entries are UI/UX changes, not bug fixes, and the spec doc's
+  own Drive folder was already named "v1.10"): moved `[Unreleased]` into
+  a dated section, bumped `package.json`/`package-lock.json`, generated
+  `Nestlog-Release-Notes-v1.10.0.pdf`, attached it to both JOS-44 and
+  JOS-45 and posted the release notes as a comment on each. Merged via
+  PR #12.
 
 **Worth knowing:**
 - Both delete-entry `window.confirm()` call sites are gone; a third,
