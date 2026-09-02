@@ -27,8 +27,7 @@ export function DeletedBanner({ deletedCount }: { deletedCount: number }) {
           />
         </svg>
         <span>
-          <b>{deletedCount}</b> deleted {deletedCount === 1 ? "entry" : "entries"} · tap
-          to restore
+          <b>Recently Deleted</b> ({deletedCount}) · Tap to restore
         </span>
       </span>
       <svg
