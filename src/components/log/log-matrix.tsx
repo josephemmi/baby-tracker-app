@@ -18,6 +18,7 @@ import type { EntryType } from "@/lib/supabase/database.types";
 import { GlanceCards } from "@/components/log/glance-cards";
 import { MomentsTable, type MomentGroup } from "@/components/log/moments-table";
 import { PrimaryButton } from "@/components/ui/primary-button";
+import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
 import { canEndBreastSession } from "@/lib/breastfeed-timer";
 import type { BreastSide } from "@/lib/supabase/database.types";
 
@@ -47,6 +48,12 @@ export function LogMatrix({
   const [flashKey, setFlashKey] = useState<string | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const [pendingDelete, setPendingDelete] = useState<{
+    moments: Moment[];
+    title: string;
+    body: string;
+    clearSelection: boolean;
+  } | null>(null);
   // Whether there's anything beyond the currently-loaded fetch window
   // (JOS-21: the safety cap was hit, or real history exists older than the
   // window) — one of several inputs into whether Home's day-aware view
@@ -781,31 +788,40 @@ export function LogMatrix({
     }
   }
 
-  async function handleDeleteSelected() {
+  function handleDeleteSelected() {
     if (selectedKeys.size === 0) return;
 
-    const confirmed = window.confirm(
-      `Delete ${selectedKeys.size} logged moment${selectedKeys.size > 1 ? "s" : ""}? You can restore ${selectedKeys.size > 1 ? "them" : "it"} from Recently Deleted in Timeline for 7 days.`,
-    );
-    if (!confirmed) return;
-
+    const count = selectedKeys.size;
     const selectedMoments = moments.filter((moment) =>
       selectedKeys.has(moment.key),
     );
-    await deleteMoments(selectedMoments);
-
-    setSelectedKeys(new Set());
-    setSelectMode(false);
+    setPendingDelete({
+      moments: selectedMoments,
+      title: `Delete ${count} logged moment${count > 1 ? "s" : ""}?`,
+      body: `You can restore ${count > 1 ? "them" : "it"} from Recently Deleted in Timeline for 7 days.`,
+      clearSelection: true,
+    });
   }
 
   // Phone-card-only quick delete — a single moment, no need to enter
   // select mode first (matching the prototype's inline card ✕).
-  async function handleDeleteMoment(moment: Moment) {
-    const confirmed = window.confirm(
-      "Delete this logged moment? You can restore it from Recently Deleted in Timeline for 7 days.",
-    );
-    if (!confirmed) return;
-    await deleteMoments([moment]);
+  function handleDeleteMoment(moment: Moment) {
+    setPendingDelete({
+      moments: [moment],
+      title: "Delete this moment?",
+      body: "You can restore it from Recently Deleted in Timeline for 7 days.",
+      clearSelection: false,
+    });
+  }
+
+  async function confirmPendingDelete() {
+    if (!pendingDelete) return;
+    await deleteMoments(pendingDelete.moments);
+    if (pendingDelete.clearSelection) {
+      setSelectedKeys(new Set());
+      setSelectMode(false);
+    }
+    setPendingDelete(null);
   }
 
   return (
@@ -880,6 +896,14 @@ export function LogMatrix({
           View more in Timeline →
         </Link>
       )}
+
+      <ConfirmDeleteModal
+        open={pendingDelete !== null}
+        title={pendingDelete?.title ?? ""}
+        body={pendingDelete?.body ?? ""}
+        onConfirm={confirmPendingDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 }
