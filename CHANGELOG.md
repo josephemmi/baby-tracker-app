@@ -9,6 +9,8 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-09-02
+
 ### Changed
 - Deleting a logged moment now shows a custom in-app confirmation modal
   (JOS-44) instead of the browser's native `confirm()` dialog, whose
