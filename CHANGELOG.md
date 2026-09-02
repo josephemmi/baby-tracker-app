@@ -9,6 +9,18 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+### Changed
+- Deleting a logged moment now shows a custom in-app confirmation modal
+  (JOS-44) instead of the browser's native `confirm()` dialog, whose
+  auto-generated title bar (e.g. "baby-tracker-app-bay.vercel.app says")
+  read as unfinished. Cancel (outline) and Delete (filled, rose) match the
+  approved prototype; no change to the delete logic or the 7-day
+  soft-delete window itself.
+- Timeline's deleted-entries banner now reads "Recently Deleted (N) · Tap
+  to restore" instead of "N deleted entries · tap to restore" (JOS-45), so
+  it actually names the section the delete-confirmation modal points
+  users to.
+
 ## [1.9.1] - 2026-09-02
 
 ### Fixed
