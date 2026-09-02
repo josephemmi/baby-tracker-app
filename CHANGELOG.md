@@ -9,6 +9,19 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+### Fixed
+- Bottle/Pump mL amounts and the time editor could silently fail to save
+  (JOS-42): all three commit only on the input's `blur` event, and Android
+  Chrome doesn't reliably fire `blur` when the on-screen keyboard is
+  dismissed via its own control (down-chevron / back gesture / numeric
+  keypad) rather than by tapping another element — a long-documented
+  Chromium quirk. The mL fields now also commit on a short debounce after
+  typing stops, independent of whether blur ever fires; the time editor
+  additionally force-blurs on Enter as a lighter-weight safety net (its
+  failure mode is visibly stuck open, not silent data loss, so it didn't
+  need the full debounce treatment). Notes already saves via an explicit
+  Save button in its modal and wasn't affected.
+
 ## [1.9.0] - 2026-08-27
 
 ### Changed
