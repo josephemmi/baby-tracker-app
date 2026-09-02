@@ -144,6 +144,15 @@ time.
 - **Vercel auto-deploys straight to production on every push** to this
   branch — there's no staging gate. Run typecheck/lint/tests/build locally
   before pushing (not just relying on CI to catch it after the fact).
+- **Never hand Joseph a guessed preview-deployment URL.** Vercel's stable
+  branch alias follows a truncation rule that isn't guessable from the
+  branch name (JOS-44/JOS-45 session: `claude/timeline-deleted-banner-copy`
+  became `...claude-timelin-aec3b3...`, not the `...claude-timeli-...`
+  pattern inferred from other branches' aliases) — a wrong guess costs a
+  real round trip (he hits a `DEPLOYMENT_NOT_FOUND` 404, reports back,
+  waits again). Always call `mcp__Vercel__list_deployments` for the
+  project and read the actual `branchAlias`/`url` off the matching
+  deployment before sharing a preview link.
 - **Git identity on web sessions**: a SessionStart hook
   (`.claude/hooks/session-start.sh`) sets the local clone's
   `user.name`/`user.email` to the repo owner so commits count toward their
