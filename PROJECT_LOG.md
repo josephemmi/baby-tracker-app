@@ -58,14 +58,12 @@ picks this up next.
   Second `retro` run of the session, right after the release: nothing new
   to flag — the release process was already fully documented from a
   prior session and the Linear attachment flow worked cleanly first try.
+- JOS-42 confirmed fixed on a real Android Chrome phone (the one thing
+  this environment couldn't verify itself): mL entered, keyboard
+  dismissed by tapping outside the card, value persisted with no
+  workaround needed. Ticket moved to Done.
 
 **In flight / open:**
-- JOS-42 needs on-device confirmation on a real Android Chrome phone
-  before it's fully considered closed — the fix was verified against the
-  underlying debounce mechanism itself (via a temporary dev-preview route
-  driven by Playwright) and passes all local checks, but the actual
-  Android keyboard-dismiss quirk couldn't be reproduced from this
-  environment. Ticket stays open until someone checks on a real device.
 - [JOS-43](https://linear.app/josephemmi/issue/JOS-43) (Medium, Backlog):
   rename the production branch off its current leftover-setup name. Plan
   is written on the ticket; deliberately not started, since it touches
