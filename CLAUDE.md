@@ -40,6 +40,12 @@
 - Every piece of work gets a Linear ticket in the JOS team / Momentini
   project — including process or tooling fixes noticed along the way
   (like this section, or JOS-43), not just product features and bugs.
+- Label every ticket using the existing Type taxonomy — **Bug**,
+  **Feature**, **Polish**, or **Process** (a fix to how work itself gets
+  done — Claude Code's own operating process/tooling/workflow — rather
+  than the app's behavior or presentation; added for JOS-46, retrofitted
+  onto JOS-43). Don't leave a ticket unlabeled because none of the three
+  product-facing types quite fit — that's the signal it's a Process one.
 - When wrapping up a significant unit of work (closing a ticket, merging
   a PR, cutting a release), run the `retro` skill before ending the
   session — it looks back at what just happened for process, tooling, or
@@ -61,15 +67,34 @@
   scoped to just that version's CHANGELOG section (not a cumulative
   history) — generate one automatically as part of cutting the release,
   no need to ask each time. Use `scripts/generate-release-notes.py
-  <version> CHANGELOG.md <out_path>` (requires `reportlab`) rather than
-  writing this from scratch.
-- Do not upload the PDF to Google Drive. Attach it directly to the Linear
-  ticket(s) for that release (Linear supports file attachments on
-  issues) instead of sending it through chat; the user downloads it from
-  the ticket and handles getting it into Drive themselves. This was tried
-  as an auto-upload to Drive earlier and cost far more effort than it was
-  worth for a one-page PDF — don't revisit that regardless of what
-  tooling becomes available later.
+  <version> CHANGELOG.md <out_path> [screenshot ...]` (requires
+  `reportlab`) rather than writing this from scratch.
+- If the release includes any visible UI change, the PDF needs
+  screenshots of the shipped result — don't skip this because the
+  "Verified in the running app" step already covered it during
+  implementation. Reuse or regenerate them via the same dev-preview +
+  Playwright workflow below, but capture a **tight, element-scoped
+  screenshot** (`locator.screenshot()`) rather than a full-viewport one —
+  a full-viewport shot picks up the Next.js dev-mode toolbar badge and
+  excess empty space, neither of which belongs in release notes. Match
+  the component's real on-screen container/padding when framing the
+  shot (check the actual page component, not just the component in
+  isolation) — a narrower or wider test container than production can
+  make text wrap differently than it actually renders, which is
+  misleading in release notes even though it's harmless in a quick
+  verification screenshot. Pass the screenshot file paths as trailing
+  args to `generate-release-notes.py`, in the same order as their
+  CHANGELOG bullets.
+- Do not upload the PDF to Google Drive yourself. Attach it directly to
+  the Linear ticket(s) for that release (Linear supports file
+  attachments on issues) AND send it through chat via `SendUserFile` —
+  Joseph wants the chat copy specifically so he can download it himself
+  and put it into Drive; don't skip the chat send thinking the Linear
+  attachment alone covers it. The "don't auto-upload to Drive" rule
+  itself still stands — this was tried once and cost far more effort
+  than it was worth for a one-page PDF, and that conclusion doesn't
+  change regardless of what tooling becomes available later. Sending the
+  file via chat is not the same thing as uploading it to Drive.
 - For each Linear ticket included in the release, attach the release-notes
   PDF and post the release notes (the relevant CHANGELOG section, or at
   minimum that ticket's entry) as a comment on the ticket before moving it
