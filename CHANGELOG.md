@@ -9,6 +9,8 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+## [1.9.1] - 2026-09-02
+
 ### Fixed
 - Bottle/Pump mL amounts and the time editor could silently fail to save
   (JOS-42): all three commit only on the input's `blur` event, and Android
