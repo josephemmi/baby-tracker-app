@@ -1,4 +1,5 @@
 @AGENTS.md
+@PROJECT_LOG.md
 
 ## Work tracking
 
