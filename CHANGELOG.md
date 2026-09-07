@@ -19,9 +19,9 @@ feature, and PATCH is a fix with no new functionality.
   tapped back into), just the keyboard and cursor position. Now synced
   imperatively via a ref instead of a remount, and only while the field isn't
   focused, so an in-progress edit is never interrupted. Also lengthened the
-  debounce delay itself from the original 600ms, in two rounds of device
-  feedback — first to 2.5s, then to 3.5s — to give a normal pause between
-  digits more headroom before the autosave fires.
+  debounce delay itself from the original 600ms to 2.5s, after device
+  feedback, to give a normal pause between digits more headroom before the
+  autosave fires.
 
 ## [1.10.0] - 2026-09-02
 

@@ -85,14 +85,14 @@ export function EntryTableRow({
   const [timeEditing, setTimeEditing] = useState(false);
   const showBreastPanel = !!moment.feed?.breast && !moment.feed?.breast_session_ended;
   // JOS-42: debounce the mL commit alongside onBlur — see debounced-commit.ts.
-  // JOS-47: 3.5s, not the original 600ms — see EntryCard's identical comment.
+  // JOS-47: 2.5s, not the original 600ms — see EntryCard's identical comment.
   const amountCommit = useDebouncedCommit<string>(
     (value) => onAmountCommit?.(moment, value),
-    3500,
+    2500,
   );
   const pumpAmountCommit = useDebouncedCommit<string>(
     (value) => onPumpAmountCommit?.(moment, value),
-    3500,
+    2500,
   );
   // JOS-47: see EntryCard's identical comment — these mL inputs are
   // uncontrolled, and used to remount (via a value-keyed `key`) any time
