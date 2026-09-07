@@ -18,7 +18,10 @@ feature, and PATCH is a fix with no new functionality.
   off after "15". The typed value itself was never lost (it reappeared once
   tapped back into), just the keyboard and cursor position. Now synced
   imperatively via a ref instead of a remount, and only while the field isn't
-  focused, so an in-progress edit is never interrupted.
+  focused, so an in-progress edit is never interrupted. Also lengthened the
+  debounce delay itself from 600ms to 2.5s, per device feedback that the
+  keyboard drop was better but still noticeable — a longer gap gives more
+  headroom to clear a normal pause between digits before the autosave fires.
 
 ## [1.10.0] - 2026-09-02
 
