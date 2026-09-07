@@ -76,17 +76,17 @@ export function EntryCard({
   const showPumpMl = !!moment.pump;
   const showBreastPanel = !!moment.feed?.breast && !moment.feed?.breast_session_ended;
   // JOS-42: debounce the mL commit alongside onBlur — see debounced-commit.ts.
-  // JOS-47: 2.5s, not the original 600ms — even with the remount-on-commit
+  // JOS-47: 3.5s, not the original 600ms — even with the remount-on-commit
   // bug fixed below, a short delay still means the debounce can fire while
   // the user is mid-entry (just without the focus-stealing side effect
   // anymore). A longer gap comfortably clears a normal pause between digits.
   const amountCommit = useDebouncedCommit<string>(
     (value) => onAmountCommit?.(moment, value),
-    2500,
+    3500,
   );
   const pumpAmountCommit = useDebouncedCommit<string>(
     (value) => onPumpAmountCommit?.(moment, value),
-    2500,
+    3500,
   );
 
   // JOS-47: these mL inputs are uncontrolled (defaultValue), so an external
