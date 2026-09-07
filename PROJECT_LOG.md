@@ -19,6 +19,62 @@ picks this up next.
 
 ---
 
+## 2026-09-07 (JOS-47)
+
+**Done:**
+- [JOS-47](https://linear.app/josephemmi/issue/JOS-47) (High, In Progress):
+  investigated and fixed the mobile mL-input focus-loss bug — typing a
+  multi-digit amount (e.g. "150") and pausing partway would silently
+  close the on-screen keyboard on Android/iOS Chrome after "15". Ruled
+  out the leading suspect (`blurActiveElement()`/`visibilitychange` in
+  `log-matrix.tsx`, added for the iOS date-picker bug) by tracing its two
+  actual trigger points, neither of which fires mid-type while
+  foregrounded. Root cause: the bottle/pump mL `<input>`s are
+  uncontrolled and were keyed on `` `${moment.key}-${amount_ml}` `` so an
+  *external* amount change would force a remount and refresh the shown
+  value — but JOS-42's debounced commit (added later) updates that same
+  `amount_ml` ~600ms after the user pauses mid-typing, so the field's own
+  commit remounted itself and stole focus. A regression introduced by
+  JOS-42, latent until now since the old onBlur-only commit never fired
+  while still focused. Reproduced and verified the fix with a Playwright
+  harness against a temporary dev-preview route (mock `EntryCard` +
+  mock commit handler mirroring `handleAmountCommit`'s state-update
+  shape), toggling the change via `git stash` to confirm both the
+  before (`document.activeElement !== input` after the pause, a
+  subsequent keystroke silently lost) and after (focus retained, full
+  value lands) states. Fixed by dropping `amount_ml` from the `key` and
+  syncing external changes imperatively via a ref + effect that skips
+  the write while the field is focused — applied to both mL fields in
+  both `EntryCard` and `EntryTableRow` (four call sites, same flawed
+  pattern in all of them). Posted the full investigation trail as a
+  Linear comment per the ticket's own request. Pushed to
+  `claude/mobile-input-focus-loss-nb77y9`; no PR opened yet (not asked
+  for one this session). Left the ticket In Progress rather than Done —
+  can't verify on a real mobile device from this environment, matching
+  how JOS-42 stayed open until device confirmation.
+- `retro`: two findings, both fixed as CLAUDE.md gotcha notes (docs-only,
+  Joseph approved both): (1) deleting `.next` while `npm run dev` is
+  still running corrupts Turbopack's persistent cache and crashes the
+  server — cost three kill/restart cycles this session; now flagged
+  alongside the existing dev-preview `.next` gotcha with "stop the
+  server first." (2) the actual JOS-47 root-cause pattern itself
+  (uncontrolled input keyed on a value + any commit path that can fire
+  while focused) is a general trap worth flagging so it isn't rebuilt
+  elsewhere — added as its own gotcha bullet.
+
+**In flight / open:**
+- JOS-47 needs real-device confirmation (Android/iOS Chrome) before
+  moving to Done, same pattern as JOS-42.
+- No PR opened for `claude/mobile-input-focus-loss-nb77y9` yet.
+
+**Worth knowing:**
+- If a future uncontrolled input needs to both (a) refresh from external
+  data changes and (b) autosave/debounce-commit while still focused,
+  don't key it on the value — see the new CLAUDE.md gotcha for the
+  ref+effect pattern used here.
+
+---
+
 ## 2026-09-02 (JOS-44/JOS-45)
 
 **Done:**
