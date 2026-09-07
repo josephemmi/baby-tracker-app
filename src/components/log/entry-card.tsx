@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Moment } from "@/lib/entries";
 import { formatTime, toDatetimeLocalValue } from "@/lib/entries";
 import { useDebouncedCommit } from "@/lib/debounced-commit";
@@ -84,6 +84,33 @@ export function EntryCard({
     (value) => onPumpAmountCommit?.(moment, value),
     600,
   );
+
+  // JOS-47: these mL inputs are uncontrolled (defaultValue), so an external
+  // change to amount_ml (another device's edit landing via realtime, or the
+  // periodic refetch) needs some way to reach an already-mounted field. That
+  // used to be done by keying the input on the value itself, forcing a
+  // remount whenever it changed. But that included changes this very field
+  // had just committed via the JOS-42 debounce — so typing a value and
+  // pausing would, ~600ms later, remount the input as a side effect of its
+  // own commit succeeding, which drops mobile's on-screen keyboard mid-entry
+  // (JOS-42 introduced the debounce commit; this remount hazard already
+  // existed but was latent until then, since onBlur-only commits happened
+  // after focus had already moved away). Sync the DOM value imperatively
+  // instead, and only when the field isn't the one currently focused.
+  const amountInputRef = useRef<HTMLInputElement>(null);
+  const pumpAmountInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const el = amountInputRef.current;
+    if (!el || document.activeElement === el) return;
+    el.value = moment.feed?.amount_ml != null ? String(moment.feed.amount_ml) : "";
+  }, [moment.feed?.amount_ml]);
+
+  useEffect(() => {
+    const el = pumpAmountInputRef.current;
+    if (!el || document.activeElement === el) return;
+    el.value = moment.pump?.amount_ml != null ? String(moment.pump.amount_ml) : "";
+  }, [moment.pump?.amount_ml]);
 
   return (
     <div
@@ -230,7 +257,8 @@ export function EntryCard({
           <span className="text-[11.5px] font-bold text-ink-soft uppercase">mL</span>
           {editable ? (
             <input
-              key={`ml-${moment.key}-${moment.feed?.amount_ml ?? ""}`}
+              key={`ml-${moment.key}`}
+              ref={amountInputRef}
               type="number"
               step="0.1"
               min="0"
@@ -274,7 +302,8 @@ export function EntryCard({
             <span className="text-[11.5px] font-bold text-ink-soft uppercase">mL</span>
             {editable ? (
               <input
-                key={`pump-ml-${moment.key}-${moment.pump?.amount_ml ?? ""}`}
+                key={`pump-ml-${moment.key}`}
+                ref={pumpAmountInputRef}
                 type="number"
                 step="0.1"
                 min="0"

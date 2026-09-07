@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Moment } from "@/lib/entries";
 import type { BreastSide, EntryType } from "@/lib/supabase/database.types";
 import { formatTime, toDatetimeLocalValue } from "@/lib/entries";
@@ -93,6 +93,25 @@ export function EntryTableRow({
     (value) => onPumpAmountCommit?.(moment, value),
     600,
   );
+  // JOS-47: see EntryCard's identical comment — these mL inputs are
+  // uncontrolled, and used to remount (via a value-keyed `key`) any time
+  // amount_ml changed, including via this field's own JOS-42 debounce
+  // commit. That dropped mobile's on-screen keyboard mid-entry. Sync the
+  // DOM value imperatively instead, only when the field isn't focused.
+  const amountInputRef = useRef<HTMLInputElement>(null);
+  const pumpAmountInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const el = amountInputRef.current;
+    if (!el || document.activeElement === el) return;
+    el.value = moment.feed?.amount_ml != null ? String(moment.feed.amount_ml) : "";
+  }, [moment.feed?.amount_ml]);
+
+  useEffect(() => {
+    const el = pumpAmountInputRef.current;
+    if (!el || document.activeElement === el) return;
+    el.value = moment.pump?.amount_ml != null ? String(moment.pump.amount_ml) : "";
+  }, [moment.pump?.amount_ml]);
   // Sums to the same total either way — the Pump/mL pair always spans 2
   // columns, merged or split, matching how the header itself decides.
   const totalColumns = (selectMode ? 1 : 0) + 10;
@@ -179,7 +198,8 @@ export function EntryTableRow({
         {editable ? (
           <div className="flex items-center gap-1.5">
             <input
-              key={`ml-${moment.key}-${moment.feed?.amount_ml ?? ""}`}
+              key={`ml-${moment.key}`}
+              ref={amountInputRef}
               type="number"
               step="0.1"
               min="0"
@@ -239,7 +259,8 @@ export function EntryTableRow({
                   ml
                 </span>
                 <input
-                  key={`pump-ml-${moment.key}-${moment.pump.amount_ml ?? ""}`}
+                  key={`pump-ml-${moment.key}`}
+                  ref={pumpAmountInputRef}
                   type="number"
                   step="0.1"
                   min="0"
