@@ -47,11 +47,18 @@ picks this up next.
   the write while the field is focused — applied to both mL fields in
   both `EntryCard` and `EntryTableRow` (four call sites, same flawed
   pattern in all of them). Posted the full investigation trail as a
-  Linear comment per the ticket's own request. Pushed to
-  `claude/mobile-input-focus-loss-nb77y9`; no PR opened yet (not asked
-  for one this session). Left the ticket In Progress rather than Done —
-  can't verify on a real mobile device from this environment, matching
-  how JOS-42 stayed open until device confirmation.
+  Linear comment per the ticket's own request. Joseph device-tested the
+  fix directly and iterated on the debounce delay through three rounds
+  (600ms → 2.5s → 3.5s → settled back on 2.5s), each round pushed to
+  `claude/mobile-input-focus-loss-nb77y9` and re-tested on his phone;
+  fetched the branch's actual Vercel preview alias via
+  `list_deployments` each time rather than guessing one. Once settled,
+  Joseph asked to merge — [PR #16](https://github.com/josephemmi/baby-tracker-app/pull/16)
+  merged into the production branch (`claude/baby-tracker-nextjs-setup-9gocr2`),
+  so this is now live. Left the ticket In Progress rather than Done —
+  the remount fix and the 2.5s value were both confirmed via device
+  testing, but there's no explicit final "yes, fully fixed" on the
+  merged state specifically.
 - `retro`: two findings, both fixed as CLAUDE.md gotcha notes (docs-only,
   Joseph approved both): (1) deleting `.next` while `npm run dev` is
   still running corrupts Turbopack's persistent cache and crashes the
@@ -63,9 +70,8 @@ picks this up next.
   elsewhere — added as its own gotcha bullet.
 
 **In flight / open:**
-- JOS-47 needs real-device confirmation (Android/iOS Chrome) before
-  moving to Done, same pattern as JOS-42.
-- No PR opened for `claude/mobile-input-focus-loss-nb77y9` yet.
+- JOS-47's fix is merged and live; ticket itself needs an explicit final
+  confirmation from Joseph before moving to Done.
 
 **Worth knowing:**
 - If a future uncontrolled input needs to both (a) refresh from external
