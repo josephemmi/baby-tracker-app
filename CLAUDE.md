@@ -134,6 +134,12 @@ time.
     final `npx tsc --noEmit` — Next's dev-server build cache can keep a
     stale type-checker reference to the deleted route's page file, which
     reads exactly like a real type error until you clear it.
+  - Only run that `rm -rf .next` while `npm run dev` is **stopped**.
+    Deleting it out from under a live Turbopack dev server (JOS-47
+    session) corrupted its persistent cache and crashed the process with
+    a `Compaction failed` error — cost three separate kill/restart cycles
+    to recover. Kill the dev server first, then clear the cache, then
+    restart.
 - **This is a bleeding-edge/pre-release Next.js** (see `AGENTS.md`) —
   read `node_modules/next/dist/docs/` before writing server-side code,
   don't assume training-data behavior. One concrete trap: calling
@@ -166,6 +172,23 @@ time.
   English-language locales.** Always pass `hour12: true` explicitly — see
   `formatTime()` in `src/lib/entries.ts`. This app's convention is AM/PM,
   full stop, regardless of device locale.
+- **An uncontrolled input keyed on its own value, paired with any commit
+  path that can fire while the field is still focused, will steal focus
+  from itself.** (JOS-47: bottle/pump mL inputs on Home use
+  `defaultValue` + a `key` that included `amount_ml`, so an external
+  change — another device's edit, a periodic refetch — would force a
+  remount and refresh the shown value. JOS-42 later added a 600ms
+  debounced commit so typing gets saved without waiting for `blur`. Put
+  together: pause mid-typing for >600ms, the debounce commits the
+  in-progress value, that updates the same `amount_ml` the `key` depends
+  on, and the resulting remount steals focus — closing the on-screen
+  keyboard on mobile with the value already typed still sitting there,
+  which reads exactly like data loss but isn't.) Don't fix this by
+  keying an uncontrolled input on a value that a debounce/autosave path
+  can also write. Sync external changes imperatively instead — a `ref`
+  to the input, updated from a `useEffect` on the value, that skips the
+  write whenever `document.activeElement === el` — see `amountInputRef`/
+  `pumpAmountInputRef` in `EntryCard`/`EntryTableRow`.
 - **Vercel auto-deploys straight to production on every push** to this
   branch — there's no staging gate. Run typecheck/lint/tests/build locally
   before pushing (not just relying on CI to catch it after the fact).

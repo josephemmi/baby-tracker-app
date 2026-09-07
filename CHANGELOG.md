@@ -9,6 +9,20 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+### Fixed
+- Bottle/Pump mL inputs no longer drop mobile's on-screen keyboard mid-typing
+  (JOS-47). The field's own JOS-42 debounce commit (firing ~600ms after a
+  pause between digits) was updating the same `amount_ml` value that a `key`
+  prop used to force a remount on, so committing a value the user was still
+  typing remounted the input and stole its focus — e.g. typing "150" got cut
+  off after "15". The typed value itself was never lost (it reappeared once
+  tapped back into), just the keyboard and cursor position. Now synced
+  imperatively via a ref instead of a remount, and only while the field isn't
+  focused, so an in-progress edit is never interrupted. Also lengthened the
+  debounce delay itself from the original 600ms to 2.5s, after device
+  feedback, to give a normal pause between digits more headroom before the
+  autosave fires.
+
 ## [1.10.0] - 2026-09-02
 
 ### Changed
