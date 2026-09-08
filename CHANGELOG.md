@@ -19,9 +19,15 @@ feature, and PATCH is a fix with no new functionality.
   tapped back into), just the keyboard and cursor position. Now synced
   imperatively via a ref instead of a remount, and only while the field isn't
   focused, so an in-progress edit is never interrupted. Also lengthened the
-  debounce delay itself from the original 600ms to 2.5s, after device
-  feedback, to give a normal pause between digits more headroom before the
-  autosave fires.
+  debounce delay itself from the original 600ms to 3.5s, after two rounds
+  of device feedback, to give a normal pause — including pausing partway
+  through to decide on and make an edit, not just a pause between forward
+  keystrokes — more headroom before the autosave fires. On Android Chrome
+  specifically, some residual keyboard-dismissal may remain even with this
+  change: it looks like a browser/OS-level on-screen-keyboard inactivity
+  behavior independent of this app's code (no other focus/blur code path
+  was found), rather than something a debounce delay alone can fully
+  resolve — not reproduced on iOS Safari or the iPad app.
 
 ## [1.10.0] - 2026-09-02
 
