@@ -9,6 +9,8 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+## [1.10.1] - 2026-09-08
+
 ### Fixed
 - Bottle/Pump mL inputs no longer drop mobile's on-screen keyboard mid-typing
   (JOS-47). The field's own JOS-42 debounce commit (firing ~600ms after a
