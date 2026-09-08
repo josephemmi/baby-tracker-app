@@ -99,6 +99,15 @@ export function EntryCard({
   // a deliberate way to trigger that blur, plus a brief confirmation flash
   // (the app's existing row-flash keyframes) so the user has visual proof
   // the value saved, instead of relying on a timing guess.
+  //
+  // Visibility is tracked with explicit onFocus/onBlur state on the INPUT
+  // itself, not CSS `:focus-within` on the row — the checkmark button lives
+  // inside that same row, and tapping it moves focus onto the button, which
+  // would keep `:focus-within` true forever and leave the checkmark stuck
+  // visible instead of handing off to the "Saved" text. Tying visibility to
+  // the input's own focus state sidesteps that entirely.
+  const [amountEditing, setAmountEditing] = useState(false);
+  const [pumpAmountEditing, setPumpAmountEditing] = useState(false);
   const [amountJustSaved, pulseAmountSaved] = useSavePulse(900);
   const [pumpAmountJustSaved, pulsePumpAmountSaved] = useSavePulse(900);
 
@@ -271,7 +280,7 @@ export function EntryCard({
 
       {showMl && (
         <div
-          className={`group mb-2.5 flex items-center gap-2 rounded-[8px] border border-line-strong bg-paper px-3 py-2 ${amountJustSaved ? "row-flash" : ""}`}
+          className={`mb-2.5 flex items-center gap-2 rounded-[8px] border border-line-strong bg-paper px-3 py-2 ${amountJustSaved ? "row-flash" : ""}`}
         >
           <span className="text-[11.5px] font-bold text-ink-soft uppercase">mL</span>
           {editable ? (
@@ -284,7 +293,9 @@ export function EntryCard({
               placeholder="Amount"
               defaultValue={moment.feed?.amount_ml ?? ""}
               onChange={(e) => amountCommit.trigger(e.target.value)}
+              onFocus={() => setAmountEditing(true)}
               onBlur={(e) => {
+                setAmountEditing(false);
                 amountCommit.flush(e.target.value);
                 pulseAmountSaved();
               }}
@@ -298,7 +309,9 @@ export function EntryCard({
               {moment.feed?.amount_ml ?? ""}
             </span>
           )}
-          <span className="text-[11.5px] text-ink-soft transition-opacity duration-150 group-focus-within:opacity-0">
+          <span
+            className={`text-[11.5px] text-ink-soft transition-opacity duration-150 ${amountEditing ? "opacity-0" : ""}`}
+          >
             ml
           </span>
           {editable && (
@@ -307,7 +320,11 @@ export function EntryCard({
                 type="button"
                 onClick={() => amountInputRef.current?.blur()}
                 aria-label="Save and close keyboard"
-                className="absolute inset-0 flex scale-[0.6] items-center justify-center rounded-full bg-sage text-white opacity-0 transition-all duration-150 pointer-events-none group-focus-within:scale-100 group-focus-within:opacity-100 group-focus-within:pointer-events-auto"
+                className={`absolute inset-0 flex items-center justify-center rounded-full bg-sage text-white transition-all duration-150 ${
+                  amountEditing
+                    ? "scale-100 opacity-100 pointer-events-auto"
+                    : "scale-[0.6] opacity-0 pointer-events-none"
+                }`}
               >
                 <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" aria-hidden="true">
                   <path
@@ -346,7 +363,7 @@ export function EntryCard({
 
         {showPumpMl && (
           <div
-            className={`group mt-2 flex items-center gap-2 rounded-[8px] border border-line-strong bg-paper px-3 py-2 ${pumpAmountJustSaved ? "row-flash" : ""}`}
+            className={`mt-2 flex items-center gap-2 rounded-[8px] border border-line-strong bg-paper px-3 py-2 ${pumpAmountJustSaved ? "row-flash" : ""}`}
           >
             <span className="text-[11.5px] font-bold text-ink-soft uppercase">mL</span>
             {editable ? (
@@ -359,7 +376,9 @@ export function EntryCard({
                 placeholder="Amount"
                 defaultValue={moment.pump?.amount_ml ?? ""}
                 onChange={(e) => pumpAmountCommit.trigger(e.target.value)}
+                onFocus={() => setPumpAmountEditing(true)}
                 onBlur={(e) => {
+                  setPumpAmountEditing(false);
                   pumpAmountCommit.flush(e.target.value);
                   pulsePumpAmountSaved();
                 }}
@@ -373,7 +392,9 @@ export function EntryCard({
                 {moment.pump?.amount_ml ?? ""}
               </span>
             )}
-            <span className="text-[11.5px] text-ink-soft transition-opacity duration-150 group-focus-within:opacity-0">
+            <span
+              className={`text-[11.5px] text-ink-soft transition-opacity duration-150 ${pumpAmountEditing ? "opacity-0" : ""}`}
+            >
               ml
             </span>
             {editable && (
@@ -382,7 +403,11 @@ export function EntryCard({
                   type="button"
                   onClick={() => pumpAmountInputRef.current?.blur()}
                   aria-label="Save and close keyboard"
-                  className="absolute inset-0 flex scale-[0.6] items-center justify-center rounded-full bg-sage text-white opacity-0 transition-all duration-150 pointer-events-none group-focus-within:scale-100 group-focus-within:opacity-100 group-focus-within:pointer-events-auto"
+                  className={`absolute inset-0 flex items-center justify-center rounded-full bg-sage text-white transition-all duration-150 ${
+                    pumpAmountEditing
+                      ? "scale-100 opacity-100 pointer-events-auto"
+                      : "scale-[0.6] opacity-0 pointer-events-none"
+                  }`}
                 >
                   <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" aria-hidden="true">
                     <path
