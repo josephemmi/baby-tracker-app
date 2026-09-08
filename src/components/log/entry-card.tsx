@@ -343,7 +343,7 @@ export function EntryCard({
             </div>
           )}
           {amountJustSaved && (
-            <span className="text-[11px] font-bold whitespace-nowrap text-sage">Saved</span>
+            <span className="pr-3 text-[11px] font-bold whitespace-nowrap text-sage">Saved</span>
           )}
         </div>
       )}
@@ -430,7 +430,7 @@ export function EntryCard({
               </div>
             )}
             {pumpAmountJustSaved && (
-              <span className="text-[11px] font-bold whitespace-nowrap text-sage">Saved</span>
+              <span className="pr-3 text-[11px] font-bold whitespace-nowrap text-sage">Saved</span>
             )}
           </div>
         )}
