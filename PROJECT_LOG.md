@@ -48,17 +48,29 @@ picks this up next.
   both `EntryCard` and `EntryTableRow` (four call sites, same flawed
   pattern in all of them). Posted the full investigation trail as a
   Linear comment per the ticket's own request. Joseph device-tested the
-  fix directly and iterated on the debounce delay through three rounds
-  (600ms → 2.5s → 3.5s → settled back on 2.5s), each round pushed to
-  `claude/mobile-input-focus-loss-nb77y9` and re-tested on his phone;
-  fetched the branch's actual Vercel preview alias via
-  `list_deployments` each time rather than guessing one. Once settled,
-  Joseph asked to merge — [PR #16](https://github.com/josephemmi/baby-tracker-app/pull/16)
-  merged into the production branch (`claude/baby-tracker-nextjs-setup-9gocr2`),
-  so this is now live. Left the ticket In Progress rather than Done —
-  the remount fix and the 2.5s value were both confirmed via device
-  testing, but there's no explicit final "yes, fully fixed" on the
-  merged state specifically.
+  fix directly and iterated on the debounce delay through four rounds
+  (600ms → 2.5s → 3.5s → back to 2.5s → 3.5s again), each round pushed
+  to its own branch and re-tested on his phone; fetched each branch's
+  actual Vercel preview alias via `list_deployments` rather than
+  guessing one. [PR #16](https://github.com/josephemmi/baby-tracker-app/pull/16)
+  (remount fix + settle on 2.5s) and [PR #18](https://github.com/josephemmi/baby-tracker-app/pull/18)
+  (final bump to 3.5s) both merged into the production branch
+  (`claude/baby-tracker-nextjs-setup-9gocr2`); [PR #17](https://github.com/josephemmi/baby-tracker-app/pull/17)
+  was the docs-only project-log update in between — merged separately
+  and immediately rather than batched with the code PRs, on the general
+  principle (asked about explicitly this session, answered inline) that
+  small independent PRs with no CI gate should merge as soon as each is
+  ready, not accumulate. Along the way, investigated Joseph's report
+  that a *second* edit's keyboard window felt shorter than the first:
+  confirmed `blurActiveElement()` (mount + genuine `visibilitychange`
+  only, still the only `.blur()` call besides intentional Enter-to-blur
+  handlers) can't explain it, and no viewport-resize/IME listener exists
+  anywhere in the app — logged as likely Android's own on-screen-keyboard
+  inactivity behavior, consistent with Jen's reports that iOS Safari and
+  the iPad app were never affected. Final device test at 3.5s: "noticed
+  a significant difference." Left the ticket In Progress rather than
+  Done — a strong result but not quite the explicit "yes, fully fixed"
+  JOS-42 got before closing.
 - `retro`: two findings, both fixed as CLAUDE.md gotcha notes (docs-only,
   Joseph approved both): (1) deleting `.next` while `npm run dev` is
   still running corrupts Turbopack's persistent cache and crashes the
@@ -70,8 +82,10 @@ picks this up next.
   elsewhere — added as its own gotcha bullet.
 
 **In flight / open:**
-- JOS-47's fix is merged and live; ticket itself needs an explicit final
-  confirmation from Joseph before moving to Done.
+- JOS-47's fix (remount fix + 3.5s debounce) is merged and live; ticket
+  itself needs an explicit final confirmation from Joseph before moving
+  to Done, or a decision to close it as "good enough" given the residual
+  symptom looks OS-level rather than app-level.
 
 **Worth knowing:**
 - If a future uncontrolled input needs to both (a) refresh from external
