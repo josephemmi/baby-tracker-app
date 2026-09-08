@@ -233,12 +233,16 @@ export function EntryTableRow({
             >
               ml
             </span>
-            <div className="relative h-[22px] w-[22px] flex-shrink-0">
+            <div
+              className={`relative h-[22px] flex-shrink-0 overflow-hidden transition-[width] duration-150 ${
+                amountEditing ? "w-[22px]" : "w-0"
+              }`}
+            >
               <button
                 type="button"
                 onClick={() => amountInputRef.current?.blur()}
                 aria-label="Save and close keyboard"
-                className={`absolute inset-0 flex items-center justify-center rounded-full bg-sage text-white transition-all duration-150 ${
+                className={`absolute left-0 top-0 flex h-[22px] w-[22px] items-center justify-center rounded-full bg-sage text-white transition-all duration-150 ${
                   amountEditing
                     ? "scale-100 opacity-100 pointer-events-auto"
                     : "scale-[0.6] opacity-0 pointer-events-none"
@@ -330,12 +334,16 @@ export function EntryTableRow({
                 >
                   ml
                 </span>
-                <div className="relative h-[22px] w-[22px] flex-shrink-0">
+                <div
+                  className={`relative h-[22px] flex-shrink-0 overflow-hidden transition-[width] duration-150 ${
+                    pumpAmountEditing ? "w-[22px]" : "w-0"
+                  }`}
+                >
                   <button
                     type="button"
                     onClick={() => pumpAmountInputRef.current?.blur()}
                     aria-label="Save and close keyboard"
-                    className={`absolute inset-0 flex items-center justify-center rounded-full bg-sage text-white transition-all duration-150 ${
+                    className={`absolute left-0 top-0 flex h-[22px] w-[22px] items-center justify-center rounded-full bg-sage text-white transition-all duration-150 ${
                       pumpAmountEditing
                         ? "scale-100 opacity-100 pointer-events-auto"
                         : "scale-[0.6] opacity-0 pointer-events-none"
