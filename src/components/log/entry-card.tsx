@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Moment } from "@/lib/entries";
 import { formatTime, toDatetimeLocalValue } from "@/lib/entries";
 import { useDebouncedCommit } from "@/lib/debounced-commit";
+import { useSavePulse } from "@/lib/save-pulse";
 import { initials, personColor } from "@/lib/person-colors";
 import {
   EditableToggleTile,
@@ -76,21 +77,30 @@ export function EntryCard({
   const showPumpMl = !!moment.pump;
   const showBreastPanel = !!moment.feed?.breast && !moment.feed?.breast_session_ended;
   // JOS-42: debounce the mL commit alongside onBlur — see debounced-commit.ts.
-  // JOS-47: 3.5s, not the original 600ms — even with the remount-on-commit
-  // bug fixed below, a short delay still means the debounce can fire while
-  // the user is mid-entry (just without the focus-stealing side effect
-  // anymore). A longer gap comfortably clears a normal pause between digits
-  // — including the pause-to-decide-to-edit case (e.g. typing "150" then
-  // pausing before backspacing to fix it), not just a pause between two
-  // forward keystrokes.
+  // JOS-48: back to the original 600ms (was briefly 3.5s during JOS-47).
+  // That longer delay was only ever compensating for JOS-47's remount bug —
+  // once fixed, the debounce stopped having any UI-visible role, since
+  // blur() (checkmark tap, tap-elsewhere, or a working OS dismiss) already
+  // commits instantly via flush() regardless of this delay. Its only
+  // remaining job is a silent background safety net for the case blur never
+  // fires at all (the original JOS-42 Android quirk); shorter is strictly
+  // better for that, with no UX cost now that the checkmark below is the
+  // real save-and-close affordance.
   const amountCommit = useDebouncedCommit<string>(
     (value) => onAmountCommit?.(moment, value),
-    3500,
+    600,
   );
   const pumpAmountCommit = useDebouncedCommit<string>(
     (value) => onPumpAmountCommit?.(moment, value),
-    3500,
+    600,
   );
+  // JOS-48: explicit save-and-close button. Reuses the exact commit path
+  // above (blur() triggers the existing onBlur → flush()) — this only adds
+  // a deliberate way to trigger that blur, plus a brief confirmation flash
+  // (the app's existing row-flash keyframes) so the user has visual proof
+  // the value saved, instead of relying on a timing guess.
+  const [amountJustSaved, pulseAmountSaved] = useSavePulse(900);
+  const [pumpAmountJustSaved, pulsePumpAmountSaved] = useSavePulse(900);
 
   // JOS-47: these mL inputs are uncontrolled (defaultValue), so an external
   // change to amount_ml (another device's edit landing via realtime, or the
@@ -260,7 +270,9 @@ export function EntryCard({
       )}
 
       {showMl && (
-        <div className="mb-2.5 flex items-center gap-2 rounded-[8px] border border-line-strong bg-paper px-3 py-2">
+        <div
+          className={`group mb-2.5 flex items-center gap-2 rounded-[8px] border border-line-strong bg-paper px-3 py-2 ${amountJustSaved ? "row-flash" : ""}`}
+        >
           <span className="text-[11.5px] font-bold text-ink-soft uppercase">mL</span>
           {editable ? (
             <input
@@ -272,7 +284,10 @@ export function EntryCard({
               placeholder="Amount"
               defaultValue={moment.feed?.amount_ml ?? ""}
               onChange={(e) => amountCommit.trigger(e.target.value)}
-              onBlur={(e) => amountCommit.flush(e.target.value)}
+              onBlur={(e) => {
+                amountCommit.flush(e.target.value);
+                pulseAmountSaved();
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") e.currentTarget.blur();
               }}
@@ -283,7 +298,32 @@ export function EntryCard({
               {moment.feed?.amount_ml ?? ""}
             </span>
           )}
-          <span className="text-[11.5px] text-ink-soft">ml</span>
+          <span className="text-[11.5px] text-ink-soft transition-opacity duration-150 group-focus-within:opacity-0">
+            ml
+          </span>
+          {editable && (
+            <div className="relative h-[26px] w-[26px] flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => amountInputRef.current?.blur()}
+                aria-label="Save and close keyboard"
+                className="absolute inset-0 flex scale-[0.6] items-center justify-center rounded-full bg-sage text-white opacity-0 transition-all duration-150 pointer-events-none group-focus-within:scale-100 group-focus-within:opacity-100 group-focus-within:pointer-events-auto"
+              >
+                <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" aria-hidden="true">
+                  <path
+                    d="M3 8.5l3 3 7-7"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            </div>
+          )}
+          {amountJustSaved && (
+            <span className="text-[11px] font-bold whitespace-nowrap text-sage">Saved</span>
+          )}
         </div>
       )}
 
@@ -305,7 +345,9 @@ export function EntryCard({
         )}
 
         {showPumpMl && (
-          <div className="mt-2 flex items-center gap-2 rounded-[8px] border border-line-strong bg-paper px-3 py-2">
+          <div
+            className={`group mt-2 flex items-center gap-2 rounded-[8px] border border-line-strong bg-paper px-3 py-2 ${pumpAmountJustSaved ? "row-flash" : ""}`}
+          >
             <span className="text-[11.5px] font-bold text-ink-soft uppercase">mL</span>
             {editable ? (
               <input
@@ -317,7 +359,10 @@ export function EntryCard({
                 placeholder="Amount"
                 defaultValue={moment.pump?.amount_ml ?? ""}
                 onChange={(e) => pumpAmountCommit.trigger(e.target.value)}
-                onBlur={(e) => pumpAmountCommit.flush(e.target.value)}
+                onBlur={(e) => {
+                  pumpAmountCommit.flush(e.target.value);
+                  pulsePumpAmountSaved();
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") e.currentTarget.blur();
                 }}
@@ -328,7 +373,32 @@ export function EntryCard({
                 {moment.pump?.amount_ml ?? ""}
               </span>
             )}
-            <span className="text-[11.5px] text-ink-soft">ml</span>
+            <span className="text-[11.5px] text-ink-soft transition-opacity duration-150 group-focus-within:opacity-0">
+              ml
+            </span>
+            {editable && (
+              <div className="relative h-[26px] w-[26px] flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => pumpAmountInputRef.current?.blur()}
+                  aria-label="Save and close keyboard"
+                  className="absolute inset-0 flex scale-[0.6] items-center justify-center rounded-full bg-sage text-white opacity-0 transition-all duration-150 pointer-events-none group-focus-within:scale-100 group-focus-within:opacity-100 group-focus-within:pointer-events-auto"
+                >
+                  <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" aria-hidden="true">
+                    <path
+                      d="M3 8.5l3 3 7-7"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
+              </div>
+            )}
+            {pumpAmountJustSaved && (
+              <span className="text-[11px] font-bold whitespace-nowrap text-sage">Saved</span>
+            )}
           </div>
         )}
       </div>

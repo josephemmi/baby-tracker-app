@@ -3,6 +3,7 @@ import type { Moment } from "@/lib/entries";
 import type { BreastSide, EntryType } from "@/lib/supabase/database.types";
 import { formatTime, toDatetimeLocalValue } from "@/lib/entries";
 import { useDebouncedCommit } from "@/lib/debounced-commit";
+import { useSavePulse } from "@/lib/save-pulse";
 import { initials, personColor } from "@/lib/person-colors";
 import {
   Check,
@@ -85,15 +86,20 @@ export function EntryTableRow({
   const [timeEditing, setTimeEditing] = useState(false);
   const showBreastPanel = !!moment.feed?.breast && !moment.feed?.breast_session_ended;
   // JOS-42: debounce the mL commit alongside onBlur — see debounced-commit.ts.
-  // JOS-47: 3.5s, not the original 600ms — see EntryCard's identical comment.
+  // JOS-48: back to the original 600ms (was briefly 3.5s during JOS-47) —
+  // see EntryCard's identical comment for why.
   const amountCommit = useDebouncedCommit<string>(
     (value) => onAmountCommit?.(moment, value),
-    3500,
+    600,
   );
   const pumpAmountCommit = useDebouncedCommit<string>(
     (value) => onPumpAmountCommit?.(moment, value),
-    3500,
+    600,
   );
+  // JOS-48: explicit save-and-close button — see EntryCard's identical
+  // comment.
+  const [amountJustSaved, pulseAmountSaved] = useSavePulse(900);
+  const [pumpAmountJustSaved, pulsePumpAmountSaved] = useSavePulse(900);
   // JOS-47: see EntryCard's identical comment — these mL inputs are
   // uncontrolled, and used to remount (via a value-keyed `key`) any time
   // amount_ml changed, including via this field's own JOS-42 debounce
@@ -197,7 +203,7 @@ export function EntryTableRow({
       </td>
       <td className="px-3 py-2.5 tabular-nums text-ink">
         {editable ? (
-          <div className="flex items-center gap-1.5">
+          <div className={`group flex items-center gap-1.5 ${amountJustSaved ? "row-flash" : ""}`}>
             <input
               key={`ml-${moment.key}`}
               ref={amountInputRef}
@@ -207,13 +213,39 @@ export function EntryTableRow({
               defaultValue={moment.feed?.amount_ml ?? ""}
               disabled={!moment.feed?.bottle}
               onChange={(e) => amountCommit.trigger(e.target.value)}
-              onBlur={(e) => amountCommit.flush(e.target.value)}
+              onBlur={(e) => {
+                amountCommit.flush(e.target.value);
+                pulseAmountSaved();
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") e.currentTarget.blur();
               }}
               className="w-16 rounded-[10px] border border-line-strong bg-paper-raised px-2 py-1 text-right text-[13.5px] tabular-nums text-ink focus:border-amber focus:outline focus:outline-2 focus:outline-offset-1 focus:outline-amber disabled:cursor-not-allowed disabled:border-line disabled:text-line-strong"
             />
-            <span className="text-[13.5px] text-ink-soft">ml</span>
+            <span className="text-[13.5px] text-ink-soft transition-opacity duration-150 group-focus-within:opacity-0">
+              ml
+            </span>
+            <div className="relative h-[22px] w-[22px] flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => amountInputRef.current?.blur()}
+                aria-label="Save and close keyboard"
+                className="absolute inset-0 flex scale-[0.6] items-center justify-center rounded-full bg-sage text-white opacity-0 transition-all duration-150 pointer-events-none group-focus-within:scale-100 group-focus-within:opacity-100 group-focus-within:pointer-events-auto"
+              >
+                <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none" aria-hidden="true">
+                  <path
+                    d="M3 8.5l3 3 7-7"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            </div>
+            {amountJustSaved && (
+              <span className="text-[11px] font-bold whitespace-nowrap text-sage">Saved</span>
+            )}
           </div>
         ) : (
           (moment.feed?.amount_ml ?? "")
@@ -255,7 +287,9 @@ export function EntryTableRow({
           </td>
           <td className="border-r-[1.5px] border-dashed border-line-strong px-3 py-2.5 tabular-nums text-ink">
             {editable ? (
-              <div className="flex items-center justify-center gap-1">
+              <div
+                className={`group flex items-center justify-center gap-1 ${pumpAmountJustSaved ? "row-flash" : ""}`}
+              >
                 <span aria-hidden="true" className="invisible text-[11px] text-ink-soft">
                   ml
                 </span>
@@ -268,13 +302,39 @@ export function EntryTableRow({
                   placeholder="—"
                   defaultValue={moment.pump.amount_ml ?? ""}
                   onChange={(e) => pumpAmountCommit.trigger(e.target.value)}
-                  onBlur={(e) => pumpAmountCommit.flush(e.target.value)}
+                  onBlur={(e) => {
+                    pumpAmountCommit.flush(e.target.value);
+                    pulsePumpAmountSaved();
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") e.currentTarget.blur();
                   }}
                   className="w-14 rounded-[10px] border border-line-strong bg-paper-raised px-2 py-1 text-right text-[13.5px] tabular-nums text-ink focus:border-plum focus:outline focus:outline-2 focus:outline-offset-1 focus:outline-plum"
                 />
-                <span className="text-[11px] text-ink-soft">ml</span>
+                <span className="text-[11px] text-ink-soft transition-opacity duration-150 group-focus-within:opacity-0">
+                  ml
+                </span>
+                <div className="relative h-[22px] w-[22px] flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => pumpAmountInputRef.current?.blur()}
+                    aria-label="Save and close keyboard"
+                    className="absolute inset-0 flex scale-[0.6] items-center justify-center rounded-full bg-sage text-white opacity-0 transition-all duration-150 pointer-events-none group-focus-within:scale-100 group-focus-within:opacity-100 group-focus-within:pointer-events-auto"
+                  >
+                    <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none" aria-hidden="true">
+                      <path
+                        d="M3 8.5l3 3 7-7"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
+                </div>
+                {pumpAmountJustSaved && (
+                  <span className="text-[11px] font-bold whitespace-nowrap text-sage">Saved</span>
+                )}
               </div>
             ) : (
               <div className="text-center">{moment.pump.amount_ml ?? ""}</div>

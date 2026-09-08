@@ -9,6 +9,17 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+### Added
+- Bottle/Pump mL fields now have an explicit Save (checkmark) button
+  (JOS-48). It fades in next to the field, replacing the "ml" label,
+  while you're editing; tapping it saves the value, closes the on-screen
+  keyboard, and flashes the row to confirm — instead of the keyboard just
+  staying open indefinitely until you tap elsewhere, with no feedback
+  that anything saved. The underlying autosave (previously lengthened to
+  3.5s during JOS-47's fix) is back down to its original 600ms, since the
+  checkmark is now the real save-and-close action and the debounce no
+  longer has any UI-visible role to protect.
+
 ## [1.10.1] - 2026-09-08
 
 ### Fixed
