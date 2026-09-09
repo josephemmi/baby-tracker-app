@@ -9,6 +9,8 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-09-09
+
 ### Added
 - Bottle/Pump mL fields now have an explicit Save (checkmark) button
   (JOS-48). It fades in next to the field, replacing the "ml" label,
