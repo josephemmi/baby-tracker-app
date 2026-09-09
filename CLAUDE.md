@@ -107,9 +107,21 @@ Hard-won discoveries from past sessions. Read this before assuming standard
 behavior — several of these are non-obvious and have cost real debugging
 time.
 
-- **No live Supabase session in Claude Code web sessions.** RLS blocks
-  anon reads, so you can't log in and click around the real app from here.
-  To visually verify a UI change: build a temporary route under
+- **No live Supabase session in Claude Code web sessions — and this is a
+  hard network wall, not just an RLS/auth limitation.** RLS blocks anon
+  reads, so you can't log in and click around the real app from here —
+  but even with valid credentials it wouldn't matter: a JOS-48/JOS-49
+  session confirmed via `curl` and the sandbox's own egress-proxy
+  diagnostics that outbound requests to both the project's Supabase Auth
+  REST API (`*.supabase.co`) and the deployed Vercel app's own domain get
+  rejected with a `403` at the proxy level (org policy), regardless of
+  auth. The Supabase MCP connector still works for direct DB access (a
+  separate, pre-authorized channel), but that only gets you data — it
+  cannot be used to establish a browser session against the live site.
+  Don't spend time trying to create a test user and log in via Playwright
+  against the deployed URL expecting a different result; it's blocked at
+  the network level, not the app level. To visually verify a UI change:
+  build a temporary route under
   `src/app/dev-preview/<name>/` that renders the real component tree
   directly with mock data (not through auth/fetch), screenshot it with
   Playwright (`chromium`, `executablePath: "/opt/pw-browsers/chromium"`),
@@ -140,6 +152,18 @@ time.
     a `Compaction failed` error — cost three separate kill/restart cycles
     to recover. Kill the dev server first, then clear the cache, then
     restart.
+  - **Give the dev-preview wrapper a genuinely fixed `width`, not just a
+    `maxWidth` + `margin: auto`** (JOS-49 session). A `maxWidth` wrapper
+    only fills to that width if something in its ancestor chain hands it
+    a definite width to fill against — inside this harness it can
+    silently shrink-wrap to its content instead. When that happens, any
+    Playwright measurement of "gap between an element and the container's
+    edge" comes back symmetric no matter what the real code does, because
+    the container just resizes to whatever padding the code specifies —
+    it can't reveal an asymmetry. This produced a confidently wrong
+    conclusion once already. Use an explicit pixel `width` (e.g.
+    `style={{ width: 393 }}`, matching a real phone viewport) on the
+    outermost wrapper before trusting any edge-padding measurement.
 - **This is a bleeding-edge/pre-release Next.js** (see `AGENTS.md`) —
   read `node_modules/next/dist/docs/` before writing server-side code,
   don't assume training-data behavior. One concrete trap: calling
