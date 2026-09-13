@@ -9,6 +9,8 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+## [1.11.1] - 2026-09-13
+
 ### Fixed
 - The "Log a moment" button on Home no longer resizes when a save fails
   (JOS-41). The button and the error message it can show next to it shared
