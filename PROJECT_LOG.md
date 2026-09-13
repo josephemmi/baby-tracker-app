@@ -19,6 +19,67 @@ picks this up next.
 
 ---
 
+## 2026-09-13 (JOS-41)
+
+**Done:**
+- [JOS-41](https://linear.app/josephemmi/issue/JOS-41) (Done): fixed the
+  "Log a moment" button intermittently resizing — the button and its
+  error `<p>` shared one flex row with no width limit on the error text,
+  so any non-trivial error string forced the row to wrap and squeezed the
+  button. Moved the error text out of that row entirely (own line below,
+  `truncate`d as a second line of defense) and gave the button `shrink-0`
+  so nothing in that row can resize it again. Verified with a temporary
+  dev-preview route + Playwright: button bounding box identical
+  (148.7×37.75px) with a long error shown vs. hidden.
+  Also shipped diagnostics-only logging (explicitly not a fix) to every
+  mutation's catch path in `log-matrix.tsx` and to `refetch()` — which
+  handler failed, `navigator.onLine`, a timestamp — since the ticket's
+  actual root cause (an intermittent `TypeError: Failed to fetch`) is
+  still unconfirmed; `refetch()` was also fixed to actually read the
+  `error` field off both its queries, which it had silently dropped
+  entirely. [PR #26](https://github.com/josephemmi/baby-tracker-app/pull/26)
+  merged to production.
+- Cut **v1.11.1** (patch — fix only, confirmed with Joseph): moved
+  `[Unreleased]` into a dated section, bumped `package.json`/
+  `package-lock.json`, generated `Nestlog-Release-Notes-v1.11.1.pdf`
+  with a tight, element-scoped screenshot matching Home's real
+  container padding, sent it via chat, attached it to JOS-41 and posted
+  the release notes as a comment there (ticket had already
+  auto-transitioned to Done via the Linear↔GitHub merge integration
+  before the comment landed — attach-then-comment-then-Done wasn't
+  achievable in that order this time since Done happened automatically
+  on merge, not manually). [PR #27](https://github.com/josephemmi/baby-tracker-app/pull/27)
+  merged.
+- `retro`: two findings, both fixed as CLAUDE.md notes (docs-only,
+  Joseph approved): (1) a session this run paused before opening PR #26
+  despite `CLAUDE.md` already mandating a PR on every branch, treating a
+  generic "don't create PRs unless asked" default as still blocking —
+  cost a round of clarification. Added an explicit line stating the
+  existing "every branch gets a PR" rule **is** the standing ask, so
+  future sessions don't re-litigate it. (2) building the v1.11.1
+  release screenshot, a dev-preview page crashed with `Event handlers
+  cannot be passed to Client Component props` from a stray no-op
+  `onClick` on a page with no `"use client"` — added a note to the
+  dev-preview gotchas list to just drop unneeded handlers on
+  screenshot-only preview pages.
+
+**Worth knowing:**
+- Confirmed directly via Vercel (`list_deployments`, filtering
+  `target: "production"`) that only pushes/merges into
+  `claude/baby-tracker-nextjs-setup-9gocr2` ever deploy to production —
+  a feature-branch push (this session's `claude/jos-41-...` branch)
+  produces a preview deployment (`target: null`) only. Useful concrete
+  confirmation of the workflow `CLAUDE.md` already describes, for
+  anyone who wants to double-check it themselves.
+- Linear's GitHub integration auto-transitions a linked issue to Done
+  on PR merge — faster than the manual "attach PDF, comment, then move
+  to Done" release-process order `CLAUDE.md` describes. Not a problem
+  so far (comment/attachment still happened, just after the automatic
+  Done rather than before), but worth knowing the automation can
+  outrun the documented manual sequence.
+
+---
+
 ## 2026-09-08/09 (JOS-48/JOS-49)
 
 **Done:**

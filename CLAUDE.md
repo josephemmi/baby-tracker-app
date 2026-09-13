@@ -30,6 +30,14 @@
   configured for this repo, so the PR — and the checks below, run by
   hand — are the entire gate between "written" and "live." Use
   `.github/pull_request_template.md`'s structure for the description.
+  **This is standing authorization to open the PR without asking first**
+  — a generic "don't create PRs unless the user explicitly asks" default
+  doesn't apply here, since this line is that explicit ask, once, for
+  every branch. Opening a PR doesn't deploy or merge anything on its own
+  (only merging does, and that's a separate decision — see below), so
+  there's no reason to hold off on it (a JOS-41-session retro finding:
+  a session paused before opening one, which cost a round of
+  clarification for no benefit).
 - Run these locally before opening or updating a PR — they're the full
   check suite this repo has, since nothing runs them automatically:
   `npm run lint`, `npx tsc --noEmit`, `npm run test`, `npm run build`.
@@ -164,6 +172,15 @@ time.
     conclusion once already. Use an explicit pixel `width` (e.g.
     `style={{ width: 393 }}`, matching a real phone viewport) on the
     outermost wrapper before trusting any edge-padding measurement.
+  - **A dev-preview page has no `"use client"` by default, so any event
+    handler on it — even a no-op `onClick={() => {}}` added just to
+    match a component's real props — throws `Error: Event handlers
+    cannot be passed to Client Component props`** (JOS-41 session, hit
+    while building a release-notes screenshot page). These pages are
+    almost always screenshot-only with nothing to actually click, so the
+    fix is usually to just drop the handler entirely rather than reach
+    for `"use client"` — add the directive only if the page genuinely
+    needs interactivity for the thing being verified.
 - **This is a bleeding-edge/pre-release Next.js** (see `AGENTS.md`) —
   read `node_modules/next/dist/docs/` before writing server-side code,
   don't assume training-data behavior. One concrete trap: calling
