@@ -9,6 +9,14 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+### Fixed
+- The "Log a moment" button on Home no longer resizes when a save fails
+  (JOS-41). The button and the error message it can show next to it shared
+  one flex row with no width limit on the error text, so a longer error
+  string forced the row to wrap and squeezed the button smaller. The error
+  text now sits on its own line below the button, truncated instead of
+  wrapping.
+
 ## [1.11.0] - 2026-09-09
 
 ### Added
