@@ -27,6 +27,23 @@ interface Member {
   name: string;
 }
 
+// JOS-41 diagnostics: mutations here surface Postgrest errors via a
+// returned `{ error }` (handled by each call site's own `if (error)`
+// check below), but a thrown exception — e.g. the reported
+// "TypeError: Failed to fetch" — bypasses that entirely and fails
+// silently with no indication of which handler or call was in flight.
+// This logs enough to identify the failing call the next time it
+// happens; it's diagnostic only; the actual fetch-failure root cause is
+// still unconfirmed and intentionally not addressed here.
+function logMutationFailure(handler: string, error: unknown) {
+  console.error("[log-matrix] mutation failed", {
+    handler,
+    error,
+    online: typeof navigator === "undefined" ? undefined : navigator.onLine,
+    timestamp: new Date().toISOString(),
+  });
+}
+
 interface LogMatrixProps {
   babyId: string;
   currentUserId: string;
@@ -203,26 +220,41 @@ export function LogMatrix({
       lastRefetchAt.current = Date.now();
       const windowStart = homeFetchWindowStartISO();
 
-      const [{ data, count: windowCount }, { count: olderCount }] = await Promise.all([
-        supabase
-          .from("entries")
-          .select("*", { count: "exact" })
-          .eq("baby_id", babyId)
-          .is("deleted_at", null)
-          .gte("timestamp", windowStart)
-          .order("timestamp", { ascending: false })
-          .limit(HOME_ROW_SAFETY_CAP),
-        supabase
-          .from("entries")
-          .select("*", { count: "exact", head: true })
-          .eq("baby_id", babyId)
-          .is("deleted_at", null)
-          .lt("timestamp", windowStart),
-      ]);
+      try {
+        const [
+          { data, count: windowCount, error: windowError },
+          { count: olderCount, error: olderError },
+        ] = await Promise.all([
+          supabase
+            .from("entries")
+            .select("*", { count: "exact" })
+            .eq("baby_id", babyId)
+            .is("deleted_at", null)
+            .gte("timestamp", windowStart)
+            .order("timestamp", { ascending: false })
+            .limit(HOME_ROW_SAFETY_CAP),
+          supabase
+            .from("entries")
+            .select("*", { count: "exact", head: true })
+            .eq("baby_id", babyId)
+            .is("deleted_at", null)
+            .lt("timestamp", windowStart),
+        ]);
 
-      if (data) {
-        setEntries(data);
-        setFetchTruncated((windowCount ?? 0) > HOME_ROW_SAFETY_CAP || (olderCount ?? 0) > 0);
+        // Previously dropped silently — neither query's `error` was ever
+        // read, so a failed refetch (e.g. a network fetch failure) looked
+        // identical to "nothing changed."
+        if (windowError || olderError) {
+          logMutationFailure("refetch", windowError ?? olderError);
+          return;
+        }
+
+        if (data) {
+          setEntries(data);
+          setFetchTruncated((windowCount ?? 0) > HOME_ROW_SAFETY_CAP || (olderCount ?? 0) > 0);
+        }
+      } catch (err) {
+        logMutationFailure("refetch", err);
       }
     }
 
@@ -303,61 +335,65 @@ export function LogMatrix({
     setError(null);
     const supabase = createClient();
 
-    if (checked) {
-      const { data, error } = await supabase
+    try {
+      if (checked) {
+        const { data, error } = await supabase
+          .from("entries")
+          .insert({
+            baby_id: babyId,
+            logged_by: moment.loggedBy,
+            type,
+            timestamp: moment.timestamp,
+            notes: moment.notes,
+            amount_ml: null,
+          })
+          .select()
+          .single();
+
+        if (error) {
+          setError(error.message);
+          return;
+        }
+
+        setEntries((prev) => [data, ...prev]);
+        if (moment.isDraft) {
+          setDrafts((prev) => prev.filter((d) => d.key !== moment.key));
+        }
+        return;
+      }
+
+      const existingId = moment[type]?.id;
+      if (!existingId) return;
+
+      // Soft-delete (JOS-20) — recoverable for 7 days via Timeline's
+      // Recently Deleted screen, same as the explicit delete-moment actions.
+      const { error } = await supabase
         .from("entries")
-        .insert({
-          baby_id: babyId,
-          logged_by: moment.loggedBy,
-          type,
-          timestamp: moment.timestamp,
-          notes: moment.notes,
-          amount_ml: null,
-        })
-        .select()
-        .single();
+        .update({ deleted_at: new Date().toISOString(), deleted_by: currentUserId })
+        .eq("id", existingId);
 
       if (error) {
         setError(error.message);
         return;
       }
 
-      setEntries((prev) => [data, ...prev]);
-      if (moment.isDraft) {
-        setDrafts((prev) => prev.filter((d) => d.key !== moment.key));
+      setEntries((prev) => prev.filter((entry) => entry.id !== existingId));
+
+      const remainingTypes = siblingIds(moment).filter((id) => id !== existingId);
+      if (remainingTypes.length === 0) {
+        setDrafts((prev) => [
+          {
+            key: `draft-${crypto.randomUUID()}`,
+            timestamp: moment.timestamp,
+            loggedBy: moment.loggedBy,
+            notes: moment.notes,
+            isDraft: true,
+          },
+          ...prev,
+        ]);
       }
-      return;
-    }
-
-    const existingId = moment[type]?.id;
-    if (!existingId) return;
-
-    // Soft-delete (JOS-20) — recoverable for 7 days via Timeline's
-    // Recently Deleted screen, same as the explicit delete-moment actions.
-    const { error } = await supabase
-      .from("entries")
-      .update({ deleted_at: new Date().toISOString(), deleted_by: currentUserId })
-      .eq("id", existingId);
-
-    if (error) {
-      setError(error.message);
-      return;
-    }
-
-    setEntries((prev) => prev.filter((entry) => entry.id !== existingId));
-
-    const remainingTypes = siblingIds(moment).filter((id) => id !== existingId);
-    if (remainingTypes.length === 0) {
-      setDrafts((prev) => [
-        {
-          key: `draft-${crypto.randomUUID()}`,
-          timestamp: moment.timestamp,
-          loggedBy: moment.loggedBy,
-          notes: moment.notes,
-          isDraft: true,
-        },
-        ...prev,
-      ]);
+    } catch (err) {
+      logMutationFailure("handleToggleType", err);
     }
   }
 
@@ -398,98 +434,102 @@ export function LogMatrix({
           }
         : {};
 
-    if (!moment.feed) {
-      // No feed row on this moment yet — checking Bottle or Breast creates one.
-      if (!checked) return;
+    try {
+      if (!moment.feed) {
+        // No feed row on this moment yet — checking Bottle or Breast creates one.
+        if (!checked) return;
 
-      const { data, error } = await supabase
-        .from("entries")
-        .insert({
-          baby_id: babyId,
-          logged_by: moment.loggedBy,
-          type: "feed",
-          timestamp: moment.timestamp,
-          notes: moment.notes,
-          amount_ml: null,
-          bottle: flag === "bottle",
-          breast: flag === "breast",
-        })
-        .select()
-        .single();
-
-      if (error) {
-        setError(error.message);
-        return;
-      }
-
-      setEntries((prev) => [data, ...prev]);
-      if (moment.isDraft) {
-        setDrafts((prev) => prev.filter((d) => d.key !== moment.key));
-      }
-      return;
-    }
-
-    const feedId = moment.feed.id;
-    const otherFlag = flag === "bottle" ? "breast" : "bottle";
-    const otherValue = moment.feed[otherFlag];
-
-    if (!checked && !otherValue) {
-      // Unchecking the only active flag — soft-delete the feed row (JOS-20).
-      const { error } = await supabase
-        .from("entries")
-        .update({ deleted_at: new Date().toISOString(), deleted_by: currentUserId })
-        .eq("id", feedId);
-
-      if (error) {
-        setError(error.message);
-        return;
-      }
-
-      setEntries((prev) => prev.filter((entry) => entry.id !== feedId));
-
-      const remainingIds = siblingIds(moment).filter((id) => id !== feedId);
-      if (remainingIds.length === 0) {
-        setDrafts((prev) => [
-          {
-            key: `draft-${crypto.randomUUID()}`,
+        const { data, error } = await supabase
+          .from("entries")
+          .insert({
+            baby_id: babyId,
+            logged_by: moment.loggedBy,
+            type: "feed",
             timestamp: moment.timestamp,
-            loggedBy: moment.loggedBy,
             notes: moment.notes,
-            isDraft: true,
-          },
-          ...prev,
-        ]);
+            amount_ml: null,
+            bottle: flag === "bottle",
+            breast: flag === "breast",
+          })
+          .select()
+          .single();
+
+        if (error) {
+          setError(error.message);
+          return;
+        }
+
+        setEntries((prev) => [data, ...prev]);
+        if (moment.isDraft) {
+          setDrafts((prev) => prev.filter((d) => d.key !== moment.key));
+        }
+        return;
       }
-      return;
+
+      const feedId = moment.feed.id;
+      const otherFlag = flag === "bottle" ? "breast" : "bottle";
+      const otherValue = moment.feed[otherFlag];
+
+      if (!checked && !otherValue) {
+        // Unchecking the only active flag — soft-delete the feed row (JOS-20).
+        const { error } = await supabase
+          .from("entries")
+          .update({ deleted_at: new Date().toISOString(), deleted_by: currentUserId })
+          .eq("id", feedId);
+
+        if (error) {
+          setError(error.message);
+          return;
+        }
+
+        setEntries((prev) => prev.filter((entry) => entry.id !== feedId));
+
+        const remainingIds = siblingIds(moment).filter((id) => id !== feedId);
+        if (remainingIds.length === 0) {
+          setDrafts((prev) => [
+            {
+              key: `draft-${crypto.randomUUID()}`,
+              timestamp: moment.timestamp,
+              loggedBy: moment.loggedBy,
+              notes: moment.notes,
+              isDraft: true,
+            },
+            ...prev,
+          ]);
+        }
+        return;
+      }
+
+      const updates: {
+        bottle?: boolean;
+        breast?: boolean;
+        amount_ml?: null;
+        breast_right_seconds?: number;
+        breast_left_seconds?: number;
+        breast_active_side?: BreastSide | null;
+        breast_active_started_at?: string | null;
+        breast_session_ended?: boolean;
+      } = {
+        [flag]: checked,
+        ...breastResetFields,
+      };
+      if (flag === "bottle" && !checked) {
+        updates.amount_ml = null;
+      }
+
+      const { error } = await supabase.from("entries").update(updates).eq("id", feedId);
+
+      if (error) {
+        setError(error.message);
+        return;
+      }
+
+      setEntries((prev) =>
+        prev.map((entry) => (entry.id === feedId ? { ...entry, ...updates } : entry)),
+      );
+    } catch (err) {
+      logMutationFailure("handleToggleFeedFlag", err);
     }
-
-    const updates: {
-      bottle?: boolean;
-      breast?: boolean;
-      amount_ml?: null;
-      breast_right_seconds?: number;
-      breast_left_seconds?: number;
-      breast_active_side?: BreastSide | null;
-      breast_active_started_at?: string | null;
-      breast_session_ended?: boolean;
-    } = {
-      [flag]: checked,
-      ...breastResetFields,
-    };
-    if (flag === "bottle" && !checked) {
-      updates.amount_ml = null;
-    }
-
-    const { error } = await supabase.from("entries").update(updates).eq("id", feedId);
-
-    if (error) {
-      setError(error.message);
-      return;
-    }
-
-    setEntries((prev) =>
-      prev.map((entry) => (entry.id === feedId ? { ...entry, ...updates } : entry)),
-    );
   }
 
   // Tapping a side starts it; tapping the OTHER side auto-pauses the first
@@ -545,15 +585,19 @@ export function LogMatrix({
       updates.breast_active_started_at = new Date().toISOString();
     }
 
-    const { error } = await supabase.from("entries").update(updates).eq("id", feed.id);
-    if (error) {
-      setError(error.message);
-      return;
-    }
+    try {
+      const { error } = await supabase.from("entries").update(updates).eq("id", feed.id);
+      if (error) {
+        setError(error.message);
+        return;
+      }
 
-    setEntries((prev) =>
-      prev.map((entry) => (entry.id === feed.id ? { ...entry, ...updates } : entry)),
-    );
+      setEntries((prev) =>
+        prev.map((entry) => (entry.id === feed.id ? { ...entry, ...updates } : entry)),
+      );
+    } catch (err) {
+      logMutationFailure("handleBreastSideToggle", err);
+    }
   }
 
   async function handleEndBreastSession(moment: Moment) {
@@ -584,15 +628,19 @@ export function LogMatrix({
       }
     }
 
-    const { error } = await supabase.from("entries").update(updates).eq("id", feed.id);
-    if (error) {
-      setError(error.message);
-      return;
-    }
+    try {
+      const { error } = await supabase.from("entries").update(updates).eq("id", feed.id);
+      if (error) {
+        setError(error.message);
+        return;
+      }
 
-    setEntries((prev) =>
-      prev.map((entry) => (entry.id === feed.id ? { ...entry, ...updates } : entry)),
-    );
+      setEntries((prev) =>
+        prev.map((entry) => (entry.id === feed.id ? { ...entry, ...updates } : entry)),
+      );
+    } catch (err) {
+      logMutationFailure("handleEndBreastSession", err);
+    }
   }
 
   async function handleTimeCommit(moment: Moment, value: string) {
@@ -611,21 +659,25 @@ export function LogMatrix({
     if (ids.length === 0) return;
 
     setError(null);
-    const { error } = await createClient()
-      .from("entries")
-      .update({ timestamp })
-      .in("id", ids);
+    try {
+      const { error } = await createClient()
+        .from("entries")
+        .update({ timestamp })
+        .in("id", ids);
 
-    if (error) {
-      setError(error.message);
-      return;
+      if (error) {
+        setError(error.message);
+        return;
+      }
+
+      setEntries((prev) =>
+        prev.map((entry) =>
+          ids.includes(entry.id) ? { ...entry, timestamp } : entry,
+        ),
+      );
+    } catch (err) {
+      logMutationFailure("handleTimeCommit", err);
     }
-
-    setEntries((prev) =>
-      prev.map((entry) =>
-        ids.includes(entry.id) ? { ...entry, timestamp } : entry,
-      ),
-    );
   }
 
   async function handleNotesCommit(moment: Moment, value: string) {
@@ -643,19 +695,23 @@ export function LogMatrix({
     if (ids.length === 0) return;
 
     setError(null);
-    const { error } = await createClient()
-      .from("entries")
-      .update({ notes })
-      .in("id", ids);
+    try {
+      const { error } = await createClient()
+        .from("entries")
+        .update({ notes })
+        .in("id", ids);
 
-    if (error) {
-      setError(error.message);
-      return;
+      if (error) {
+        setError(error.message);
+        return;
+      }
+
+      setEntries((prev) =>
+        prev.map((entry) => (ids.includes(entry.id) ? { ...entry, notes } : entry)),
+      );
+    } catch (err) {
+      logMutationFailure("handleNotesCommit", err);
     }
-
-    setEntries((prev) =>
-      prev.map((entry) => (ids.includes(entry.id) ? { ...entry, notes } : entry)),
-    );
   }
 
   async function handleAmountCommit(moment: Moment, value: string) {
@@ -665,21 +721,25 @@ export function LogMatrix({
     if (amount_ml === moment.feed?.amount_ml) return;
 
     setError(null);
-    const { error } = await createClient()
-      .from("entries")
-      .update({ amount_ml })
-      .eq("id", feedId);
+    try {
+      const { error } = await createClient()
+        .from("entries")
+        .update({ amount_ml })
+        .eq("id", feedId);
 
-    if (error) {
-      setError(error.message);
-      return;
+      if (error) {
+        setError(error.message);
+        return;
+      }
+
+      setEntries((prev) =>
+        prev.map((entry) =>
+          entry.id === feedId ? { ...entry, amount_ml } : entry,
+        ),
+      );
+    } catch (err) {
+      logMutationFailure("handleAmountCommit", err);
     }
-
-    setEntries((prev) =>
-      prev.map((entry) =>
-        entry.id === feedId ? { ...entry, amount_ml } : entry,
-      ),
-    );
   }
 
   async function handlePumpAmountCommit(moment: Moment, value: string) {
@@ -689,21 +749,25 @@ export function LogMatrix({
     if (amount_ml === moment.pump?.amount_ml) return;
 
     setError(null);
-    const { error } = await createClient()
-      .from("entries")
-      .update({ amount_ml })
-      .eq("id", pumpId);
+    try {
+      const { error } = await createClient()
+        .from("entries")
+        .update({ amount_ml })
+        .eq("id", pumpId);
 
-    if (error) {
-      setError(error.message);
-      return;
+      if (error) {
+        setError(error.message);
+        return;
+      }
+
+      setEntries((prev) =>
+        prev.map((entry) =>
+          entry.id === pumpId ? { ...entry, amount_ml } : entry,
+        ),
+      );
+    } catch (err) {
+      logMutationFailure("handlePumpAmountCommit", err);
     }
-
-    setEntries((prev) =>
-      prev.map((entry) =>
-        entry.id === pumpId ? { ...entry, amount_ml } : entry,
-      ),
-    );
   }
 
   async function handleLoggedByCycle(moment: Moment) {
@@ -724,21 +788,25 @@ export function LogMatrix({
     if (ids.length === 0) return;
 
     setError(null);
-    const { error } = await createClient()
-      .from("entries")
-      .update({ logged_by: next.id })
-      .in("id", ids);
+    try {
+      const { error } = await createClient()
+        .from("entries")
+        .update({ logged_by: next.id })
+        .in("id", ids);
 
-    if (error) {
-      setError(error.message);
-      return;
+      if (error) {
+        setError(error.message);
+        return;
+      }
+
+      setEntries((prev) =>
+        prev.map((entry) =>
+          ids.includes(entry.id) ? { ...entry, logged_by: next.id } : entry,
+        ),
+      );
+    } catch (err) {
+      logMutationFailure("handleLoggedByCycle", err);
     }
-
-    setEntries((prev) =>
-      prev.map((entry) =>
-        ids.includes(entry.id) ? { ...entry, logged_by: next.id } : entry,
-      ),
-    );
   }
 
   function toggleSelectMode() {
@@ -766,21 +834,26 @@ export function LogMatrix({
 
     if (idsToDelete.length > 0) {
       setError(null);
-      // Soft-delete (JOS-20) — recoverable for 7 days via Timeline's
-      // Recently Deleted screen.
-      const { error } = await createClient()
-        .from("entries")
-        .update({ deleted_at: new Date().toISOString(), deleted_by: currentUserId })
-        .in("id", idsToDelete);
+      try {
+        // Soft-delete (JOS-20) — recoverable for 7 days via Timeline's
+        // Recently Deleted screen.
+        const { error } = await createClient()
+          .from("entries")
+          .update({ deleted_at: new Date().toISOString(), deleted_by: currentUserId })
+          .in("id", idsToDelete);
 
-      if (error) {
-        setError(error.message);
+        if (error) {
+          setError(error.message);
+          return;
+        }
+
+        setEntries((prev) =>
+          prev.filter((entry) => !idsToDelete.includes(entry.id)),
+        );
+      } catch (err) {
+        logMutationFailure("deleteMoments", err);
         return;
       }
-
-      setEntries((prev) =>
-        prev.filter((entry) => !idsToDelete.includes(entry.id)),
-      );
     }
 
     if (draftKeysToRemove.size > 0) {
@@ -829,11 +902,14 @@ export function LogMatrix({
       <GlanceCards entries={entries} />
 
       <div className="flex items-center justify-between gap-4">
-        <PrimaryButton type="button" onClick={handleLogMoment}>
+        {/* JOS-41: shrink-0 keeps the button's own size fixed regardless of
+            anything else in this row; the error text itself now lives
+            outside the row entirely (below) so it can never force a wrap
+            that resizes the button. */}
+        <PrimaryButton type="button" onClick={handleLogMoment} className="shrink-0">
           Log a moment
         </PrimaryButton>
         <div className="flex items-center gap-2">
-          {error && <p className="text-sm text-terracotta">{error}</p>}
           {selectMode ? (
             <>
               <button
@@ -863,6 +939,12 @@ export function LogMatrix({
           )}
         </div>
       </div>
+
+      {error && (
+        <p className="truncate text-sm text-terracotta" title={error}>
+          {error}
+        </p>
+      )}
 
       <MomentsTable
         moments={visibleMoments}
