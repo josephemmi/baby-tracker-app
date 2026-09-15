@@ -9,6 +9,18 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+### Fixed
+- The bottle/pump mL amount fields now reliably bring up the numeric-only
+  keypad on iPad, including when the app is running as an installed
+  home-screen PWA (JOS-9). The previous fix (`inputMode="numeric"`) was
+  sufficient in a regular mobile browser tab but iPadOS's installed-PWA
+  runtime was ignoring `inputMode` and falling back to the full keyboard;
+  switching the fields to `type="tel"` (kept alongside `inputMode="numeric"`
+  and `pattern="[0-9]*"` for browsers that do honor it) forces the numeric
+  keypad through the input's `type` instead, which iOS has always honored
+  regardless of runtime. The keypad's stray `*`/`#` keys are stripped by
+  the existing digit-only sanitization, so no non-digit value can land.
+
 ## [1.11.2] - 2026-09-15
 
 ### Fixed
