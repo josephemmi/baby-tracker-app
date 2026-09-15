@@ -212,9 +212,10 @@ export function EntryTableRow({
             <input
               key={`ml-${moment.key}`}
               ref={amountInputRef}
-              type="text"
+              type="tel"
               inputMode="numeric"
               pattern="[0-9]*"
+              autoComplete="off"
               defaultValue={moment.feed?.amount_ml ?? ""}
               disabled={!moment.feed?.bottle}
               onChange={(e) => {
@@ -317,9 +318,10 @@ export function EntryTableRow({
                 <input
                   key={`pump-ml-${moment.key}`}
                   ref={pumpAmountInputRef}
-                  type="text"
+                  type="tel"
                   inputMode="numeric"
                   pattern="[0-9]*"
+                  autoComplete="off"
                   placeholder="—"
                   defaultValue={moment.pump.amount_ml ?? ""}
                   onChange={(e) => {
