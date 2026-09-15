@@ -9,6 +9,8 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+## [1.11.2] - 2026-09-15
+
 ### Fixed
 - The bottle/pump mL amount fields now bring up a numeric-only keypad on
   both Android and iOS instead of the full alphanumeric keyboard (JOS-9).
