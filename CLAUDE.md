@@ -68,6 +68,13 @@
   workflow friction worth fixing, even if it never came up in
   conversation, and turns anything worth acting on into a Linear ticket
   or a small fix made right then.
+- When Joseph asks for a new standing rule to be added here (a "from now
+  on, always X" request), think through the obvious edge cases before
+  writing it down, rather than committing the most literal reading and
+  waiting to be corrected. JOS-52 session: the Vercel-preview-link rule
+  first shipped with no exception for docs-only PRs, which cost a
+  second commit/PR-update round once Joseph pointed out he has nothing
+  to do with a preview link on a markdown-only diff.
 
 ## Release process
 
@@ -79,8 +86,9 @@
   fixes, minor for new features, major for breaking/major redesigns).
 - Confirm the version bump with the user rather than assuming which level
   (patch/minor/major) applies.
-- Every release gets a standalone `Nestlog-Release-Notes-v{version}.pdf`
-  scoped to just that version's CHANGELOG section (not a cumulative
+- Every release gets a standalone `NestlogReleaseNotesv{version}.pdf`
+  (no hyphens — e.g. `NestlogReleaseNotesv1.11.2.pdf`) scoped to just
+  that version's CHANGELOG section (not a cumulative
   history) — generate one automatically as part of cutting the release,
   no need to ask each time. Use `scripts/generate-release-notes.py
   <version> CHANGELOG.md <out_path> [screenshot ...]` (requires
@@ -238,6 +246,22 @@ time.
   to the input, updated from a `useEffect` on the value, that skips the
   write whenever `document.activeElement === el` — see `amountInputRef`/
   `pumpAmountInputRef` in `EntryCard`/`EntryTableRow`.
+- **For a digits-only mobile field, use `type="text"` + `inputMode="numeric"`
+  + `pattern="[0-9]*"` (or `inputMode="decimal"` if a decimal point is
+  genuinely needed), not `type="number"`.** (JOS-9: the mL amount fields.)
+  `type="number"` doesn't reliably force a numeric-only keypad on every
+  mobile browser, and it still lets a physical keyboard or paste type
+  `.`, `-`, `+`, or `e` (exponent notation) even when you don't want any
+  of those — the browser only flags it invalid on submit, it doesn't
+  block the keystroke. The `type="text"` + `inputMode` + `pattern` combo
+  gets the right keypad on both iOS and Android; strip anything but
+  digits in `onChange` (see `sanitizeDigits()` in `src/lib/numeric-input.ts`)
+  to actually block non-digit input rather than just hinting the OS
+  keyboard. Note this environment can't render a real on-device keyboard
+  to verify the visual result — the best you can confirm here is that the
+  attributes are correct (e.g. via a dev-preview + Playwright check of
+  `type`/`inputmode`/`pattern`); the actual keypad appearance still needs
+  a quick confirmation on Joseph's own device.
 - **Vercel auto-deploys straight to production on every push** to this
   branch — there's no staging gate. Run typecheck/lint/tests/build locally
   before pushing (not just relying on CI to catch it after the fact).
