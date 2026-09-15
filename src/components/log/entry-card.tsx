@@ -3,6 +3,7 @@ import type { Moment } from "@/lib/entries";
 import { formatTime, toDatetimeLocalValue } from "@/lib/entries";
 import { useDebouncedCommit } from "@/lib/debounced-commit";
 import { useSavePulse } from "@/lib/save-pulse";
+import { sanitizeDigits } from "@/lib/numeric-input";
 import { initials, personColor } from "@/lib/person-colors";
 import {
   EditableToggleTile,
@@ -287,12 +288,16 @@ export function EntryCard({
             <input
               key={`ml-${moment.key}`}
               ref={amountInputRef}
-              type="number"
-              step="0.1"
-              min="0"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
               placeholder="Amount"
               defaultValue={moment.feed?.amount_ml ?? ""}
-              onChange={(e) => amountCommit.trigger(e.target.value)}
+              onChange={(e) => {
+                const digits = sanitizeDigits(e.target.value);
+                if (digits !== e.target.value) e.target.value = digits;
+                amountCommit.trigger(digits);
+              }}
               onFocus={() => setAmountEditing(true)}
               onBlur={(e) => {
                 setAmountEditing(false);
@@ -374,12 +379,16 @@ export function EntryCard({
               <input
                 key={`pump-ml-${moment.key}`}
                 ref={pumpAmountInputRef}
-                type="number"
-                step="0.1"
-                min="0"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 placeholder="Amount"
                 defaultValue={moment.pump?.amount_ml ?? ""}
-                onChange={(e) => pumpAmountCommit.trigger(e.target.value)}
+                onChange={(e) => {
+                  const digits = sanitizeDigits(e.target.value);
+                  if (digits !== e.target.value) e.target.value = digits;
+                  pumpAmountCommit.trigger(digits);
+                }}
                 onFocus={() => setPumpAmountEditing(true)}
                 onBlur={(e) => {
                   setPumpAmountEditing(false);
