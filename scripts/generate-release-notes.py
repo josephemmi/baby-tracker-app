@@ -7,15 +7,15 @@ Usage:
 
 Example:
     python3 scripts/generate-release-notes.py 1.6.0 CHANGELOG.md \
-        /tmp/Nestlog-Release-Notes-v1.6.0.pdf /tmp/shot1.png /tmp/shot2.png
+        /tmp/NestlogReleaseNotesv1.6.0.pdf /tmp/shot1.png /tmp/shot2.png
 
 Trailing arguments are optional screenshots of the shipped feature(s),
 embedded after the changelog bullets in the order given.
 
 Requires reportlab (pip install reportlab). Per CLAUDE.md's release
-process, the resulting PDF gets uploaded to a new "Release Notes v{version}"
-folder in the project's Google Drive Release Notes folder — see CLAUDE.md
-for the folder ID and the rest of the release checklist.
+process, the resulting PDF is attached to the release's Linear ticket(s)
+and sent to the user via chat — never uploaded to Google Drive by Claude
+— see CLAUDE.md for the rest of the release checklist.
 """
 
 import re
