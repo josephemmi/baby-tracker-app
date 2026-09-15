@@ -19,6 +19,76 @@ picks this up next.
 
 ---
 
+## 2026-09-15 (JOS-5/JOS-9/JOS-52/JOS-53)
+
+**Done:**
+- [JOS-5](https://linear.app/josephemmi/issue/JOS-5) (Canceled):
+  investigated the reported X/delete icon on the user chip's avatar —
+  current code has no such icon on either `EntryCard`'s or
+  `EntryTableRow`'s logged-by chip, just an avatar+name button that
+  cycles the logged-by member; the only delete affordance is a separate
+  top-right X on the card itself. Git history doesn't show a commit
+  removing it — the chip code traces back to this repo's earliest
+  (squashed) commit, predating the ticket's own screenshot date, so
+  whatever fixed it happened before this repo's tracked history began.
+  Closed as Canceled (not Done, since no fix was made under this ticket)
+  with the investigation trail as a comment.
+- [JOS-9](https://linear.app/josephemmi/issue/JOS-9) (Done): the
+  bottle/pump mL amount fields (4 call sites: bottle/pump ×
+  `EntryCard`/`EntryTableRow`) used `type="number"` with no `inputMode`,
+  which doesn't reliably force a numeric keypad on mobile. Switched to
+  `type="text"` + `inputMode="numeric"` + `pattern="[0-9]*"`, stripping
+  non-digit characters (including decimal points — this is a whole-mL,
+  no-decimal build) via a new `sanitizeDigits()` helper
+  (`src/lib/numeric-input.ts`). Audited the rest of the app — these 4
+  fields are the only number-only inputs. Verified via a temporary
+  dev-preview + Playwright pass (attributes + sanitization behavior);
+  Joseph confirmed on Android (numeric keypad, no decimals) — iPad still
+  untested but not blocking. [PR #29](https://github.com/josephemmi/baby-tracker-app/pull/29)
+  merged.
+- [JOS-52](https://linear.app/josephemmi/issue/JOS-52) (Done): per
+  Joseph's request, documented in `CLAUDE.md` that PRs handed to him for
+  review should include the actual Vercel preview link — but only when
+  there's an app UI/behavior change to actually look at; a docs-only PR
+  has nothing for him to do with one. First draft of the rule missed
+  that exception and needed a follow-up commit once he pointed it out.
+  [PR #30](https://github.com/josephemmi/baby-tracker-app/pull/30) and
+  the follow-up fix both merged.
+- Cut **v1.11.2** (patch — fix only, confirmed with Joseph): moved
+  `[Unreleased]` into a dated section, bumped `package.json`/
+  `package-lock.json`, generated the release-notes PDF (no screenshot —
+  no visible UI change, just OS keyboard behavior), sent it via chat,
+  attached it to JOS-9 and posted the release notes as a comment there.
+  [PR #31](https://github.com/josephemmi/baby-tracker-app/pull/31)
+  merged.
+- `retro`: two findings, both fixed as `CLAUDE.md` notes plus one
+  directly-requested convention change, all in
+  [JOS-53](https://linear.app/josephemmi/issue/JOS-53) /
+  [PR #32](https://github.com/josephemmi/baby-tracker-app/pull/32):
+  (1) a new standing rule (the JOS-52 preview-link one) shipped without
+  thinking through an obvious edge case first — added a general
+  instruction to consider edge cases before committing a new "always X"
+  rule to this file. (2) the `type="text"` + `inputMode="numeric"` +
+  `pattern="[0-9]*"` pattern for digits-only mobile fields (over
+  `type="number"`, which doesn't reliably force a numeric keypad and
+  still allows `.`/`-`/`+`/`e`) wasn't documented anywhere — added as a
+  gotcha, alongside a note that this environment can't verify the real
+  on-device keypad, only that the attributes are correct. Also renamed
+  the release-notes PDF convention to `NestlogReleaseNotesv{version}.pdf`
+  (no hyphens) and fixed a stale line in
+  `scripts/generate-release-notes.py`'s docstring that contradicted
+  `CLAUDE.md`'s "don't upload to Drive" rule.
+
+**Worth knowing:**
+- JOS-9's iPad/iOS confirmation is still outstanding — not blocking,
+  but worth a quick check next time Joseph has the iPad in hand.
+- The release-notes filename convention changed this session
+  (`NestlogReleaseNotesv{version}.pdf`, no hyphens) — past PDFs
+  referenced elsewhere in this log used the old hyphenated form; that's
+  accurate history, not a mistake to fix retroactively.
+
+---
+
 ## 2026-09-13 (JOS-41)
 
 **Done:**
