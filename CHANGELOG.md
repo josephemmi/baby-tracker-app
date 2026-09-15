@@ -9,6 +9,13 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+### Fixed
+- The bottle/pump mL amount fields now bring up a numeric-only keypad on
+  both Android and iOS instead of the full alphanumeric keyboard (JOS-9).
+  Whole numbers only for this build — decimal entry is deferred to a
+  future oz-based version — so typing a decimal point or any non-digit
+  character is stripped as you type rather than accepted.
+
 ## [1.11.1] - 2026-09-13
 
 ### Fixed
