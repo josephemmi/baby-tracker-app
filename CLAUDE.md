@@ -45,6 +45,11 @@
   immediately once it lands, no staging gate. Don't merge until Joseph has
   reviewed the diff, unless he's explicitly said to go ahead without
   review.
+- Whenever handing Joseph a PR for his review, always include that
+  branch's actual Vercel preview link alongside it — fetched via
+  `mcp__Vercel__list_deployments` (see the preview-URL gotcha below;
+  never guess the alias), not just the GitHub PR URL. He reviews on his
+  phone against the real running app, not just the diff.
 - Every piece of work gets a Linear ticket in the JOS team / Momentini
   project — including process or tooling fixes noticed along the way
   (like this section, or JOS-43), not just product features and bugs.
