@@ -19,6 +19,64 @@ picks this up next.
 
 ---
 
+## 2026-09-15/16 (JOS-54/JOS-55)
+
+**Done:**
+- [JOS-54](https://linear.app/josephemmi/issue/JOS-54) (Done): JOS-9's
+  numeric-keypad fix (`type="text"` + `inputMode="numeric"` +
+  `pattern="[0-9]*"`) was verified on Android but iPad confirmation had
+  been left outstanding; Joseph then tested it on Jen's iPad specifically
+  as an *installed home-screen PWA* (not just a Safari tab) and found it
+  still brought up the full keyboard for both the Pump mL field and the
+  Bottle mL field when logging a feed. Researched (this environment can't
+  run a real iPad to reproduce) and found `inputMode` is documented as
+  unreliable specifically inside iOS's installed-PWA runtime, which runs
+  on a different WebKit host process than a regular Safari tab.
+  `type="text"` gives WebKit nothing to fall back on when `inputMode` is
+  ignored. Fixed by switching all 4 mL input call sites (bottle/pump ×
+  `EntryCard`/`EntryTableRow`) to `type="tel"`, kept alongside the
+  existing `inputMode="numeric"`/`pattern="[0-9]*"` — `type="tel"` has
+  driven iOS's keyboard selection since long before `inputMode` existed
+  and doesn't depend on the installed-PWA runtime's `inputMode` handling;
+  the tel keypad's extra `*`/`#` keys are stripped by the existing
+  `sanitizeDigits()`. Filed as its own ticket rather than reopening JOS-9
+  (Done, already released in v1.11.2), matching the JOS-44/JOS-45
+  precedent. Joseph explicitly approved merging without a device-verified
+  diff, since this environment has no way to preview on a real iPad; left
+  a comment on the ticket flagging that device confirmation is still
+  outstanding and that a "doesn't work" report should reopen this ticket
+  rather than start a new one. [PR #34](https://github.com/josephemmi/baby-tracker-app/pull/34)
+  merged to production.
+- [JOS-55](https://linear.app/josephemmi/issue/JOS-55) (Process, In
+  Review — retro finding, fixed same session): every web session starts
+  from a fresh container with no `node_modules`, so the first
+  `npm run lint`/`test`/`build` of any session failed immediately
+  (`ERR_MODULE_NOT_FOUND: eslint`) until dependencies were installed —
+  an undocumented step every session would otherwise independently
+  rediscover. The existing `.claude/hooks/session-start.sh` SessionStart
+  hook already ran automatically but only set git identity; added
+  `npm install` to it (still gated behind the existing
+  `CLAUDE_CODE_REMOTE` check), using `install` rather than `ci` so a
+  container with a cached `node_modules` from a prior session can reuse
+  it. Validated by wiping `node_modules` and running the hook directly,
+  then confirming lint/test both worked immediately after with no manual
+  step. [PR #35](https://github.com/josephemmi/baby-tracker-app/pull/35)
+  merged to production — future sessions pick up the updated hook
+  automatically.
+
+**Worth knowing:**
+- JOS-54's fix is unverified on a real device — watch for Joseph's
+  follow-up report on whether the iPad PWA now shows the numeric keypad.
+- This session confirmed a fresh Claude Code web session's container has
+  no pre-installed `node_modules` at all (not just possibly-stale ones)
+  — worth knowing if a future session sees the same
+  `ERR_MODULE_NOT_FOUND` symptom for a different missing package before
+  JOS-55's hook fix has had a chance to run (e.g. a very first session on
+  a container image predating this change, or if the hook itself ever
+  fails partway through).
+
+---
+
 ## 2026-09-15 (JOS-5/JOS-9/JOS-52/JOS-53)
 
 **Done:**
