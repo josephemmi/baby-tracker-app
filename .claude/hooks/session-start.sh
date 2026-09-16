@@ -15,3 +15,12 @@ fi
 
 git config user.name "Joseph Emmi"
 git config user.email "josephemmi@gmail.com"
+
+# Each web session starts from a fresh container with no node_modules, so
+# lint/typecheck/test/build all fail immediately (e.g. eslint's
+# ERR_MODULE_NOT_FOUND) until dependencies are installed once. Do that here
+# so the check suite CLAUDE.md requires before every PR is ready to run from
+# the start of the session instead of failing on first use. `npm install`
+# (not `npm ci`) so a container with a warm node_modules cache from a prior
+# session can reuse it instead of a full reinstall every time.
+npm install
