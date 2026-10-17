@@ -130,7 +130,45 @@
   PDF and post the release notes (the relevant CHANGELOG section, or at
   minimum that ticket's entry) as a comment on the ticket before moving it
   to Done. Both — attachment and comment — come first; the Done transition
-  happens after, not before.
+  happens after, not before. (Linear's GitHub integration can move a
+  ticket to Done the moment its PR merges, so on a release cut this order
+  is often already broken before the release starts. Attach and comment
+  anyway, after the fact; it is still the record.)
+- **User guides** (JOS-59; first one: the Sleep tracker, v1.12). Every
+  release that ships a **new user-facing feature** (a minor or major, not
+  a fix-only patch) also gets a short, visual user guide for it,
+  generated automatically as part of cutting the release — no need to
+  ask each time, same as the release notes.
+  - **What it is:** a few A4 pages, one task per page, phone-first. Big
+    annotated screenshots, one short sentence per step, plain words
+    ("tap", never "interact with"), written for Joseph and Jen rather
+    than engineers. Aim for six pages or fewer; if it won't fit, cut
+    words, not screenshots.
+  - **Where it lives:** `docs/user-guides/<feature>/` holds `guide.json`
+    (all the words, so a change is a reviewable diff) and `img/` (the
+    screenshots). `python3 scripts/generate-user-guide.py <guide.json>
+    <out.pdf>` builds it, named `Nestlog{Feature}UserGuidev{version}.pdf`
+    (no hyphens, like the release notes), e.g.
+    `NestlogSleepTrackerUserGuidev1.12.pdf`. Commit the JSON and images;
+    the PDF is a build output and isn't committed.
+  - **Screenshots:** the real app, via the same dev-preview + Playwright
+    workflow below, at phone width (390 px, 2x), as a realistic story
+    (a sleep with a pause in it, not an empty screen). Capture only after
+    the feature's last UI change has merged, so the guide shows what
+    shipped. Use fixture names only (Joseph, Jen, no surnames, no real
+    baby data). Draw the numbered badges (dark circle, amber ring) and
+    highlight rings *into the page* just before each shot so every PNG
+    is self-contained. Before shooting, inject CSS to hide the Next.js dev
+    overlay (`nextjs-portal { display: none }`) and freeze animation
+    (`animation: none`) so the pulsing dot isn't caught mid-fade.
+  - **Keeping it current:** a later release that changes a screen or a
+    step a guide shows (a fix or a polish counts) refreshes that guide's
+    screenshots and `guide.json` in the same release and ships the new
+    PDF. A change that doesn't alter anything the guide shows needs no
+    guide work. Older features aren't backfilled unless Joseph asks.
+  - **Delivery:** exactly like the release notes. Attach the PDF to the
+    feature's Linear ticket(s) and send it via `SendUserFile`; never
+    upload it to Drive.
 
 ## Development environment & gotchas
 
@@ -183,6 +221,16 @@ time.
     a `Compaction failed` error — cost three separate kill/restart cycles
     to recover. Kill the dev server first, then clear the cache, then
     restart.
+  - **The Next.js dev overlay (`<nextjs-portal>`, a badge at the
+    bottom-left that reads "1 Issue" whenever a hydration warning fired)
+    sits above the page in dev.** It ends up in screenshots, and it also
+    *intercepts hit-tests*: an `elementFromPoint` check on the left of a
+    row near the bottom of the viewport returned the portal, not the
+    row, and read as a real bug (JOS-56 review round). Hide it before
+    shooting or hit-testing with `nextjs-portal { display: none !important }`,
+    or scroll the target to the middle of the viewport. The badge itself
+    is expected under a fake clock (hydration mismatch on the glance
+    cards) and is not a regression.
   - **Give the dev-preview wrapper a genuinely fixed `width`, not just a
     `maxWidth` + `margin: auto`** (JOS-49 session). A `maxWidth` wrapper
     only fills to that width if something in its ancestor chain hands it
