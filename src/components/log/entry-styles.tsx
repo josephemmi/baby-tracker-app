@@ -72,6 +72,16 @@ export const FEED_FLAG_STYLES: Record<"bottle" | "breast", CheckboxStyle> = {
   },
 };
 
+// Sleep is its own tile after Pee on the Log screen (JOS-56). It is not an
+// EntryType: ticking it starts a timed sleep (a row in `sleeps`), it never
+// writes an entry.
+export const SLEEP_STYLE: CheckboxStyle = {
+  border: "border-night",
+  bg: "bg-night-soft",
+  check: "text-night",
+  label: "Sleep",
+};
+
 export function EditableCheckbox({
   style,
   checked,

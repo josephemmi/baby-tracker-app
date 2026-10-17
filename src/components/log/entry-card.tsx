@@ -12,6 +12,7 @@ import {
   TYPE_STYLES,
   PumpPill,
   PumpPillStatic,
+  SLEEP_STYLE,
 } from "@/components/log/entry-styles";
 import { NotesCell } from "@/components/log/notes-cell";
 import { BreastSessionSummary, BreastTimerPanel } from "@/components/log/breast-timer-panel";
@@ -61,6 +62,7 @@ export function EntryCard({
   onBreastSideToggle,
   onEndBreastSession,
   onLoggedByCycle,
+  onStartSleep,
   onDeleteMoment,
   tail = false,
 }: EntryCardProps) {
@@ -250,6 +252,16 @@ export function EntryCard({
               checked={!!moment.pee}
               onChange={(checked) => onToggleType?.(moment, "pee", checked)}
             />
+            {/* Sleep (JOS-56) is never ticked on a moment: tapping it starts
+                a sleep, turning a blank card into the sleep card or starting
+                a new one. */}
+            {onStartSleep && (
+              <EditableToggleTile
+                style={SLEEP_STYLE}
+                checked={false}
+                onChange={() => onStartSleep(moment)}
+              />
+            )}
           </>
         ) : (
           <>

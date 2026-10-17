@@ -235,6 +235,26 @@ describe("partitionHomeMoments", () => {
     expect(sections.hasMore).toBe(true);
   });
 
+  it("sections anything with a timestamp, so sleeps share the same days and last-3 cap (JOS-56)", () => {
+    const items = [
+      { id: "feed", timestamp: "2026-07-16T09:00:00.000Z" },
+      { id: "sleep-y1", timestamp: "2026-07-15T22:00:00.000Z" },
+      { id: "feed-y2", timestamp: "2026-07-15T20:00:00.000Z" },
+      { id: "sleep-y3", timestamp: "2026-07-15T15:00:00.000Z" },
+      { id: "feed-y4", timestamp: "2026-07-15T12:00:00.000Z" },
+    ];
+
+    const sections = partitionHomeMoments(items, now, false);
+
+    expect(sections.todayMoments.map((i) => i.id)).toEqual(["feed"]);
+    expect(sections.previousDay?.moments.map((i) => i.id)).toEqual([
+      "sleep-y1",
+      "feed-y2",
+      "sleep-y3",
+    ]);
+    expect(sections.hasMore).toBe(true);
+  });
+
   it("shows fewer than 3 tail entries when fewer exist, with no padding", () => {
     const entries = [
       makeEntry({ id: "y1", type: "feed", timestamp: "2026-07-15T23:40:00.000Z" }),

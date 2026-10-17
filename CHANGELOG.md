@@ -9,6 +9,50 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+### Added
+- Sleep tracker (JOS-56 — the headline feature of v1.12). Sleep is now the
+  fifth tile on the Log screen, after Pee. Ticking it starts a timed sleep
+  and opens a sleep card with a big `01 h 35 m` timer and full-width
+  **Pause Sleep** and **Stop Sleep** buttons. A sleep is one shared session
+  stored in the database, so Joseph and Jen both see it, from any device,
+  and either can pause, resume or stop it; if both act at once the first
+  one wins and the other is told what happened ("Jen already paused this
+  sleep (6:08 pm)"). The timer is always worked out from the stored times
+  and the server's clock, never counted, so a phone locked for 95 minutes
+  reads `01 h 35 m` the moment it wakes, and a phone with the wrong time
+  can't skew it.
+  - **Stop works at any time**; if the whole sleep is under a minute it
+    asks first (Keep sleeping / Stop and save / Discard sleep). Pause needs
+    at least a minute of sleep.
+  - Started the log late? **Started earlier?** (and **Woke earlier?** on a
+    paused sleep) sets the time with a how-long-ago wheel or the device's
+    own time picker — time only, no dates, and a time later than now means
+    yesterday. Times are 12-hour am/pm in the device's time zone. Both
+    save as soon as you choose: on the wheel, scroll and tap **Set** (or
+    tap the highlighted row); with **Pick a time**, the phone's own picker
+    saves when it hands a time back. Only a time more than 3 hours ago asks
+    you to confirm (Save anyway).
+  - The card reads top to bottom: **Sleeping** (or Paused / Slept) at the
+    same size as the card's own time, the big timer, the start time, and
+    **Started earlier?** on a line of its own. **Stop Sleep** is the app's
+    dark rose so it can't be mistaken for Pause.
+  - A finished sleep card is read-only. **Reopen sleep** puts it back to
+    paused (within 3 hours of the last wake, and only if no newer sleep
+    exists), right where it was in the day's list. A sleep left paused for
+    3 hours closes itself at the last wake. When a finished sleep can't be
+    reopened the card says why ("This sleep can't be reopened: it ended
+    more than 3 hours ago").
+  - The Sleep tile on a blank new card turns it into the sleep card; on a
+    card that already has other ticks it starts a new one. A running sleep
+    sits among the day's entries by when it began, like every other card
+    (Sleep is also a column in the table on the iPad layout).
+  - Deleting or discarding a sleep is a soft delete like every other
+    entry: it lands in Recently Deleted for 7 days and can be restored.
+  - Requires the new `20261017000000_sleeps` database migration (a `sleeps`
+    table, its realtime entry, and the functions that enforce the rules)
+    and its small follow-up `20261017000001_sleep_helpers_search_path`.
+    Sleeps aren't shown in Timeline or Reports yet.
+
 ### Fixed
 - The bottle/pump mL amount fields now reliably bring up the numeric-only
   keypad on iPad, including when the app is running as an installed

@@ -49,7 +49,7 @@ export default async function TimelinePage({
 
   const retentionCutoff = retentionCutoffISO();
 
-  const [{ data: entries, count }, { data: deletedEntries }] = baby
+  const [{ data: entries, count }, { data: deletedEntries }, { count: deletedSleepCount }] = baby
     ? await Promise.all([
         supabase
           .from("entries")
@@ -70,11 +70,20 @@ export default async function TimelinePage({
           .eq("baby_id", baby.id)
           .not("deleted_at", "is", null)
           .gt("deleted_at", retentionCutoff),
+        // Deleted sleeps (JOS-56) are restorable from the same screen, so the
+        // banner counts them too — one card each.
+        supabase
+          .from("sleeps")
+          .select("*", { count: "exact", head: true })
+          .eq("baby_id", baby.id)
+          .not("deleted_at", "is", null)
+          .gt("deleted_at", retentionCutoff),
       ])
-    : [{ data: [], count: 0 }, { data: [] }];
+    : [{ data: [], count: 0 }, { data: [] }, { count: 0 }];
 
   const totalPages = Math.max(1, Math.ceil((count ?? 0) / TIMELINE_PAGE_SIZE));
-  const deletedCount = groupEntriesIntoMoments(deletedEntries ?? []).length;
+  const deletedCount =
+    groupEntriesIntoMoments(deletedEntries ?? []).length + (deletedSleepCount ?? 0);
 
   return (
     <div className="min-h-screen bg-paper p-4 sm:p-8">

@@ -6,6 +6,7 @@ import { AddBabyForm } from "@/components/baby/add-baby-form";
 import { LogMatrix } from "@/components/log/log-matrix";
 import { colorIndexFor } from "@/lib/person-colors";
 import { HOME_ROW_SAFETY_CAP, homeFetchWindowStartISO } from "@/lib/entries";
+import type { SleepRow } from "@/lib/sleep-api";
 
 export default async function Home() {
   const { user, profile, household } = await getCurrentUserAndProfile();
@@ -38,7 +39,11 @@ export default async function Home() {
   // window fetch alone can't detect that on its own.
   const windowStart = homeFetchWindowStartISO();
 
-  const [{ data: fetchedEntries, count: windowCount }, { count: olderCount }] = baby
+  const [
+    { data: fetchedEntries, count: windowCount },
+    { count: olderCount },
+    { data: sleepsPayload, error: sleepsError },
+  ] = baby
     ? await Promise.all([
         supabase
           .from("entries")
@@ -54,10 +59,16 @@ export default async function Home() {
           .eq("baby_id", baby.id)
           .is("deleted_at", null)
           .lt("timestamp", windowStart),
+        // Sleeps (JOS-56): the same window, plus any sleep still open however
+        // old. The Sleep tile and cards are client-side and refetch on mount,
+        // so Home still loads if this can't be read.
+        supabase.rpc("get_sleeps", { p_baby_id: baby.id, p_since: windowStart }),
       ])
-    : [{ data: [], count: 0 }, { count: 0 }];
+    : [{ data: [], count: 0 }, { count: 0 }, { data: null, error: null }];
 
   const entries = fetchedEntries ?? [];
+  if (sleepsError) console.error("[home] could not read sleeps", sleepsError.message);
+  const initialSleeps = (sleepsPayload as { sleeps?: SleepRow[] } | null)?.sleeps ?? [];
   const hasMoreEntries = (windowCount ?? 0) > HOME_ROW_SAFETY_CAP || (olderCount ?? 0) > 0;
 
   return (
@@ -80,6 +91,7 @@ export default async function Home() {
             members={members ?? []}
             initialEntries={entries}
             hasMoreEntries={hasMoreEntries}
+            initialSleeps={initialSleeps}
           />
         )}
       </div>
