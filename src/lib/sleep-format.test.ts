@@ -10,6 +10,7 @@ import {
   defaultAgo,
   describeSleepError,
   judgePick,
+  reopenHint,
   timerDigits,
   timerSpoken,
   type Pick,
@@ -302,13 +303,26 @@ describe("what the other parent did, in words", () => {
     expect(describe_(new SleepError("gone"))).toBe("That sleep was deleted.");
   });
 
-  it("explains why a sleep can not be reopened", () => {
-    expect(describe_(new SleepError("no-reopen", { reason: "newer" }))).toBe("A newer sleep exists.");
-    expect(describe_(new SleepError("no-reopen", { reason: "autoclosed" }))).toContain(
-      "closed itself after 3 h paused",
+  it("explains why a sleep can not be reopened, in the same words as the card", () => {
+    expect(describe_(new SleepError("no-reopen", { reason: "newer" }))).toBe(
+      "This sleep can't be reopened: a new sleep has started.",
+    );
+    expect(describe_(new SleepError("no-reopen", { reason: "autoclosed" }))).toBe(
+      "This sleep can't be reopened: it closed itself after 3 hours paused.",
     );
     expect(describe_(new SleepError("no-reopen", { reason: "expired" }))).toBe(
-      "Reopen is offered for 3 h after the last wake.",
+      "This sleep can't be reopened: it ended more than 3 hours ago.",
     );
+  });
+});
+
+describe("reopenHint: the line under a finished card with no Reopen button", () => {
+  it("gives one sentence per reason, always starting the same way", () => {
+    expect(reopenHint("newer")).toBe("This sleep can't be reopened: a new sleep has started.");
+    expect(reopenHint("expired")).toBe("This sleep can't be reopened: it ended more than 3 hours ago.");
+    expect(reopenHint("autoclosed")).toBe(
+      "This sleep can't be reopened: it closed itself after 3 hours paused.",
+    );
+    expect(reopenHint("not-finished")).toBe("This sleep can't be reopened: it is still running.");
   });
 });

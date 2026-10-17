@@ -23,9 +23,8 @@ import { canEndBreastSession } from "@/lib/breastfeed-timer";
 import type { BreastSide } from "@/lib/supabase/database.types";
 import { serverNow } from "@/lib/server-clock";
 import {
-  endedAt,
+  filedAt,
   firstStart,
-  openSleep as findOpenSleep,
   underMinute,
   type Sleep,
   type SleepField,
@@ -70,7 +69,12 @@ const NO_SLEEPS: Sleep[] = [];
 function splitItems(items: HomeItem[]) {
   return {
     moments: items.flatMap((item) => (item.kind === "moment" ? [item.moment] : [])),
-    sleeps: items.flatMap((item) => (item.kind === "sleep" ? [item.sleep] : [])),
+    // Newest first by when each began — the order interleaveByTime and the
+    // wide stack both read them in. (`items` is ordered by when each was filed,
+    // which for a sleep that is going is "now".)
+    sleeps: items
+      .flatMap((item) => (item.kind === "sleep" ? [item.sleep] : []))
+      .sort((a, b) => firstStart(b) - firstStart(a)),
   };
 }
 
@@ -156,10 +160,6 @@ export function LogMatrix({
   // can't render, so they appear once the page is running in the browser.
   const isClient = useIsClient();
   const sleepList = isClient ? sleepCtl.sleeps : NO_SLEEPS;
-  const runningSleep = useMemo(
-    () => findOpenSleep(sleepList, now.getTime()),
-    [sleepList, now],
-  );
   const [sleepFlashId, setSleepFlashId] = useState<string | null>(null);
   const [shortDialog, setShortDialog] = useState<{ id: string; rev: number } | null>(null);
   const [pendingSleepDelete, setPendingSleepDelete] = useState<{
@@ -168,26 +168,27 @@ export function LogMatrix({
   } | null>(null);
 
   // The log the day sections are cut from: moments and sleeps together,
-  // newest first. The running sleep is pinned above them instead (below).
+  // newest first. A sleep that is going (or was just reopened) is NOT pinned
+  // above the rest: it is filed under Today (see filedAt) but sits among the
+  // day's moments by when it began, so reopening a morning sleep leaves it in
+  // the morning.
   const homeItems = useMemo<HomeItem[]>(() => {
     const momentItems = moments.map<HomeItem>((moment) => ({
       kind: "moment",
       moment,
       timestamp: moment.timestamp,
     }));
-    // Sectioned by when each sleep ENDED (see endedAt); the card still shows,
+    // Sectioned by when each sleep ENDED (see filedAt); the card still shows,
     // and the phone list still orders by, when it began.
-    const sleepItems = sleepList
-      .filter((sleep) => sleep.id !== runningSleep?.id)
-      .map<HomeItem>((sleep) => ({
-        kind: "sleep",
-        sleep,
-        timestamp: new Date(endedAt(sleep, now.getTime())).toISOString(),
-      }));
+    const sleepItems = sleepList.map<HomeItem>((sleep) => ({
+      kind: "sleep",
+      sleep,
+      timestamp: new Date(filedAt(sleep, now.getTime())).toISOString(),
+    }));
     return [...momentItems, ...sleepItems].sort((a, b) =>
       b.timestamp.localeCompare(a.timestamp),
     );
-  }, [moments, sleepList, runningSleep, now]);
+  }, [moments, sleepList, now]);
 
   // JOS-21: today's entries in full, plus the previous calendar day's last
   // 3 entries for continuity — everything older stays behind "View more".
@@ -208,9 +209,6 @@ export function LogMatrix({
     const groups: MomentGroup[] = [
       {
         ...splitItems(homeSections.todayMoments),
-        // Whatever day it started, a sleep that is still going is pinned
-        // first in Today.
-        pinnedSleep: runningSleep ?? undefined,
         divider: homeSections.previousDay
           ? { label: homeSections.todayLabel }
           : undefined,
@@ -224,12 +222,12 @@ export function LogMatrix({
       });
     }
     return groups;
-  }, [homeSections, runningSleep]);
+  }, [homeSections]);
 
   useEffect(() => {
     // The server-corrected clock (a no-op until a sleep reply has told us the
-    // gap): which sleep is pinned and which day it sits under must agree with
-    // what the sleep cards themselves show, and they read that clock.
+    // gap): which day a sleep sits under must agree with what the sleep cards
+    // themselves show, and they read that clock.
     const interval = setInterval(() => setNow(new Date(serverNow())), 60_000);
     return () => clearInterval(interval);
   }, []);
@@ -967,6 +965,14 @@ export function LogMatrix({
     void runSleep(sleepCtl.stop(sleep));
   }
 
+  // The card stays exactly where it is and turns back into a running one; a
+  // brief flash is the confirmation (no scrolling: it is already under the
+  // finger).
+  async function reopenSleep(sleep: Sleep) {
+    const outcome = await runSleep(sleepCtl.reopen(sleep));
+    if (outcome.ok) flashSleep(sleep.id, false);
+  }
+
   async function handleSleepSetTime(
     sleep: Sleep,
     field: SleepField,
@@ -1057,8 +1063,7 @@ export function LogMatrix({
         // sleep that began on another day but sits under Today (still
         // running, or ended this morning) needs saying on both.
         dayPrefix={
-          otherDay &&
-          (layout === "wide" || sleep.id === runningSleep?.id || todaySleepIds.has(sleep.id))
+          otherDay && (layout === "wide" || todaySleepIds.has(sleep.id))
             ? zone.fmtDay(started)
             : undefined
         }
@@ -1066,7 +1071,7 @@ export function LogMatrix({
         onPause={() => void runSleep(sleepCtl.pause(sleep))}
         onResume={() => void runSleep(sleepCtl.resume(sleep))}
         onStop={() => handleStopSleep(sleep)}
-        onReopen={() => void runSleep(sleepCtl.reopen(sleep))}
+        onReopen={() => void reopenSleep(sleep)}
         onDelete={() => setPendingSleepDelete({ id: sleep.id, rev: sleep.rev })}
         onSetTime={(field, input) => handleSleepSetTime(sleep, field, input)}
         onLoggedByCycle={() => handleSleepLoggedByCycle(sleep)}

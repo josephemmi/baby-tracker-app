@@ -16,13 +16,11 @@ interface Member {
 // tables don't use this — they just pass `moments`.
 export interface MomentGroup {
   moments: Moment[];
-  // Sleeps in this section (JOS-56), newest first, drawn by `renderSleep`.
-  // They are cards, never table rows: on a phone they sit among the moments
-  // by time; on iPad/desktop they stack above the table.
+  // Sleeps in this section (JOS-56), newest first by when each began, drawn
+  // by `renderSleep`. They are cards, never table rows: on a phone they sit
+  // among the moments by time (a running or reopened one included — none is
+  // pinned to the top); on iPad/desktop they stack above the table.
   sleeps?: Sleep[];
-  // The running (or paused) sleep, pinned first in Today whatever day it
-  // started on. Only ever set on the first group.
-  pinnedSleep?: Sleep;
   divider?: { label: string };
   tail?: boolean;
 }
@@ -106,12 +104,9 @@ export function MomentsTable({
   const totalColumns = (selectMode ? 1 : 0) + 10 + (onStartSleep ? 1 : 0);
   const renderGroups: MomentGroup[] = groups ?? [{ moments }];
 
-  // Wide layout: the running sleep first, then every other sleep as the
-  // groups run (newest first). Sleeps from another day say so on their card.
-  const wideSleeps: Sleep[] = renderGroups.flatMap((group) => [
-    ...(group.pinnedSleep ? [group.pinnedSleep] : []),
-    ...(group.sleeps ?? []),
-  ]);
+  // Wide layout: every sleep as the groups run (newest first). Sleeps from
+  // another day say so on their card.
+  const wideSleeps: Sleep[] = renderGroups.flatMap((group) => group.sleeps ?? []);
   const hasSleeps = !!renderSleep && wideSleeps.length > 0;
 
   if (moments.length === 0 && !hasSleeps) {
@@ -210,11 +205,6 @@ export function MomentsTable({
           <Fragment key={group.divider?.label ?? `group-${groupIndex}`}>
             {group.divider && (
               <DayDivider label={group.divider.label} />
-            )}
-            {renderSleep && group.pinnedSleep && (
-              <Fragment key={group.pinnedSleep.id}>
-                {renderSleep(group.pinnedSleep, "phone")}
-              </Fragment>
             )}
             {interleaveByTime(group.moments, renderSleep ? (group.sleeps ?? []) : []).map(
               (item) =>

@@ -27,14 +27,25 @@ feature, and PATCH is a fix with no new functionality.
   - Started the log late? **Started earlier?** (and **Woke earlier?** on a
     paused sleep) sets the time with a how-long-ago wheel or the device's
     own time picker — time only, no dates, and a time later than now means
-    yesterday. Times are 12-hour am/pm in the device's time zone.
+    yesterday. Times are 12-hour am/pm in the device's time zone. Both
+    save as soon as you choose: on the wheel, scroll and tap **Set** (or
+    tap the highlighted row); with **Pick a time**, the phone's own picker
+    saves when it hands a time back. Only a time more than 3 hours ago asks
+    you to confirm (Save anyway).
+  - The card reads top to bottom: **Sleeping** (or Paused / Slept) at the
+    same size as the card's own time, the big timer, the start time, and
+    **Started earlier?** on a line of its own. **Stop Sleep** is the app's
+    dark rose so it can't be mistaken for Pause.
   - A finished sleep card is read-only. **Reopen sleep** puts it back to
     paused (within 3 hours of the last wake, and only if no newer sleep
-    exists). A sleep left paused for 3 hours closes itself at the last wake.
+    exists), right where it was in the day's list. A sleep left paused for
+    3 hours closes itself at the last wake. When a finished sleep can't be
+    reopened the card says why ("This sleep can't be reopened: it ended
+    more than 3 hours ago").
   - The Sleep tile on a blank new card turns it into the sleep card; on a
-    card that already has other ticks it starts a new one. The running
-    sleep is pinned first in Today, on the iPad layout too (where Sleep is
-    also a column in the table).
+    card that already has other ticks it starts a new one. A running sleep
+    sits among the day's entries by when it began, like every other card
+    (Sleep is also a column in the table on the iPad layout).
   - Deleting or discarding a sleep is a soft delete like every other
     entry: it lands in Recently Deleted for 7 days and can be restored.
   - Requires the new `20261017000000_sleeps` database migration (a `sleeps`

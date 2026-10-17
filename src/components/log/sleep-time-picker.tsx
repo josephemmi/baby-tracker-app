@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useDebouncedCommit } from "@/lib/debounced-commit";
 import type { Sleep, SleepField, SleepWorld } from "@/lib/sleep";
 import type { SleepTimeInput } from "@/lib/sleep-api";
 import {
@@ -17,6 +18,14 @@ import {
 // One wheel row, in px. The CSS in globals.css and the band below are sized
 // for exactly this: five rows show (170px), the middle one is the value.
 const WHEEL_ROW_PX = 34;
+
+// How long after the phone's own time picker hands back a value before it is
+// saved. Android's dialog answers once, on OK; a desktop field or a wheel that
+// reports every change must not save the first half-typed value.
+const TIME_SAVE_DELAY_MS = 400;
+
+const CONFIRM_BUTTON =
+  "w-full rounded-full border-[1.5px] border-night bg-night p-[11px] text-center text-[14px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-45";
 
 function Chevron({ open }: { open?: boolean }) {
   return (
@@ -61,10 +70,14 @@ function Wheel({
   selected,
   isOutOfRange,
   onChange,
+  onConfirm,
 }: {
   selected: number | null;
   isOutOfRange: (minutes: number) => boolean;
   onChange: (minutes: number) => void;
+  // Tapping the row that is already the value, or Enter on the wheel: the
+  // same as the Set button under it.
+  onConfirm: () => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const initial = useRef(selected);
@@ -97,6 +110,11 @@ function Wheel({
           if (minutes !== selected) onChange(minutes);
         }}
         onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            if (selected != null && !isOutOfRange(selected)) onConfirm();
+            return;
+          }
           const step = e.key === "ArrowDown" ? 1 : e.key === "ArrowUp" ? -1 : 0;
           if (!step) return;
           e.preventDefault();
@@ -118,9 +136,10 @@ function Wheel({
               key={minutes}
               role="option"
               aria-selected={isSelected}
-              onClick={() =>
-                scrollRef.current?.scrollTo({ top: i * WHEEL_ROW_PX, behavior: "smooth" })
-              }
+              onClick={() => {
+                if (isSelected && !isOutOfRange(minutes)) onConfirm();
+                else scrollRef.current?.scrollTo({ top: i * WHEEL_ROW_PX, behavior: "smooth" });
+              }}
               className={`sleep-wheel-item h-[34px] cursor-pointer text-center leading-[34px] tabular-nums select-none ${
                 isSelected ? "text-[16px] font-bold text-night-deep" : "text-[15px] text-ink-soft"
               } ${isOutOfRange(minutes) ? "opacity-35" : ""}`}
@@ -150,7 +169,11 @@ interface SleepTimePickerProps {
 
 // "Sleep started…" (from "Started earlier?") and "Woke up…" (from "Woke
 // earlier?"): a subcard inside the sleep card. Two ways to say when — a
-// how-long-ago wheel, or a time-only field — and the last choice wins.
+// how-long-ago wheel, or a time-only field — and each one saves as soon as
+// it is chosen, so there is no separate Save step:
+//   • the wheel: scroll, then Set (or tap the highlighted row);
+//   • the time field: the phone's own picker, saved when it hands a time back.
+// The one confirmation left is for a time more than 3 h ago ("Save anyway").
 export function SleepTimePicker({
   sleep,
   sleeps,
@@ -167,6 +190,7 @@ export function SleepTimePicker({
   const [saving, setSaving] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const inFlight = useRef(false);
 
   // The subcard (and then the wheel inside it) opens below the tapped link,
   // which on a phone can be below the fold: bring it into view.
@@ -182,9 +206,24 @@ export function SleepTimePicker({
 
   const previewKind = serverError ? "err" : judgement.kind;
   const previewText = serverError ?? judgement.text;
-  const canSave = !saving && (judgement.kind === "ok" || judgement.kind === "warn") && !serverError;
+  const canConfirm = !saving && (judgement.kind === "ok" || judgement.kind === "warn");
+
+  async function commit(input: SleepTimeInput) {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setSaving(true);
+    const message = await onSave(input);
+    inFlight.current = false;
+    setSaving(false);
+    if (message) setServerError(message);
+  }
+
+  // The phone's picker answered with a time that is fine: save it, a moment
+  // later (see TIME_SAVE_DELAY_MS).
+  const timeCommit = useDebouncedCommit<number>((ms) => void commit({ at: ms }), TIME_SAVE_DELAY_MS);
 
   function chooseAgo(minutes: number) {
+    timeCommit.cancel();
     setMode("ago");
     setAgo(minutes);
     setTime("");
@@ -192,16 +231,29 @@ export function SleepTimePicker({
   }
 
   function toggleWheel() {
-    if (!wheelOpen && mode !== "ago") {
-      // Opening the wheel selects its first allowed row.
-      chooseAgo(defaultAgo(world, sleep, field));
+    timeCommit.cancel();
+    if (wheelOpen) {
+      // Folding the wheel away without Set changes nothing.
+      setMode(null);
+      setAgo(null);
+      setServerError(null);
+      setWheelOpen(false);
+      return;
     }
-    setWheelOpen(!wheelOpen);
+    // Opening the wheel selects its first allowed row.
+    chooseAgo(defaultAgo(world, sleep, field));
+    setWheelOpen(true);
+  }
+
+  function confirmWheel() {
+    if (ago == null || !canConfirm) return;
+    void commit({ agoMinutes: ago });
   }
 
   function changeTime(value: string) {
     setServerError(null);
     if (!value) {
+      timeCommit.cancel();
       if (mode === "time") setMode(null);
       setTime("");
       return;
@@ -210,20 +262,16 @@ export function SleepTimePicker({
     setTime(value);
     setAgo(null);
     setWheelOpen(false);
-  }
-
-  async function save() {
-    if (!canSave) return;
-    setSaving(true);
-    const input: SleepTimeInput =
-      mode === "ago" && ago != null ? { agoMinutes: ago } : { at: judgement.ms };
-    const message = await onSave(input);
-    setSaving(false);
-    if (message) setServerError(message);
+    // Fine as it is: save. Too early, in the future, or long ago: say so and
+    // wait ("Save anyway" for the last one).
+    const j = judgePick(world, sleep, { field, mode: "time", ago: null, time: value }, zone);
+    if (j.kind === "ok") timeCommit.trigger(j.ms);
+    else timeCommit.cancel();
   }
 
   const previewColor =
     previewKind === "ok" ? "text-sage" : previewKind === "warn" ? "text-amber" : "text-terracotta";
+  const showSaveAnyway = !wheelOpen && mode === "time" && judgement.kind === "warn" && !serverError;
 
   return (
     <div
@@ -257,41 +305,48 @@ export function SleepTimePicker({
           selected={ago}
           isOutOfRange={(m) => agoOutOfRange(world, sleep, field, m)}
           onChange={chooseAgo}
+          onConfirm={confirmWheel}
         />
       )}
 
-      {/* The only upper-case label in this subcard, by decision. */}
-      <div
-        className="my-1.5 flex items-center gap-2.5 text-[12px] leading-5 font-bold tracking-[0.08em] text-ink-soft"
-        aria-hidden="true"
-      >
-        <span className="h-px flex-1 bg-line" />
-        OR
-        <span className="h-px flex-1 bg-line" />
-      </div>
+      {/* While the wheel is open it is the only way being offered: the other
+          row comes back when the wheel is folded away. */}
+      {!wheelOpen && (
+        <>
+          {/* The only upper-case label in this subcard, by decision. */}
+          <div
+            className="my-1.5 flex items-center gap-2.5 text-[12px] leading-5 font-bold tracking-[0.08em] text-ink-soft"
+            aria-hidden="true"
+          >
+            <span className="h-px flex-1 bg-line" />
+            OR
+            <span className="h-px flex-1 bg-line" />
+          </div>
 
-      <label className={`${rowClasses(timeSet)} cursor-pointer focus-within:outline focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-night`}>
-        <span className="text-[14px] font-semibold whitespace-nowrap text-ink">Pick a time</span>
-        <RowValue set={timeSet}>{timeSet && time ? clockLabel(time) : "Choose"}</RowValue>
-        <Chevron />
-        <input
-          type="time"
-          step={60}
-          value={time}
-          aria-label="Pick a time"
-          onChange={(e) => changeTime(e.target.value)}
-          // Phones open the picker from any tap on the field; desktop
-          // browsers need to be asked.
-          onClick={(e) => {
-            try {
-              e.currentTarget.showPicker?.();
-            } catch {
-              // Not allowed here: the field still works by typing.
-            }
-          }}
-          className="sleep-time-overlay absolute -inset-px z-[2] m-0 cursor-pointer border-0 p-0 text-[16px] opacity-0"
-        />
-      </label>
+          <label className={`${rowClasses(timeSet)} cursor-pointer focus-within:outline focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-night`}>
+            <span className="text-[14px] font-semibold whitespace-nowrap text-ink">Pick a time</span>
+            <RowValue set={timeSet}>{timeSet && time ? clockLabel(time) : "Choose"}</RowValue>
+            <Chevron />
+            <input
+              type="time"
+              step={60}
+              value={time}
+              aria-label="Pick a time"
+              onChange={(e) => changeTime(e.target.value)}
+              // Phones open the picker from any tap on the field; desktop
+              // browsers need to be asked.
+              onClick={(e) => {
+                try {
+                  e.currentTarget.showPicker?.();
+                } catch {
+                  // Not allowed here: the field still works by typing.
+                }
+              }}
+              className="sleep-time-overlay absolute -inset-px z-[2] m-0 cursor-pointer border-0 p-0 text-[16px] opacity-0"
+            />
+          </label>
+        </>
+      )}
 
       <div
         aria-live="polite"
@@ -300,16 +355,26 @@ export function SleepTimePicker({
         {previewText}
       </div>
 
-      <button
-        type="button"
-        onClick={save}
-        disabled={!canSave}
-        className={`w-full rounded-full border-[1.5px] border-sage bg-sage p-[11px] text-center text-[14px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-45 ${
-          previewText ? "" : "mt-2"
-        }`}
-      >
-        {judgement.kind === "warn" ? "Save anyway" : "Save"}
-      </button>
+      {wheelOpen && (
+        <button
+          type="button"
+          onClick={confirmWheel}
+          disabled={!canConfirm}
+          className={`${CONFIRM_BUTTON} ${previewText ? "" : "mt-2"}`}
+        >
+          Set
+        </button>
+      )}
+      {showSaveAnyway && (
+        <button
+          type="button"
+          onClick={() => void commit({ at: judgement.ms })}
+          disabled={!canConfirm}
+          className={`${CONFIRM_BUTTON} ${previewText ? "" : "mt-2"}`}
+        >
+          Save anyway
+        </button>
+      )}
     </div>
   );
 }

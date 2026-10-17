@@ -16,6 +16,7 @@ import {
   firstStart,
   lastStretch,
   pickBounds,
+  type ReopenBlock,
   type Sleep,
   type SleepAction,
   type SleepError,
@@ -307,12 +308,18 @@ const VERB: Record<SleepAction, string> = {
   restore: "restored this sleep",
 };
 
-const REOPEN_BLOCKED = {
-  "not-finished": "This sleep is still open.",
-  autoclosed: `It closed itself after ${SLEEP_RULES.autoCloseMs / HOUR} h paused, so it can no longer be reopened.`,
-  newer: "A newer sleep exists.",
-  expired: `Reopen is offered for ${SLEEP_RULES.reopenMs / HOUR} h after the last wake.`,
-} as const;
+// Why Reopen sleep isn't offered, in one sentence. The line under a finished
+// card that can't be reopened, and the message when a reopen is refused after
+// the screen was already out of date, say the same thing.
+export function reopenHint(reason: ReopenBlock): string {
+  const why = {
+    "not-finished": "it is still running",
+    autoclosed: `it closed itself after ${SLEEP_RULES.autoCloseMs / HOUR} hours paused`,
+    newer: "a new sleep has started",
+    expired: `it ended more than ${SLEEP_RULES.reopenMs / HOUR} hours ago`,
+  }[reason];
+  return `This sleep can't be reopened: ${why}.`;
+}
 
 // The text for a SleepError — from the rules here, or rebuilt from what the
 // server's conflict response said. `nameOf` turns a member id into a name.
@@ -358,7 +365,7 @@ export function describeSleepError(
     case "before-start":
       return "Before the sleep started.";
     case "no-reopen":
-      return REOPEN_BLOCKED[d.reason ?? "not-finished"];
+      return reopenHint(d.reason ?? "not-finished");
     case "bad-time":
       return "That is not a valid time.";
     case "open":

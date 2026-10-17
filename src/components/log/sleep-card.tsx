@@ -18,6 +18,7 @@ import type { SleepTimeInput } from "@/lib/sleep-api";
 import {
   durationLabel,
   deviceZone,
+  reopenHint,
   timerDigits,
   timerSpoken,
   type Zone,
@@ -65,14 +66,49 @@ export interface SleepCardProps {
   onNotice: (text: string) => void;
 }
 
+// "Started earlier?" / "Woke earlier?": on a line of its own under the start
+// (or awake) time, with room to tap.
 const LINK =
-  "px-[5px] py-[9px] text-[12.5px] font-bold text-night underline decoration-night decoration-dotted underline-offset-[3px]";
+  "min-h-[40px] px-2 pt-2.5 pb-2 text-[13px] font-bold text-night underline decoration-night decoration-dotted underline-offset-[3px]";
 
 const BUTTON =
   "w-full rounded-full border-[1.5px] p-3 text-center text-[14px] font-bold transition-transform active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60";
 
+// Stop is the app's dark rose (already Discard sleep's colour): red enough to
+// say "this ends it", calm enough not to read as an alarm. Pause stays blue.
+const STOP_BUTTON = "border-rose-dark bg-rose-dark text-white";
+
 function Dim({ children }: { children: React.ReactNode }) {
   return <div className="flex flex-1 opacity-[0.42]">{children}</div>;
+}
+
+// "Sleeping" / "Paused" / "Slept": the word sits on the card's centre line,
+// the same one the timer and the start time use, and the dot hangs to its
+// left — so the word, not the word-and-dot pair, is what lines up.
+function StatusLabel({
+  tone,
+  dot,
+  pulse = false,
+  children,
+}: {
+  tone: string;
+  dot: string;
+  pulse?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className={`grid grid-cols-[1fr_auto_1fr] items-center text-[15px] font-extrabold tracking-[0.08em] uppercase ${tone}`}
+    >
+      <span
+        className={`mr-[9px] h-[11px] w-[11px] flex-none justify-self-end rounded-full ${dot} ${
+          pulse ? "sleep-dot-live" : ""
+        }`}
+        aria-hidden="true"
+      />
+      <span>{children}</span>
+    </div>
+  );
 }
 
 function Timer({
@@ -160,7 +196,11 @@ export function SleepCard({
     [sleep.id, sleep.by, sleep.notes, started],
   );
 
-  const reopenable = !live && canReopen({ now, sleeps }, sleep).ok;
+  const reopen = live ? null : canReopen({ now, sleeps }, sleep);
+  const reopenable = reopen?.ok === true;
+  // Why there is no Reopen sleep button, said on the card instead of leaving
+  // the user to wonder.
+  const noReopenHint = reopen && !reopen.ok ? reopenHint(reopen.reason) : null;
   const end = closedAtOf(sleep, now) ?? last.end ?? now;
 
   return (
@@ -244,18 +284,16 @@ export function SleepCard({
       </div>
 
       {state === "asleep" && (
-        <div className="mb-2.5 rounded-[12px] border-[1.5px] border-night bg-night-soft px-2.5 pt-3.5 pb-1.5 text-center">
-          <div className="flex items-center justify-center gap-[7px] text-[11px] font-extrabold tracking-[0.09em] text-night uppercase">
-            <span className="sleep-dot-live h-2 w-2 flex-none rounded-full bg-night" />
+        <div className="mb-2.5 rounded-[12px] border-[1.5px] border-night bg-night-soft px-2.5 pt-3.5 pb-2 text-center">
+          <StatusLabel tone="text-night" dot="bg-night" pulse>
             Sleeping
-          </div>
+          </StatusLabel>
           <Timer ms={asleep} tone="live" size="big" />
-          <div className="flex min-h-[40px] flex-wrap items-center justify-center gap-x-1.5 text-[12.5px] text-ink-soft">
-            <span>
-              Started <b className="tabular-nums">{zone.fmtTime(started)}</b>
+          <div className="flex flex-col items-center text-ink-soft">
+            <div className="mt-0.5 text-[14px]">
+              Started <b className="text-[15px] tabular-nums text-ink">{zone.fmtTime(started)}</b>
               {pauses > 0 && ` · ${pauseText}`}
-            </span>
-            <span className="text-line-strong">·</span>
+            </div>
             <button type="button" onClick={() => openPicker("start")} className={LINK}>
               Started earlier?
             </button>
@@ -264,18 +302,19 @@ export function SleepCard({
       )}
 
       {state === "paused" && (
-        <div className="mb-2.5 rounded-[12px] border-[1.5px] border-line-strong bg-paper px-2.5 pt-3.5 pb-1.5 text-center">
-          <div className="flex items-center justify-center gap-[7px] text-[11px] font-extrabold tracking-[0.09em] text-ink-soft uppercase">
-            <span className="sleep-dot-live h-2 w-2 flex-none rounded-full bg-amber" />
+        <div className="mb-2.5 rounded-[12px] border-[1.5px] border-line-strong bg-paper px-2.5 pt-3.5 pb-2 text-center">
+          <StatusLabel tone="text-ink-soft" dot="bg-amber" pulse>
             Paused
-          </div>
+          </StatusLabel>
           <Timer ms={asleep} tone="paused" size="big" />
-          <div className="flex min-h-[40px] flex-wrap items-center justify-center gap-x-1.5 text-[12.5px] text-ink-soft">
-            <span>
-              Awake <b className="tabular-nums">{durationLabel(now - (last.end ?? now))}</b> since{" "}
-              {zone.fmtTime(last.end ?? now)}
-            </span>
-            <span className="text-line-strong">·</span>
+          <div className="flex flex-col items-center text-ink-soft">
+            <div className="mt-0.5 text-[14px]">
+              Awake{" "}
+              <b className="text-[15px] tabular-nums text-ink">
+                {durationLabel(now - (last.end ?? now))}
+              </b>{" "}
+              since {zone.fmtTime(last.end ?? now)}
+            </div>
             <button type="button" onClick={() => openPicker("end")} className={LINK}>
               Woke earlier?
             </button>
@@ -285,10 +324,9 @@ export function SleepCard({
 
       {state === "finished" && (
         <div className="mb-2.5 rounded-[12px] border-[1.5px] border-line-strong bg-paper px-2.5 pt-3.5 pb-1.5 text-center">
-          <div className="flex items-center justify-center gap-[7px] text-[11px] font-extrabold tracking-[0.09em] text-ink-soft uppercase">
-            <span className="h-2 w-2 flex-none rounded-full bg-sage" />
+          <StatusLabel tone="text-ink-soft" dot="bg-sage">
             Slept
-          </div>
+          </StatusLabel>
           <Timer ms={asleep} tone="done" size="done" />
           <div className="flex min-h-[40px] flex-wrap items-center justify-center gap-x-1.5 text-[12.5px] text-ink-soft">
             <b className="px-1 py-[9px] text-[12.5px] tabular-nums text-ink">{zone.fmtTime(started)}</b>
@@ -333,7 +371,7 @@ export function SleepCard({
                 type="button"
                 onClick={onStop}
                 disabled={busy}
-                className={`${BUTTON} border-ink bg-ink text-paper-raised`}
+                className={`${BUTTON} ${STOP_BUTTON}`}
               >
                 Stop Sleep
               </button>
@@ -353,7 +391,7 @@ export function SleepCard({
                 type="button"
                 onClick={onStop}
                 disabled={busy}
-                className={`${BUTTON} border-ink bg-ink text-paper-raised`}
+                className={`${BUTTON} ${STOP_BUTTON}`}
               >
                 Stop Sleep
               </button>
@@ -370,6 +408,12 @@ export function SleepCard({
             </button>
           )}
         </div>
+      )}
+
+      {noReopenHint && (
+        <p className="mb-2.5 text-center text-[12px] text-ink-soft" data-reopen-hint>
+          {noReopenHint}
+        </p>
       )}
 
       <NotesCell

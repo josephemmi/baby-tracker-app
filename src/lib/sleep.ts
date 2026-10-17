@@ -199,6 +199,15 @@ export function endedAt(s: Sleep, now: number): number {
   return closedAtOf(s, now) ?? lastStretch(s).end ?? firstStart(s);
 }
 
+// The moment Home files a sleep under: when it ended, or — while it is still
+// going (running or paused) — now, so it always sits under Today. Where it
+// sits within the day is its start (interleaveByTime), never this: a sleep
+// reopened from earlier in the day stays where it was instead of jumping to
+// the top.
+export function filedAt(s: Sleep, now: number): number {
+  return stateOf(s, now) === "finished" ? endedAt(s, now) : now;
+}
+
 // Merges two newest-first lists into one, newest first: how a day's moments
 // and sleeps read as a single log. A tie puts the sleep first.
 export function interleaveByTime<M extends { timestamp: string }>(

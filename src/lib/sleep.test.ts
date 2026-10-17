@@ -8,6 +8,7 @@ import {
   closedAtOf,
   editSleepTime,
   endedAt,
+  filedAt,
   finishSleep,
   firstStart,
   floorFor,
@@ -582,6 +583,30 @@ describe("endedAt: which day a finished sleep belongs to", () => {
 
   it("is the start while the sleep is still running", () => {
     expect(endedAt(sleep([[at(-30), null]]), NOW)).toBe(at(-30));
+  });
+});
+
+describe("filedAt: Home puts a sleep that is going under Today, and leaves it where it began", () => {
+  it("is now for a running or paused sleep, whenever it started", () => {
+    expect(filedAt(sleep([[at(-30), null]]), NOW)).toBe(NOW);
+    expect(filedAt(sleep([[Date.parse("2026-10-15T22:00:00Z"), null]]), NOW)).toBe(NOW);
+    expect(filedAt(sleep([[at(-60), at(-20)]]), NOW)).toBe(NOW);
+  });
+
+  it("is the close once the sleep is finished, or the last wake once it has closed itself", () => {
+    expect(filedAt(sleep([[at(-60), at(-20)]], { closedAt: at(-20) }), NOW)).toBe(at(-20));
+    expect(filedAt(sleep([[at(-600), at(-400)]]), NOW)).toBe(at(-400));
+  });
+
+  it("changes nothing about order: a reopened morning sleep still reads between the moments around it", () => {
+    // 9:15–10:06 (London) reopened at 3 pm, with a feed at 8:30 and a nappy at 11:20 either side.
+    const morning = sleep([[Date.parse("2026-10-16T08:15:00Z"), null]], { rev: 3 });
+    const items = interleaveByTime(
+      [{ timestamp: "2026-10-16T10:20:00Z" }, { timestamp: "2026-10-16T07:30:00Z" }],
+      [morning],
+    ).map((i) => (i.kind === "sleep" ? "sleep" : i.moment.timestamp.slice(11, 16)));
+    expect(items).toEqual(["10:20", "sleep", "07:30"]);
+    expect(filedAt(morning, Date.parse("2026-10-16T14:00:00Z"))).toBe(Date.parse("2026-10-16T14:00:00Z"));
   });
 });
 
