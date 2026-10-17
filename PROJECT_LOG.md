@@ -60,8 +60,11 @@ picks this up next.
   a dated `1.12.0` section (the Sleep tracker, plus the iPad numeric-keypad
   fix from JOS-54, which had been waiting in `[Unreleased]`),
   `package.json`/`package-lock.json` bumped, and
-  `NestlogReleaseNotesv1.12.0.pdf` (2 pages, three clean screenshots of
-  the shipped card) and `NestlogSleepTrackerUserGuidev1.12.0.pdf` sent to
+  `NestlogReleaseNotesv1.12.0.pdf` (3 pages; four captioned screenshots
+  of the shipped UI on page one: the first version had them buried at the
+  bottom of page two and Joseph reported "no screenshots", so they now
+  lead the PDF and the script takes `path::caption`) and
+  `NestlogSleepTrackerUserGuidev1.12.0.pdf` sent to
   Joseph in chat and attached to JOS-56 and JOS-54 (release notes as a
   comment on each). Because the harness confines this session to one
   branch, the release rides on PR #38 with the user guide; **merging

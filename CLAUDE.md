@@ -113,9 +113,17 @@
   isolation) — a narrower or wider test container than production can
   make text wrap differently than it actually renders, which is
   misleading in release notes even though it's harmless in a quick
-  verification screenshot. Pass the screenshot file paths as trailing
-  args to `generate-release-notes.py`, in the same order as their
-  CHANGELOG bullets.
+  verification screenshot. Pass them as trailing args to
+  `generate-release-notes.py` as `path.png::Short caption`: the script
+  puts them **first, on page one, under the title** ("What it looks
+  like"), because a PDF preview (Linear's, the chat's) shows only page
+  one, and a release with a UI change must visibly have screenshots.
+  Cover the headline UI change in three or four shots. Buried at the
+  bottom of page two they were present but invisible, and Joseph
+  reported "no screenshots" (v1.12.0 cut), the second time this has had
+  to be raised. **Before sending, check what he'll see**: `pdfimages -list
+  -f 1 -l 1 <pdf>` must list the images, and view page one (`pdftoppm -r
+  70 -f 1 -l 1`).
 - Do not upload the PDF to Google Drive yourself. Attach it directly to
   the Linear ticket(s) for that release (Linear supports file
   attachments on issues) AND send it through chat via `SendUserFile` —
