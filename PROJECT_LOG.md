@@ -56,15 +56,24 @@ picks this up next.
   [PR #38](https://github.com/josephemmi/baby-tracker-app/pull/38) is
   open, not merged; it also carries the CLAUDE.md "User guides" rule and
   this retro's notes.
+- **v1.12.0 cut** (minor, confirmed by Joseph): `[Unreleased]` moved into
+  a dated `1.12.0` section (the Sleep tracker, plus the iPad numeric-keypad
+  fix from JOS-54, which had been waiting in `[Unreleased]`),
+  `package.json`/`package-lock.json` bumped, and
+  `NestlogReleaseNotesv1.12.0.pdf` (2 pages, three clean screenshots of
+  the shipped card) and `NestlogSleepTrackerUserGuidev1.12.0.pdf` sent to
+  Joseph in chat and attached to JOS-56 and JOS-54 (release notes as a
+  comment on each). Because the harness confines this session to one
+  branch, the release rides on PR #38 with the user guide; **merging
+  PR #38 is the release**. `scripts/generate-release-notes.py` learned
+  nested bullets, `**bold**`/`code` and a side-by-side screenshot row
+  (the Sleep entry has sub-bullets and tall phone shots, which the old
+  script would have turned into a wall of text and full-page images).
 
 **In flight / open:**
-- PR #38 needs Joseph's review (docs and tooling only, no preview).
-- **v1.12 is not released.** `package.json` is still 1.11.2 and the
-  CHANGELOG entry is under `[Unreleased]`. The cut needs: Joseph's
-  version confirmation (a minor, 1.12.0, is the proposal), the
-  release-notes PDF with tight screenshots, and the user guide (refresh
-  it if the UI changed), both attached to JOS-56 (already Done) and sent
-  in chat.
+- PR #38 needs Joseph's review (docs, tooling and the release bookkeeping;
+  no app code, so no preview). Merging it deploys nothing new: the Sleep
+  tracker code has been live since PR #37.
 - Device checks still outstanding: on Jen's iPad, whether Pick a time
   saves mid-scroll (iOS may report every step; the fallback is a Save
   button on that route only); on his phone, Set / tap-to-set and Pick a

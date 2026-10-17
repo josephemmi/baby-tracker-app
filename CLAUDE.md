@@ -134,7 +134,7 @@
   ticket to Done the moment its PR merges, so on a release cut this order
   is often already broken before the release starts. Attach and comment
   anyway, after the fact; it is still the record.)
-- **User guides** (JOS-59; first one: the Sleep tracker, v1.12). Every
+- **User guides** (JOS-59; first one: the Sleep tracker, v1.12.0). Every
   release that ships a **new user-facing feature** (a minor or major, not
   a fix-only patch) also gets a short, visual user guide for it,
   generated automatically as part of cutting the release — no need to
@@ -149,7 +149,7 @@
     screenshots). `python3 scripts/generate-user-guide.py <guide.json>
     <out.pdf>` builds it, named `Nestlog{Feature}UserGuidev{version}.pdf`
     (no hyphens, like the release notes), e.g.
-    `NestlogSleepTrackerUserGuidev1.12.pdf`. Commit the JSON and images;
+    `NestlogSleepTrackerUserGuidev1.12.0.pdf`. Commit the JSON and images;
     the PDF is a build output and isn't committed.
   - **Screenshots:** the real app, via the same dev-preview + Playwright
     workflow below, at phone width (390 px, 2x), as a realistic story
