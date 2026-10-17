@@ -9,6 +9,8 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-10-17
+
 ### Added
 - Sleep tracker (JOS-56 — the headline feature of v1.12). Sleep is now the
   fifth tile on the Log screen, after Pee. Ticking it starts a timed sleep
@@ -56,7 +58,7 @@ feature, and PATCH is a fix with no new functionality.
 ### Fixed
 - The bottle/pump mL amount fields now reliably bring up the numeric-only
   keypad on iPad, including when the app is running as an installed
-  home-screen PWA (JOS-9). The previous fix (`inputMode="numeric"`) was
+  home-screen PWA (JOS-54, following up JOS-9). The previous fix (`inputMode="numeric"`) was
   sufficient in a regular mobile browser tab but iPadOS's installed-PWA
   runtime was ignoring `inputMode` and falling back to the full keyboard;
   switching the fields to `type="tel"` (kept alongside `inputMode="numeric"`
