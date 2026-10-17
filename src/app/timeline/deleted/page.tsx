@@ -41,13 +41,23 @@ export default async function RecentlyDeletedPage() {
 
   const retentionCutoff = retentionCutoffISO();
 
-  const { data: deletedEntries } = await supabase
-    .from("entries")
-    .select("*")
-    .eq("baby_id", baby.id)
-    .not("deleted_at", "is", null)
-    .gt("deleted_at", retentionCutoff)
-    .order("deleted_at", { ascending: false });
+  const [{ data: deletedEntries }, { data: deletedSleeps }] = await Promise.all([
+    supabase
+      .from("entries")
+      .select("*")
+      .eq("baby_id", baby.id)
+      .not("deleted_at", "is", null)
+      .gt("deleted_at", retentionCutoff)
+      .order("deleted_at", { ascending: false }),
+    // JOS-56: a deleted (or discarded) sleep is kept for the same 7 days.
+    supabase
+      .from("sleeps")
+      .select("*")
+      .eq("baby_id", baby.id)
+      .not("deleted_at", "is", null)
+      .gt("deleted_at", retentionCutoff)
+      .order("deleted_at", { ascending: false }),
+  ]);
 
   return (
     <div className="min-h-screen bg-paper p-4 sm:p-8">
@@ -55,6 +65,7 @@ export default async function RecentlyDeletedPage() {
         <RecentlyDeletedView
           babyId={baby.id}
           entries={deletedEntries ?? []}
+          sleeps={deletedSleeps ?? []}
           memberNames={memberNames}
           memberColorIndex={memberColorIndex}
           pageSize={TIMELINE_PAGE_SIZE}

@@ -13,6 +13,7 @@ import {
   FEED_FLAG_STYLES,
   PumpPill,
   PumpPillStatic,
+  SLEEP_STYLE,
 } from "@/components/log/entry-styles";
 import { NotesCell } from "@/components/log/notes-cell";
 import { BreastSessionSummary, BreastTimerPanel } from "@/components/log/breast-timer-panel";
@@ -36,6 +37,10 @@ export interface EntryRowHandlers {
   onBreastSideToggle?: (moment: Moment, side: BreastSide) => void;
   onEndBreastSession?: (moment: Moment) => void;
   onLoggedByCycle?: (moment: Moment) => void;
+  // Ticking the Sleep tile (JOS-56). Present on Home only — it turns a blank
+  // draft into a sleep card, or starts a new one — and its presence is what
+  // adds the Sleep tile/column. Timeline never passes it.
+  onStartSleep?: (moment: Moment) => void;
 }
 
 interface EntryTableRowProps extends EntryRowHandlers {
@@ -76,6 +81,7 @@ export function EntryTableRow({
   onBreastSideToggle,
   onEndBreastSession,
   onLoggedByCycle,
+  onStartSleep,
 }: EntryTableRowProps) {
   const loggedByIndex = members.findIndex((m) => m.id === moment.loggedBy);
   const loggedByName = (moment.loggedBy && memberNames[moment.loggedBy]) ?? "Unknown";
@@ -126,7 +132,7 @@ export function EntryTableRow({
   }, [moment.pump?.amount_ml]);
   // Sums to the same total either way — the Pump/mL pair always spans 2
   // columns, merged or split, matching how the header itself decides.
-  const totalColumns = (selectMode ? 1 : 0) + 10;
+  const totalColumns = (selectMode ? 1 : 0) + 10 + (onStartSleep ? 1 : 0);
 
   return (
     <>
@@ -295,6 +301,16 @@ export function EntryTableRow({
           moment.pee && <Check colorClass="text-brand-blue" />
         )}
       </td>
+      {onStartSleep && (
+        <td className="px-3 py-2.5">
+          {/* Never ticked on a moment row: it starts a sleep card instead. */}
+          <EditableCheckbox
+            style={SLEEP_STYLE}
+            checked={false}
+            onChange={() => onStartSleep(moment)}
+          />
+        </td>
+      )}
       {moment.pump ? (
         <>
           <td className="border-l-[1.5px] border-dashed border-line-strong px-3 py-2.5 text-center">

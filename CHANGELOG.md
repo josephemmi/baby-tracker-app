@@ -9,6 +9,39 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+### Added
+- Sleep tracker (JOS-56 — the headline feature of v1.12). Sleep is now the
+  fifth tile on the Log screen, after Pee. Ticking it starts a timed sleep
+  and opens a sleep card with a big `01 h 35 m` timer and full-width
+  **Pause Sleep** and **Stop Sleep** buttons. A sleep is one shared session
+  stored in the database, so Joseph and Jen both see it, from any device,
+  and either can pause, resume or stop it; if both act at once the first
+  one wins and the other is told what happened ("Jen already paused this
+  sleep (6:08 pm)"). The timer is always worked out from the stored times
+  and the server's clock, never counted, so a phone locked for 95 minutes
+  reads `01 h 35 m` the moment it wakes, and a phone with the wrong time
+  can't skew it.
+  - **Stop works at any time**; if the whole sleep is under a minute it
+    asks first (Keep sleeping / Stop and save / Discard sleep). Pause needs
+    at least a minute of sleep.
+  - Started the log late? **Started earlier?** (and **Woke earlier?** on a
+    paused sleep) sets the time with a how-long-ago wheel or the device's
+    own time picker — time only, no dates, and a time later than now means
+    yesterday. Times are 12-hour am/pm in the device's time zone.
+  - A finished sleep card is read-only. **Reopen sleep** puts it back to
+    paused (within 3 hours of the last wake, and only if no newer sleep
+    exists). A sleep left paused for 3 hours closes itself at the last wake.
+  - The Sleep tile on a blank new card turns it into the sleep card; on a
+    card that already has other ticks it starts a new one. The running
+    sleep is pinned first in Today, on the iPad layout too (where Sleep is
+    also a column in the table).
+  - Deleting or discarding a sleep is a soft delete like every other
+    entry: it lands in Recently Deleted for 7 days and can be restored.
+  - Requires the new `20261017000000_sleeps` database migration (a `sleeps`
+    table, its realtime entry, and the functions that enforce the rules)
+    and its small follow-up `20261017000001_sleep_helpers_search_path`.
+    Sleeps aren't shown in Timeline or Reports yet.
+
 ### Fixed
 - The bottle/pump mL amount fields now reliably bring up the numeric-only
   keypad on iPad, including when the app is running as an installed

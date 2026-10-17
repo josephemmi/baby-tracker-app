@@ -147,13 +147,17 @@ export function groupEntriesIntoMoments(entries: EntryRow[]): Moment[] {
   );
 }
 
-export interface HomeDaySections {
-  todayMoments: Moment[];
+// Anything with a timestamp can be sectioned into Home's days — a moment, or
+// (JOS-56) a sleep alongside the moments, so "the last 3 from yesterday" and
+// "everything from today" count sleeps too. The `moments` field names below
+// predate that and now hold whichever items were passed in.
+export interface HomeDaySections<T extends { timestamp: string } = Moment> {
+  todayMoments: T[];
   todayLabel: string;
   // The last 3 entries (any type) from the previous calendar day only, for
   // midnight continuity — null when there's nothing from that day (first
   // day of use, or a gap day with nothing logged).
-  previousDay: { label: string; moments: Moment[] } | null;
+  previousDay: { label: string; moments: T[] } | null;
   // True when there's anything beyond what's shown above — either the
   // fetch itself was capped, an entry exists further back than the
   // previous day, or the previous day has more than the 3 shown.
@@ -178,18 +182,18 @@ function shortDayLabel(date: Date): string {
 // 2am, when today may have little or nothing yet) rather than turning Home
 // into a second Timeline. Derived entirely client-side from each moment's
 // own timestamp, against the local calendar day — no schema change.
-export function partitionHomeMoments(
-  moments: Moment[],
+export function partitionHomeMoments<T extends { timestamp: string }>(
+  moments: T[],
   now: Date,
   fetchTruncated: boolean,
-): HomeDaySections {
+): HomeDaySections<T> {
   const todayKey = calendarDayKey(now);
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
   const yesterdayKey = calendarDayKey(yesterday);
 
-  const todayMoments: Moment[] = [];
-  const yesterdayMoments: Moment[] = [];
+  const todayMoments: T[] = [];
+  const yesterdayMoments: T[] = [];
   let hasOlder = false;
 
   for (const moment of moments) {

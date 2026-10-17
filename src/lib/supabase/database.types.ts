@@ -9,6 +9,22 @@ export type Json =
 export type EntryType = "feed" | "pee" | "poop" | "pump";
 export type BreastSide = "right" | "left";
 export type UserRole = "parent" | "caregiver";
+export type SleepActionName =
+  | "start"
+  | "pause"
+  | "resume"
+  | "finish"
+  | "reopen"
+  | "edit"
+  | "delete"
+  | "restore";
+
+// One stretch of a sleep, as stored in sleeps.segments: UTC ISO text, the
+// last stretch's `end` null while it is running.
+export interface SleepSegmentJson {
+  start: string;
+  end: string | null;
+}
 
 export interface Database {
   public: {
@@ -142,9 +158,60 @@ export interface Database {
         };
         Relationships: [];
       };
+      // Created and changed only through the sleep functions below (see the
+      // 20261017000000_sleeps migration); a household member can edit just
+      // `notes` and `logged_by` directly.
+      sleeps: {
+        Row: {
+          id: string;
+          baby_id: string;
+          logged_by: string | null;
+          segments: SleepSegmentJson[];
+          started_at: string;
+          closed_at: string | null;
+          rev: number;
+          last_by: string | null;
+          last_action: SleepActionName;
+          last_at: string;
+          notes: string | null;
+          deleted_at: string | null;
+          deleted_by: string | null;
+          created_at: string;
+        };
+        Insert: never;
+        Update: {
+          logged_by?: string | null;
+          notes?: string | null;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
+      get_sleeps: {
+        Args: { p_baby_id: string; p_since: string };
+        Returns: Json;
+      };
+      start_sleep: {
+        Args: { p_baby_id: string; p_logged_by?: string | null };
+        Returns: Json;
+      };
+      pause_sleep: { Args: { p_id: string; p_rev: number }; Returns: Json };
+      resume_sleep: { Args: { p_id: string; p_rev: number }; Returns: Json };
+      stop_sleep: { Args: { p_id: string; p_rev: number }; Returns: Json };
+      reopen_sleep: { Args: { p_id: string; p_rev: number }; Returns: Json };
+      set_sleep_time: {
+        Args: {
+          p_id: string;
+          p_rev: number;
+          p_field: "start" | "end";
+          p_at?: string | null;
+          p_ago_minutes?: number | null;
+        };
+        Returns: Json;
+      };
+      delete_sleep: { Args: { p_id: string; p_rev: number }; Returns: Json };
+      restore_sleep: { Args: { p_id: string }; Returns: Json };
       create_household: {
         Args: { household_name: string; member_name: string };
         Returns: Database["public"]["Tables"]["households"]["Row"];

@@ -4,6 +4,10 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { serverNow } from "@/lib/server-clock";
+import { asleepMs, interleaveByTime, firstStart, type Sleep } from "@/lib/sleep";
+import { newestFirst, rowToSleep, sleepApi, type SleepRow } from "@/lib/sleep-api";
+import { describeSleepError, deviceZone, durationLabel } from "@/lib/sleep-format";
 import {
   daysLeftToRestore,
   formatTime,
@@ -16,6 +20,7 @@ import {
 import {
   TYPE_STYLES,
   FEED_FLAG_STYLES,
+  SLEEP_STYLE,
   type CheckboxStyle,
 } from "@/components/log/entry-styles";
 import { initials, personColor } from "@/lib/person-colors";
@@ -65,6 +70,8 @@ function momentDeletedMeta(moment: Moment) {
 interface RecentlyDeletedViewProps {
   babyId: string;
   entries: EntryRow[];
+  // Deleted (and discarded) sleeps — JOS-56. Restorable for the same 7 days.
+  sleeps?: SleepRow[];
   memberNames: Record<string, string>;
   memberColorIndex: Record<string, number>;
   pageSize: number;
@@ -73,11 +80,14 @@ interface RecentlyDeletedViewProps {
 export function RecentlyDeletedView({
   babyId,
   entries: initialEntries,
+  sleeps: initialSleeps = [],
   memberNames,
   memberColorIndex,
   pageSize,
 }: RecentlyDeletedViewProps) {
   const [entries, setEntries] = useState(initialEntries);
+  const [deletedSleeps, setDeletedSleeps] = useState(initialSleeps);
+  const [notice, setNotice] = useState<string | null>(null);
   const [collapsingKey, setCollapsingKey] = useState<string | null>(null);
   const [leaving, setLeaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +98,49 @@ export function RecentlyDeletedView({
   // deleted "pee + poo" logged together shows and restores as one card,
   // not two separate rows each needing their own tap.
   const moments = useMemo(() => groupEntriesIntoMoments(entries), [entries]);
+
+  // Deleted sleeps sit among the deleted moments, newest event first.
+  const sleepRows = useMemo(
+    () => new Map(deletedSleeps.map((row) => [row.id, row])),
+    [deletedSleeps],
+  );
+  const items = useMemo(
+    // The rows arrive newest-DELETED first; the merge needs newest-STARTED.
+    () => interleaveByTime(moments, newestFirst(deletedSleeps.map(rowToSleep))),
+    [moments, deletedSleeps],
+  );
+
+  async function handleRestoreSleep(row: SleepRow) {
+    setError(null);
+    setNotice(null);
+    const nameOf = (id: string | null) => (id && memberNames[id]) || "Someone";
+    try {
+      const reply = await sleepApi(createClient()).restore(row.id);
+
+      if (reply.status === "ok") {
+        setCollapsingKey(`sleep-${row.id}`);
+        window.setTimeout(() => {
+          setDeletedSleeps((prev) => prev.filter((r) => r.id !== row.id));
+          setCollapsingKey(null);
+          setNotice("Sleep restored.");
+        }, 300);
+        return;
+      }
+      if (reply.status === "gone") {
+        setDeletedSleeps((prev) => prev.filter((r) => r.id !== row.id));
+        setError("That sleep can't be restored any more.");
+        return;
+      }
+      // A rule said no — it would now overlap a sleep logged since.
+      setError(
+        reply.status === "error"
+          ? describeSleepError(reply.error, deviceZone(), serverNow(), nameOf)
+          : "Couldn't restore that sleep.",
+      );
+    } catch {
+      setError("Couldn't reach the server. Try again.");
+    }
+  }
 
   async function handleRestore(moment: Moment) {
     setError(null);
@@ -171,8 +224,9 @@ export function RecentlyDeletedView({
       </div>
 
       {error && <p className="text-sm text-terracotta">{error}</p>}
+      {notice && <p className="text-sm text-sage">{notice}</p>}
 
-      {moments.length === 0 ? (
+      {items.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-[10px] border border-line bg-paper-raised px-4 py-10 text-center shadow-card">
           <svg
             viewBox="0 0 24 24"
@@ -195,7 +249,23 @@ export function RecentlyDeletedView({
         </div>
       ) : (
         <div className="flex flex-col gap-2.5">
-          {moments.map((moment) => {
+          {items.map((item) => {
+            if (item.kind === "sleep") {
+              const row = sleepRows.get(item.sleep.id) as SleepRow;
+              return (
+                <DeletedSleepCard
+                  key={`sleep-${row.id}`}
+                  sleep={item.sleep}
+                  row={row}
+                  now={now}
+                  memberNames={memberNames}
+                  memberColorIndex={memberColorIndex}
+                  collapsing={collapsingKey === `sleep-${row.id}`}
+                  onRestore={() => handleRestoreSleep(row)}
+                />
+              );
+            }
+            const moment = item.moment;
             const pills = momentPills(moment);
             const { deletedAt, deletedBy } = momentDeletedMeta(moment);
             const deletedByName = (deletedBy && memberNames[deletedBy]) ?? "Unknown";
@@ -268,6 +338,89 @@ export function RecentlyDeletedView({
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+// A deleted sleep, in the same card as a deleted moment: when it started, one
+// pill with how long it lasted, who deleted it and when, and Restore.
+function DeletedSleepCard({
+  sleep,
+  row,
+  now,
+  memberNames,
+  memberColorIndex,
+  collapsing,
+  onRestore,
+}: {
+  sleep: Sleep;
+  row: SleepRow;
+  now: Date;
+  memberNames: Record<string, string>;
+  memberColorIndex: Record<string, number>;
+  collapsing: boolean;
+  onRestore: () => void;
+}) {
+  const deletedAt = row.deleted_at as string;
+  const deletedBy = row.deleted_by;
+  const deletedByName = (deletedBy && memberNames[deletedBy]) ?? "Unknown";
+  const color = personColor(deletedBy ? (memberColorIndex[deletedBy] ?? 0) : 0);
+  const days = daysLeftToRestore(deletedAt, now);
+
+  return (
+    <div
+      className={`overflow-hidden rounded-[10px] border border-line bg-paper-raised px-3.5 py-3 shadow-card transition-all duration-300 ${
+        collapsing
+          ? "max-h-0 scale-95 border-transparent px-0 py-0 opacity-0"
+          : "max-h-40 opacity-100"
+      }`}
+    >
+      <div className="mb-2 flex items-center gap-2">
+        <span className="text-[13.5px] font-bold tabular-nums text-ink">
+          {formatTime(new Date(firstStart(sleep)).toISOString(), "datetime")}
+        </span>
+        <span className="rounded-full border border-line-strong bg-paper px-2 py-0.5 text-[10.5px] font-bold text-ink-soft uppercase tracking-[0.03em]">
+          Deleted
+        </span>
+      </div>
+
+      <div className="mb-2.5 flex flex-wrap gap-1.5">
+        <span
+          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[12px] font-bold ${SLEEP_STYLE.border} ${SLEEP_STYLE.bg} ${SLEEP_STYLE.check}`}
+        >
+          Sleep · {durationLabel(asleepMs(sleep, now.getTime()))}
+        </span>
+      </div>
+
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-[12.5px] text-ink-soft">
+          <div className="flex items-center gap-1.5">
+            <span
+              className={`flex h-4 w-4 items-center justify-center rounded-full text-[8.5px] font-bold ${color.bg} ${color.text}`}
+            >
+              {initials(deletedByName)}
+            </span>
+            <span>
+              {deletedByName} · {formatTimeAgo(deletedAt, now)}
+            </span>
+          </div>
+          <div className="mt-0.5">
+            <b className="text-ink">
+              {days} {days === 1 ? "day" : "days"}
+            </b>{" "}
+            left to restore
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={onRestore}
+          disabled={collapsing}
+          className="shrink-0 rounded-full bg-sage px-4 py-2 text-[13px] font-bold text-paper-raised shadow-card transition-colors hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          Restore
+        </button>
+      </div>
     </div>
   );
 }

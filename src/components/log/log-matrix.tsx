@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -21,6 +21,22 @@ import { PrimaryButton } from "@/components/ui/primary-button";
 import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
 import { canEndBreastSession } from "@/lib/breastfeed-timer";
 import type { BreastSide } from "@/lib/supabase/database.types";
+import { serverNow } from "@/lib/server-clock";
+import {
+  endedAt,
+  firstStart,
+  openSleep as findOpenSleep,
+  underMinute,
+  type Sleep,
+  type SleepField,
+} from "@/lib/sleep";
+import type { SleepRow, SleepTimeInput } from "@/lib/sleep-api";
+import { deviceZone } from "@/lib/sleep-format";
+import { useIsClient } from "@/lib/use-is-client";
+import { useMediaQuery } from "@/lib/use-media-query";
+import { LiveSleepCard } from "@/components/log/sleep-card";
+import { ShortSleepDialog } from "@/components/log/short-sleep-dialog";
+import { useSleeps, type SleepOutcome } from "@/components/log/use-sleeps";
 
 interface Member {
   id: string;
@@ -44,12 +60,27 @@ function logMutationFailure(handler: string, error: unknown) {
   });
 }
 
+// One thing on Home's day-by-day list: a moment, or (JOS-56) a sleep.
+type HomeItem =
+  | { kind: "moment"; moment: Moment; timestamp: string }
+  | { kind: "sleep"; sleep: Sleep; timestamp: string };
+
+const NO_SLEEPS: Sleep[] = [];
+
+function splitItems(items: HomeItem[]) {
+  return {
+    moments: items.flatMap((item) => (item.kind === "moment" ? [item.moment] : [])),
+    sleeps: items.flatMap((item) => (item.kind === "sleep" ? [item.sleep] : [])),
+  };
+}
+
 interface LogMatrixProps {
   babyId: string;
   currentUserId: string;
   members: Member[];
   initialEntries: EntryRow[];
   hasMoreEntries?: boolean;
+  initialSleeps?: SleepRow[];
 }
 
 export function LogMatrix({
@@ -58,6 +89,7 @@ export function LogMatrix({
   members,
   initialEntries,
   hasMoreEntries = false,
+  initialSleeps = [],
 }: LogMatrixProps) {
   const [entries, setEntries] = useState(initialEntries);
   const [drafts, setDrafts] = useState<Moment[]>([]);
@@ -92,22 +124,93 @@ export function LogMatrix({
     [drafts, entries],
   );
 
+  // A short message at the bottom of the screen: the other parent got there
+  // first, a sleep rule said no, the network dropped.
+  // The text stays while it fades out, so the pill doesn't collapse to an
+  // empty bar on the way.
+  const [toast, setToast] = useState({ text: "", visible: false });
+  const toastTimer = useRef<number | null>(null);
+  const showToast = useCallback((text: string) => {
+    setToast({ text, visible: true });
+    if (toastTimer.current !== null) window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(
+      () => setToast((prev) => ({ ...prev, visible: false })),
+      3200,
+    );
+  }, []);
+  useEffect(() => {
+    return () => {
+      if (toastTimer.current !== null) window.clearTimeout(toastTimer.current);
+    };
+  }, []);
+
+  // Sleeps (JOS-56): stored in the database and shared, so either parent sees
+  // and controls the same one from any device. See use-sleeps.ts.
+  const sleepCtl = useSleeps({
+    babyId,
+    initialRows: initialSleeps,
+    memberNames,
+    onMessage: showToast,
+  });
+  // Sleep cards show device-zone times and a live timer, which the server
+  // can't render, so they appear once the page is running in the browser.
+  const isClient = useIsClient();
+  const sleepList = isClient ? sleepCtl.sleeps : NO_SLEEPS;
+  const runningSleep = useMemo(
+    () => findOpenSleep(sleepList, now.getTime()),
+    [sleepList, now],
+  );
+  const [sleepFlashId, setSleepFlashId] = useState<string | null>(null);
+  const [shortDialog, setShortDialog] = useState<{ id: string; rev: number } | null>(null);
+  const [pendingSleepDelete, setPendingSleepDelete] = useState<{
+    id: string;
+    rev: number;
+  } | null>(null);
+
+  // The log the day sections are cut from: moments and sleeps together,
+  // newest first. The running sleep is pinned above them instead (below).
+  const homeItems = useMemo<HomeItem[]>(() => {
+    const momentItems = moments.map<HomeItem>((moment) => ({
+      kind: "moment",
+      moment,
+      timestamp: moment.timestamp,
+    }));
+    // Sectioned by when each sleep ENDED (see endedAt); the card still shows,
+    // and the phone list still orders by, when it began.
+    const sleepItems = sleepList
+      .filter((sleep) => sleep.id !== runningSleep?.id)
+      .map<HomeItem>((sleep) => ({
+        kind: "sleep",
+        sleep,
+        timestamp: new Date(endedAt(sleep, now.getTime())).toISOString(),
+      }));
+    return [...momentItems, ...sleepItems].sort((a, b) =>
+      b.timestamp.localeCompare(a.timestamp),
+    );
+  }, [moments, sleepList, runningSleep, now]);
+
   // JOS-21: today's entries in full, plus the previous calendar day's last
   // 3 entries for continuity — everything older stays behind "View more".
   const homeSections = useMemo(
-    () => partitionHomeMoments(moments, now, fetchTruncated),
-    [moments, now, fetchTruncated],
+    () => partitionHomeMoments(homeItems, now, fetchTruncated),
+    [homeItems, now, fetchTruncated],
   );
 
   const visibleMoments = useMemo(
-    () => [...homeSections.todayMoments, ...(homeSections.previousDay?.moments ?? [])],
+    () => [
+      ...homeSections.todayMoments,
+      ...(homeSections.previousDay?.moments ?? []),
+    ].flatMap((item) => (item.kind === "moment" ? [item.moment] : [])),
     [homeSections],
   );
 
   const momentGroups = useMemo<MomentGroup[]>(() => {
     const groups: MomentGroup[] = [
       {
-        moments: homeSections.todayMoments,
+        ...splitItems(homeSections.todayMoments),
+        // Whatever day it started, a sleep that is still going is pinned
+        // first in Today.
+        pinnedSleep: runningSleep ?? undefined,
         divider: homeSections.previousDay
           ? { label: homeSections.todayLabel }
           : undefined,
@@ -115,16 +218,19 @@ export function LogMatrix({
     ];
     if (homeSections.previousDay) {
       groups.push({
-        moments: homeSections.previousDay.moments,
+        ...splitItems(homeSections.previousDay.moments),
         divider: { label: homeSections.previousDay.label },
         tail: true,
       });
     }
     return groups;
-  }, [homeSections]);
+  }, [homeSections, runningSleep]);
 
   useEffect(() => {
-    const interval = setInterval(() => setNow(new Date()), 60_000);
+    // The server-corrected clock (a no-op until a sleep reply has told us the
+    // gap): which sleep is pinned and which day it sits under must agree with
+    // what the sleep cards themselves show, and they read that clock.
+    const interval = setInterval(() => setNow(new Date(serverNow())), 60_000);
     return () => clearInterval(interval);
   }, []);
 
@@ -809,6 +915,167 @@ export function LogMatrix({
     }
   }
 
+  /* ---------- sleep (JOS-56) ---------- */
+
+  // Every sleep action answers with a message when something other than plain
+  // success needs saying (the other parent got there first, a rule said no);
+  // show it, whichever action it was.
+  async function runSleep(call: Promise<SleepOutcome>): Promise<SleepOutcome> {
+    const outcome = await call;
+    if (outcome.message) showToast(outcome.message);
+    return outcome;
+  }
+
+  function scrollToSleep(id: string) {
+    // The card exists twice (phone list and wide stack); one is display:none.
+    const card = Array.from(
+      document.querySelectorAll<HTMLElement>(`[data-sleep-card="${id}"]`),
+    ).find((el) => el.offsetParent !== null);
+    card?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }
+
+  function flashSleep(id: string, scroll: boolean) {
+    setSleepFlashId(id);
+    window.setTimeout(() => setSleepFlashId(null), 1400);
+    // After the new card has rendered.
+    if (scroll) window.setTimeout(() => scrollToSleep(id), 60);
+  }
+
+  // The Sleep tile: a blank draft card turns into the sleep card; a card that
+  // already has ticks starts a new one. If a sleep is already open, say so and
+  // take the user to it instead.
+  async function handleStartSleep(moment: Moment) {
+    if (sleepCtl.pending.has("new")) return;
+    setError(null);
+    const blankDraft = !!moment.isDraft && !moment.notes;
+    const outcome = await runSleep(
+      sleepCtl.start(blankDraft ? (moment.loggedBy ?? currentUserId) : currentUserId),
+    );
+    if (outcome.sleep) flashSleep(outcome.sleep.id, true);
+    if (outcome.ok && blankDraft) {
+      setDrafts((prev) => prev.filter((d) => d.key !== moment.key));
+    }
+  }
+
+  function handleStopSleep(sleep: Sleep) {
+    // Stop always works. Under a minute in total there is nothing worth
+    // keeping yet, so ask first; past that it just stops.
+    if (underMinute(sleep, serverNow())) {
+      setShortDialog({ id: sleep.id, rev: sleep.rev });
+      return;
+    }
+    void runSleep(sleepCtl.stop(sleep));
+  }
+
+  async function handleSleepSetTime(
+    sleep: Sleep,
+    field: SleepField,
+    input: SleepTimeInput,
+  ): Promise<string | null> {
+    const outcome = await sleepCtl.setTime(sleep, field, input);
+    if (outcome.ok) {
+      flashSleep(sleep.id, false);
+      return null;
+    }
+    // A rule said no (overlap, before the last sleep...): that belongs under
+    // the picker. Someone else changing the sleep first is a toast, and the
+    // card has already moved on.
+    if (outcome.status === "error" || outcome.status === "offline") {
+      return outcome.message ?? "Couldn't save that time.";
+    }
+    if (outcome.message) showToast(outcome.message);
+    return null;
+  }
+
+  function handleSleepLoggedByCycle(sleep: Sleep) {
+    if (members.length === 0) return;
+    const currentIndex = members.findIndex((m) => m.id === sleep.by);
+    void sleepCtl.setLoggedBy(sleep, members[(currentIndex + 1) % members.length].id);
+  }
+
+  function handleSleepNotes(sleep: Sleep, value: string) {
+    const notes = value.trim() || null;
+    if (notes === sleep.notes) return;
+    void sleepCtl.setNotes(sleep, notes);
+  }
+
+  async function confirmSleepDelete() {
+    const pending = pendingSleepDelete;
+    setPendingSleepDelete(null);
+    const sleep = pending && sleepList.find((s) => s.id === pending.id);
+    if (!pending || !sleep) return;
+    // The rev the user was looking at when they tapped ×, not the latest: if
+    // the other parent changed the sleep since, the delete loses.
+    await runSleep(sleepCtl.remove({ ...sleep, rev: pending.rev }));
+  }
+
+  // The under-a-minute dialog closes itself if the sleep changes under it
+  // (the other parent stops it, say): it is only open for the very version
+  // that was on screen when Stop was tapped.
+  const dialogSleep = shortDialog && sleepList.find((s) => s.id === shortDialog.id);
+  const shortDialogOpen =
+    !!shortDialog && !!dialogSleep && dialogSleep.rev === shortDialog.rev && dialogSleep.closedAt == null;
+
+  async function discardShortSleep() {
+    const sleep = dialogSleep;
+    setShortDialog(null);
+    if (!sleep) return;
+    const outcome = await runSleep(sleepCtl.remove(sleep));
+    if (outcome.ok) showToast("Sleep discarded.");
+  }
+
+  function stopShortSleep() {
+    const sleep = dialogSleep;
+    setShortDialog(null);
+    if (sleep) void runSleep(sleepCtl.stop(sleep));
+  }
+
+  // Both layouts are in the page (one hidden by CSS); a sleep card is drawn in
+  // the one in use only, so it isn't re-rendered every second twice over.
+  const isWide = useMediaQuery("(min-width: 640px)");
+  const todaySleepIds = useMemo(
+    () =>
+      new Set(
+        homeSections.todayMoments.flatMap((item) => (item.kind === "sleep" ? [item.sleep.id] : [])),
+      ),
+    [homeSections],
+  );
+
+  const renderSleep = (sleep: Sleep, layout: "phone" | "wide") => {
+    if ((layout === "wide") !== isWide) return null;
+    const zone = deviceZone();
+    const started = firstStart(sleep);
+    const otherDay = zone.dayKey(started) !== zone.dayKey(now.getTime());
+    return (
+      <LiveSleepCard
+        sleep={sleep}
+        sleeps={sleepList}
+        members={members}
+        memberNames={memberNames}
+        flash={sleepFlashId === sleep.id}
+        // The phone list has day dividers; the wide stack does not. And a
+        // sleep that began on another day but sits under Today (still
+        // running, or ended this morning) needs saying on both.
+        dayPrefix={
+          otherDay &&
+          (layout === "wide" || sleep.id === runningSleep?.id || todaySleepIds.has(sleep.id))
+            ? zone.fmtDay(started)
+            : undefined
+        }
+        busy={sleepCtl.pending.has(sleep.id)}
+        onPause={() => void runSleep(sleepCtl.pause(sleep))}
+        onResume={() => void runSleep(sleepCtl.resume(sleep))}
+        onStop={() => handleStopSleep(sleep)}
+        onReopen={() => void runSleep(sleepCtl.reopen(sleep))}
+        onDelete={() => setPendingSleepDelete({ id: sleep.id, rev: sleep.rev })}
+        onSetTime={(field, input) => handleSleepSetTime(sleep, field, input)}
+        onLoggedByCycle={() => handleSleepLoggedByCycle(sleep)}
+        onNotesCommit={(value) => handleSleepNotes(sleep, value)}
+        onNotice={showToast}
+      />
+    );
+  };
+
   function toggleSelectMode() {
     setSelectMode((prev) => !prev);
     setSelectedKeys(new Set());
@@ -964,6 +1231,8 @@ export function LogMatrix({
         onBreastSideToggle={handleBreastSideToggle}
         onEndBreastSession={handleEndBreastSession}
         onLoggedByCycle={handleLoggedByCycle}
+        onStartSleep={handleStartSleep}
+        renderSleep={renderSleep}
         selectMode={selectMode}
         selectedKeys={selectedKeys}
         onToggleSelect={toggleSelected}
@@ -986,6 +1255,31 @@ export function LogMatrix({
         onConfirm={confirmPendingDelete}
         onCancel={() => setPendingDelete(null)}
       />
+
+      <ConfirmDeleteModal
+        open={pendingSleepDelete !== null}
+        title="Delete this sleep?"
+        body="You can restore it from Recently Deleted in Timeline for 7 days."
+        onConfirm={confirmSleepDelete}
+        onCancel={() => setPendingSleepDelete(null)}
+      />
+
+      <ShortSleepDialog
+        open={shortDialogOpen}
+        onKeep={() => setShortDialog(null)}
+        onStopAndSave={stopShortSleep}
+        onDiscard={discardShortSleep}
+      />
+
+      <div
+        role="status"
+        aria-live="polite"
+        className={`pointer-events-none fixed bottom-[max(24px,env(safe-area-inset-bottom))] left-1/2 z-[60] w-[calc(100vw-32px)] max-w-[420px] -translate-x-1/2 rounded-xl bg-ink px-3.5 py-2.5 text-[13px] leading-snug text-paper-raised shadow-card transition-opacity duration-150 ${
+          toast.visible ? "opacity-100" : "opacity-0"
+        }`}
+      >
+        {toast.text}
+      </div>
     </div>
   );
 }
