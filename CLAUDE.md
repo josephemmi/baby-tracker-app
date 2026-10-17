@@ -327,8 +327,12 @@ time.
   pattern inferred from other branches' aliases) — a wrong guess costs a
   real round trip (he hits a `DEPLOYMENT_NOT_FOUND` 404, reports back,
   waits again). Always call `mcp__Vercel__list_deployments` for the
-  project and read the actual `branchAlias`/`url` off the matching
-  deployment before sharing a preview link.
+  project (pass `branch`, `projectId: "baby-tracker-app"`, `slug:
+  "josephemmis-projects"`) to find the matching deployment and check it
+  is `READY`; that listing carries the deployment's own `url` but **not**
+  its stable branch alias, so read the alias with
+  `mcp__Vercel__list_deployment_aliases` on that deployment's `id`
+  before sharing a preview link (JOS-56 review round).
 - **Git identity on web sessions**: a SessionStart hook
   (`.claude/hooks/session-start.sh`) sets the local clone's
   `user.name`/`user.email` to the repo owner so commits count toward their
@@ -383,7 +387,10 @@ time.
   time: Postgres refuses to run as root, and its data directory must live
   under the `postgres` user's home (`/var/lib/postgresql/…`) — in the
   scratchpad path it works until permissions on the parent dirs reset and the
-  server PANICs mid-run; the Supabase stand-ins it needs are the roles
+  server PANICs mid-run; the cluster is **not running after a session
+  resumes** (the data directory survives, the process doesn't): `rm -f
+  <data>/postmaster.pid`, then `pg_ctl start` as `postgres` again; the
+  Supabase stand-ins it needs are the roles
   `anon`/`authenticated`/`service_role` (cluster-wide, created once), an
   `auth` schema with `auth.uid()` reading `request.jwt.claim.sub`, a
   `supabase_realtime` publication, and — per database, *before* applying

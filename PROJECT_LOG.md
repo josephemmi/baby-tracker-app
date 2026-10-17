@@ -19,6 +19,76 @@ picks this up next.
 
 ---
 
+## 2026-10-17, later (JOS-56 review round and merge, JOS-58, JOS-59)
+
+**Done:**
+- [JOS-56](https://linear.app/josephemmi/issue/JOS-56) (Done): Joseph
+  used the Sleep tracker on his phone and sent a round of feedback, each
+  point agreed against an interactive prototype (a private artifact)
+  before any code. Built in commit `93fc274`: the status label is 15 px
+  (matching the card's own time) with an 11 px dot, the *word* centred on
+  the card's centre line and the dot hanging left; start time centred
+  under the timer with "Started earlier?" on its own line; Stop Sleep in
+  the app's dark rose; the picker has no Save step (the wheel's **Set**,
+  or tapping the highlighted row, saves and closes; Pick a time saves
+  0.4 s after the phone's picker returns; only a time over 3 h ago asks
+  "Save anyway"; the other row tucks away while the wheel is open); a
+  running or reopened sleep is no longer pinned to the top (`filedAt` in
+  `sleep.ts`: filed under Today, ordered by its start), so Reopen leaves
+  the card where it was; a finished card with no Reopen button says why
+  ("This sleep can't be reopened: …"). 51 new browser checks on the
+  scratch-Postgres harness plus the older suites updated where the design
+  changed on purpose; 194 unit tests. [PR #37](https://github.com/josephemmi/baby-tracker-app/pull/37)
+  was merged with Joseph's go-ahead (merge commit `6ad4436`); production
+  deployed READY. Linear moved JOS-56 to Done by itself on merge, ahead of
+  the release steps.
+- [JOS-58](https://linear.app/josephemmi/issue/JOS-58) (Feature, Needs
+  Scoping, High, Backlog): a standard notification system to replace the
+  ad-hoc bottom toast. Joseph's notes: the states should be fairly
+  consistent, maybe identical, and he'd rather have a centred pop-up like
+  the Discard-sleep dialog than a pill. His next backlog item after
+  JOS-56.
+- [JOS-59](https://linear.app/josephemmi/issue/JOS-59) (Process, In
+  Review): every feature release now gets a short visual user guide.
+  `scripts/generate-user-guide.py` + `docs/user-guides/<feature>/`
+  (`guide.json` and annotated screenshots); the first one, the Sleep
+  tracker (6 pages, A4), was sent to Joseph in chat.
+  [PR #38](https://github.com/josephemmi/baby-tracker-app/pull/38) is
+  open, not merged; it also carries the CLAUDE.md "User guides" rule and
+  this retro's notes.
+
+**In flight / open:**
+- PR #38 needs Joseph's review (docs and tooling only, no preview).
+- **v1.12 is not released.** `package.json` is still 1.11.2 and the
+  CHANGELOG entry is under `[Unreleased]`. The cut needs: Joseph's
+  version confirmation (a minor, 1.12.0, is the proposal), the
+  release-notes PDF with tight screenshots, and the user guide (refresh
+  it if the UI changed), both attached to JOS-56 (already Done) and sent
+  in chat.
+- Device checks still outstanding: on Jen's iPad, whether Pick a time
+  saves mid-scroll (iOS may report every step; the fallback is a Save
+  button on that route only); on his phone, Set / tap-to-set and Pick a
+  time; two devices and realtime.
+- [JOS-58](https://linear.app/josephemmi/issue/JOS-58) is next in the
+  backlog.
+
+**Worth knowing:**
+- Joseph's choice of wording for the "can't be reopened" line named only
+  the 3-hour case; the other two reasons (a new sleep has started; closed
+  itself after 3 hours paused) use the same pattern by my reading.
+- The user-guide screenshots come from a scripted story, but the capture
+  script and the harness still live only in a session scratchpad
+  ([JOS-57](https://linear.app/josephemmi/issue/JOS-57) now covers
+  committing both, with a one-command start). The scratch Postgres is not
+  running after a session resumes; CLAUDE.md has the restart recipe.
+- The Next.js dev overlay badge ("1 Issue") shows under the fake clock and
+  intercepts hit-tests near the bottom-left of the viewport; hide
+  `nextjs-portal` before shooting or hit-testing.
+- The preview alias for a branch isn't in `list_deployments`; use
+  `list_deployment_aliases` (CLAUDE.md updated).
+
+---
+
 ## 2026-10-17 (JOS-56/JOS-57)
 
 **Done:**
