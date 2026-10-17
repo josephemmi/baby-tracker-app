@@ -134,6 +134,15 @@
   ticket to Done the moment its PR merges, so on a release cut this order
   is often already broken before the release starts. Attach and comment
   anyway, after the fact; it is still the record.)
+  - **How to attach a file to a Linear ticket** (v1.12.0 cut): call
+    `mcp__Linear__prepare_attachment_upload` (issue, filename,
+    `application/pdf`, the file's exact byte size), then **within 60
+    seconds** `curl -X PUT --data-binary @<file>` to the returned URL
+    with every header in `uploadRequest.headers` sent verbatim (a missing
+    or altered one is a 403), then `mcp__Linear__create_attachment_from_upload`
+    with the returned `assetUrl`. One file at a time, and once per ticket:
+    a PDF going to two tickets is uploaded twice. Don't also pass the
+    URL as a `link` on `save_issue`.
 - **User guides** (JOS-59; first one: the Sleep tracker, v1.12.0). Every
   release that ships a **new user-facing feature** (a minor or major, not
   a fix-only patch) also gets a short, visual user guide for it,
