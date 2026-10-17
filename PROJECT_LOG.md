@@ -19,6 +19,74 @@ picks this up next.
 
 ---
 
+## 2026-10-17 (JOS-56/JOS-57)
+
+**Done:**
+- [JOS-56](https://linear.app/josephemmi/issue/JOS-56) (In Review): the
+  Sleep tracker — the headline feature of v1.12. Sleep is the fifth tile
+  on the Log screen; ticking it starts a shared, timed sleep card (big
+  `01 h 35 m` timer, Pause / Stop, "Started earlier?" subcard with a
+  how-long-ago wheel and a full-row time input, under-a-minute Stop
+  dialog, read-only finished card with Reopen, soft delete into Recently
+  Deleted). [PR #37](https://github.com/josephemmi/baby-tracker-app/pull/37)
+  is open, not merged. Built from the Drive spec + prototype
+  (Docs → v1.12). Decisions worth knowing: stretches are a **jsonb array**
+  on a new `sleeps` row (one conditional `where rev = …` update = first
+  write wins; one realtime event carries the whole sleep); every write is a
+  security-definer function using the **server clock**, and the client
+  corrects its own clock against it on every reply, so a phone with the
+  wrong time can't skew the timer; members may edit only `notes` and
+  `logged_by` on the table directly (neither bumps `rev`); finished
+  sleeps are filed under the day they **ended**, so an overnight sleep
+  stays on Home; deleting an open sleep closes it as it goes so a
+  restore is always a plain finished sleep. Engine rules ported to
+  `src/lib/sleep.ts` (+ `sleep-format.ts`, `sleep-api.ts`), 190 unit
+  tests; SQL scenarios in `supabase/tests/sleeps.sql`.
+- Migrations `20261017000000_sleeps` and `20261017000001_sleep_helpers_search_path`
+  were **applied to the live Supabase project** this session with Joseph's
+  go-ahead (verified read-only: RLS, policies, realtime publication,
+  grants, advisors).
+- Verified end to end with a scratch Postgres + Playwright answering the
+  app's Supabase calls by running the real SQL functions: 218 browser
+  checks. It found a real bug the SQL tests missed (a plpgsql trigger
+  privilege failure hidden by plan caching) — now a CLAUDE.md gotcha along
+  with the migration-apply workflow and the harness recipe.
+- `retro` filed [JOS-57](https://linear.app/josephemmi/issue/JOS-57)
+  (Process, Backlog): commit that harness as reusable tooling (it only
+  lives in a session scratchpad today). The CLAUDE.md notes ride on PR #37
+  as a docs-only commit because the harness confines the session to one
+  branch.
+
+**In flight / open:**
+- PR #37 needs Joseph's review and real-device checks (can't be done from
+  Claude Code): Android Chrome and Jen's iPad home-screen app (the whole
+  "Pick a time" row opens the picker; wheel feel; the dialog), and two
+  devices (start on one and see it on the other, both tapping Stop at once,
+  a phone locked for a long time) — **especially that realtime delivers
+  within a second or two**; only the poll/refetch path was exercised here.
+- Not released: `CHANGELOG.md` has the entry under `[Unreleased]` and
+  `package.json` is still 1.11.2. Cutting 1.12 (version confirm,
+  release-notes PDF with tight screenshots, attach to JOS-56) is the next
+  release step once Joseph is happy.
+- Sleeps don't appear in Timeline, Reports or day summaries yet (spec open
+  question 3 — needs its own prototype and ticket); Recently Deleted does
+  list and restore them.
+
+**Worth knowing:**
+- The 43 engine checks the spec mentions weren't in the Drive folder (only
+  the spec and the prototype were), so the unit tests were written from the
+  spec's description of them.
+- Judgement calls flagged in the PR for Joseph to overturn if he disagrees:
+  Discard colour follows the prototype's rose-dark, not the spec's hex;
+  the iPad layout (sleep cards stacked above the table, Sleep column) is
+  mine since the prototype is phone-only; the TS write functions in
+  `sleep.ts` mirror the SQL but the screens don't call them, so a rule
+  change touches the TS, the SQL and both test files.
+- The live `entries` count moved while this session ran (2378 → 2379):
+  that was the household logging, not a migration side effect.
+
+---
+
 ## 2026-09-15/16 (JOS-54/JOS-55)
 
 **Done:**

@@ -25,6 +25,13 @@
   branch, named for that work (e.g. `claude/bottle-ml-silent-save-6qtn1i`).
   Never reuse an old branch for unrelated new work, and never push
   directly to the production branch.
+  - When the session harness assigns a branch up front (a name like
+    `ccr-421dc2bd-4k5wb1`) and forbids pushing anywhere else, use it: it's a
+    fresh branch cut from the production tip, so it isn't "an old branch,"
+    and it can't be renamed to something descriptive. The PR still targets
+    the production branch, and a docs-only follow-up (a retro's CLAUDE.md /
+    PROJECT_LOG.md edits) rides on the same branch and PR as a separate
+    commit rather than needing a second branch (JOS-56 session).
 - Every branch gets a PR back into the production branch before merging,
   even for docs-only or config-only changes. There's no CI pipeline
   configured for this repo, so the PR — and the checks below, run by
@@ -282,6 +289,68 @@ time.
   config` to change commit identity yourself, even if asked — this hook
   (or its retroactive counterpart) is the sanctioned mechanism, not manual
   intervention mid-session.
+- **Applying a migration to the live Supabase project (JOS-56 session).**
+  `supabase/migrations/` is the record, but nothing runs it automatically:
+  past migrations were applied with the Supabase MCP connector's
+  `mcp__Supabase__apply_migration` (project `kiebilklmqhrywvcovsu`, file
+  contents passed verbatim), so the version Supabase records is the apply
+  time (e.g. `20261017043920_sleeps`), not the filename's timestamp — that
+  mismatch is expected. Three things to know: (1) DDL on the live database
+  is Joseph's call, not a default — ask first (AskUserQuestion), and test
+  the migration on a scratch Postgres beforehand (next bullet); (2) the
+  Vercel preview and production share that one live project, so a preview
+  of a feature that needs a migration doesn't work until it's applied —
+  settle that before handing over a preview link; (3) afterwards verify
+  with read-only SQL, never test rows in production: `relrowsecurity`,
+  `pg_policy`, `pg_publication_tables`, `has_function_privilege('anon'|
+  'authenticated', …)`, plus `mcp__Supabase__get_advisors`. Advisor
+  expectations: "signed-in users can execute SECURITY DEFINER function" is
+  expected for RPC-style functions that check household membership inside
+  (and the `anon` ones on `create_household`/`join_household`/
+  `current_household_id` pre-date this); do pin `set search_path` on
+  helper functions, which it also flags.
+- **A plpgsql trigger that calls functions its caller can't execute works or
+  fails depending on which role first ran it on that connection (JOS-56).**
+  plpgsql caches its plans per connection, and SQL functions get inlined at
+  plan time — so a `security invoker` trigger calling a helper revoked from
+  `authenticated` passed every SQL test (an earlier call as the table owner
+  had warmed the cache) and then failed with `permission denied for
+  function …` the first time a fresh connection ran it as a member —
+  intermittent in production. Make trigger functions that touch revoked
+  helpers `security definer` (with `set search_path`), and in SQL tests run
+  `discard plans;` right before any check that must prove a *member's* first
+  run works. More generally: a test suite that runs everything in one
+  session can hide privilege bugs; mutation-check new SQL tests by breaking
+  the rule in a copy of the migration and confirming the test goes red.
+- **Verifying a DB-backed feature end to end from a web session (JOS-56;
+  JOS-57 tracks committing this as tooling).** The mock-data dev-preview
+  route above can't catch bugs in SQL, RLS or grants, and the live project is
+  unreachable from here. What works: a scratch Postgres 16 (binaries in
+  `/usr/lib/postgresql/16/bin`) with every migration applied, the real
+  component tree on a temporary dev-preview route, and Playwright answering
+  the browser's Supabase calls itself — `context.route('http://localhost:
+  54321/**')` (with the dummy `.env.local` URL pointing there) fulfils
+  `/rest/v1/rpc/<fn>` by running the real function through `psql`, per
+  simulated device/user (two contexts = two phones). Pitfalls that cost real
+  time: Postgres refuses to run as root, and its data directory must live
+  under the `postgres` user's home (`/var/lib/postgresql/…`) — in the
+  scratchpad path it works until permissions on the parent dirs reset and the
+  server PANICs mid-run; the Supabase stand-ins it needs are the roles
+  `anon`/`authenticated`/`service_role` (cluster-wide, created once), an
+  `auth` schema with `auth.uid()` reading `request.jwt.claim.sub`, a
+  `supabase_realtime` publication, and — per database, *before* applying
+  migrations — `alter default privileges in schema public grant all on
+  tables, functions to anon, authenticated, service_role` so grants behave as
+  on Supabase; `psql -c "a; b; c"` prints every statement's result (take the
+  last line); act as a member with `set local role authenticated; select
+  set_config('request.jwt.claim.sub', '<uuid>', true)` in the same call;
+  make the clock controllable (a `sleep_now()`-style function reading a
+  one-row table, truncated to ms like production) and drive the browser with
+  `page.clock.install` + `fastForward` (fires timers once, exactly a locked
+  phone); filter the fake clock's hydration warning from `GlanceCards`
+  (pre-existing, not yours). Not exercised this way: the realtime WebSocket,
+  so say so and ask Joseph to watch it on two devices. And `pkill -f "next
+  dev"` kills your own shell (it matches the command line) — find the PID.
 - **"App not loading" diagnostic playbook (2026-08-27 incident).** Joseph
   reported `baby-tracker-app-bay.vercel.app` unreachable from every real
   device (phone on WiFi and cellular, iPad), while every server-side
