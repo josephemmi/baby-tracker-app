@@ -114,16 +114,35 @@
   make text wrap differently than it actually renders, which is
   misleading in release notes even though it's harmless in a quick
   verification screenshot. Pass them as trailing args to
-  `generate-release-notes.py` as `path.png::Short caption`: the script
-  puts them **first, on page one, under the title** ("What it looks
-  like"), because a PDF preview (Linear's, the chat's) shows only page
-  one, and a release with a UI change must visibly have screenshots.
-  Cover the headline UI change in three or four shots. Buried at the
-  bottom of page two they were present but invisible, and Joseph
+  `generate-release-notes.py` (plain paths, no captions): they go after
+  the bullets, before the footer, a lone shot at full width and several
+  side by side in one row. A PDF preview (Linear's, the chat's) shows
+  only page one, and a release with a UI change must visibly have
+  screenshots, so the notes have to stay on **one page** — see the next
+  bullet. Cover the headline UI change in up to three shots. Buried at
+  the bottom of page two they were present but invisible, and Joseph
   reported "no screenshots" (v1.12.0 cut), the second time this has had
   to be raised. **Before sending, check what he'll see**: `pdfimages -list
   -f 1 -l 1 <pdf>` must list the images, and view page one (`pdftoppm -r
   70 -f 1 -l 1`).
+- **Release notes keep one structure, release after release** (v1.12.0
+  cut: a first version with a "What it looks like" grid up front,
+  captions, sub-bullets and three pages was sent back with "use the
+  structure that has been used before"). The established form, read from
+  the last releases in Joseph's Drive "Release Notes" folder
+  (`1yAyDoPTxjhcOI9DsOG69vIBTVoeVik-K`; v1.11.0, v1.11.1, v1.11.2 and the
+  `generate-release-notes.py` history): one Letter page; NESTLOG, the
+  title, the date and a rule; an Added / Changed / Fixed heading per
+  section; **one flat bullet per CHANGELOG entry, a single plain paragraph
+  with the ticket in parentheses** (about 60–140 words, no sub-bullets, no
+  bold); screenshots after the bullets, no heading and no captions; a rule
+  and the one-line footer. So write CHANGELOG entries in that form (detail
+  that doesn't fit belongs in the PR, `PROJECT_LOG.md` or the user guide),
+  and before cutting a release **read the previous releases' PDFs and
+  compare**: when the new notes differ in structure, change the new ones,
+  not the old pattern. `read_file_content` on a Drive file id gives the
+  text; `download_file_content` gives the PDF base64 (small enough to
+  decode with `base64 -d` and render with `pdftoppm`).
 - Do not upload the PDF to Google Drive yourself. Attach it directly to
   the Linear ticket(s) for that release (Linear supports file
   attachments on issues) AND send it through chat via `SendUserFile` —

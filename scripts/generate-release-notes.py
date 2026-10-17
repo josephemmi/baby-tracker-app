@@ -9,15 +9,17 @@ Example:
     python3 scripts/generate-release-notes.py 1.6.0 CHANGELOG.md \
         /tmp/NestlogReleaseNotesv1.6.0.pdf /tmp/shot1.png /tmp/shot2.png
 
-Trailing arguments are screenshots of the shipped feature(s), shown
-FIRST, right under the title on page one (a PDF preview shows only page
-one, and a release with a UI change must visibly have screenshots), in the
-order given. Write each as `path.png::A short caption`; the caption is
-optional. Up to three go side by side, four or more in rows of two, each
-capped in height so tall phone-card shots stay readable.
+Trailing arguments are screenshots of the shipped feature(s). They go after
+the bullets, before the footer, as earlier releases did, in the order given:
+one on its own at full width, several side by side in a single row at one
+height. Entries in the CHANGELOG are one plain paragraph each (ticket in
+parentheses, no sub-bullets) so the notes stay on one page and the
+screenshots land on it. A PDF preview shows only page one, and a release
+with a UI change must visibly have screenshots.
 
-Bullets may have indented sub-bullets (two-space `  - `); `**bold**` and
-`code` in the text are rendered as bold and monospace.
+`**bold**` and `code` in the text are rendered as bold and monospace.
+Indented sub-bullets (two-space `  - `) still work, but earlier releases
+never used them.
 
 Requires reportlab (pip install reportlab). Per CLAUDE.md's release
 process, the resulting PDF is attached to the release's Linear ticket(s)
@@ -56,62 +58,33 @@ def inline(text):
     return re.sub(r"`([^`]+)`", r'<font face="Courier" size="9.5">\1</font>', text)
 
 
-def split_shot(arg):
-    """`path.png::Caption` -> (path, caption)."""
-    path, _, caption = arg.partition("::")
-    return path, caption.strip()
-
-
 def screenshot_block(shots, content_width):
-    """The shipped UI, up front, in a grid of captioned screenshots."""
+    """The shipped UI: a lone shot at full width, several in one row at a shared height."""
     if not shots:
         return []
-    caption_style = ParagraphStyle(
-        "ShotCaption", fontName="Helvetica", fontSize=9, leading=12,
-        textColor=INK_SOFT, alignment=1, spaceBefore=5, spaceAfter=10,
-    )
-    label_style = ParagraphStyle(
-        "ShotLabel", fontName="Helvetica-Bold", fontSize=11.5, spaceBefore=14,
-        spaceAfter=8, textColor=SAGE, keepWithNext=1,
-    )
-    items = [split_shot(s) for s in shots]
-    cols = len(items) if len(items) <= 3 else 2
-    rows = [items[i:i + cols] for i in range(0, len(items), cols)]
-    pad = 6
-    slot = content_width / cols - 2 * pad
-    max_h = (4.4 if len(rows) == 1 else 3.1) * inch
-    # One width for every image, so the columns line up: the widest that still
-    # lets the tallest image fit under max_h.
-    loaded = [(Image(path), caption) for path, caption in items]
+    images = [Image(path) for path in shots]
     # Read imageWidth/imageHeight before setting drawWidth/drawHeight —
     # reportlab lazily computes the former on first access and that
     # computation clobbers drawWidth/drawHeight back to native pixel size,
     # undoing an override made beforehand.
-    width = min([slot] + [max_h * img.imageWidth / img.imageHeight for img, _ in loaded])
-    table_rows = []
-    pos = 0
-    for row in rows:
-        cells = []
-        for _ in row:
-            img, caption = loaded[pos]
-            pos += 1
-            img.drawWidth = width
-            img.drawHeight = width * img.imageHeight / img.imageWidth
-            img.hAlign = "CENTER"
-            cell = [img]
-            if caption:
-                cell.append(Paragraph(inline(caption), caption_style))
-            cells.append(cell)
-        cells += [""] * (cols - len(cells))
-        table_rows.append(cells)
-    grid = Table(table_rows, colWidths=[content_width / cols] * cols)
-    grid.setStyle(TableStyle([
+    ratios = [img.imageWidth / img.imageHeight for img in images]
+    if len(images) == 1:
+        images[0].drawWidth = content_width
+        images[0].drawHeight = content_width / ratios[0]
+        return [Spacer(1, 14), images[0]]
+    gap = 10
+    height = min(3.0 * inch, (content_width - gap * (len(images) - 1)) / sum(ratios))
+    for img, ratio in zip(images, ratios):
+        img.drawWidth = height * ratio
+        img.drawHeight = height
+    row = Table([images], colWidths=[img.drawWidth + gap for img in images])
+    row.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-        ("LEFTPADDING", (0, 0), (-1, -1), pad), ("RIGHTPADDING", (0, 0), (-1, -1), pad),
-        ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), gap),
+        ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
     ]))
-    return [Paragraph("What it looks like", label_style), grid]
+    row.hAlign = "CENTER"
+    return [Spacer(1, 14), row]
 
 
 def parse_changelog_section(changelog_path, version):
@@ -197,9 +170,6 @@ def build_pdf(version, date_str, sections, out_path, screenshots=None):
         HRFlowable(width="100%", thickness=1, color=LINE_STRONG, spaceAfter=6),
     ]
 
-    content_width = LETTER[0] - 1.8 * inch
-    story.extend(screenshot_block(screenshots or [], content_width))
-
     order = ["Added", "Changed", "Fixed", "Removed"]
     for kind in order:
         items = sections.get(kind)
@@ -213,6 +183,8 @@ def build_pdf(version, date_str, sections, out_path, screenshots=None):
             story.append(Paragraph(f"&bull;&nbsp;&nbsp;{inline(item['text'])}", bullet_style))
             for sub in item["subs"]:
                 story.append(Paragraph(f"&bull;&nbsp;&nbsp;{inline(sub)}", sub_style))
+
+    story.extend(screenshot_block(screenshots or [], LETTER[0] - 1.8 * inch))
 
     story.append(Spacer(1, 24))
     story.append(HRFlowable(width="100%", thickness=0.5, color=LINE_STRONG, spaceAfter=6))

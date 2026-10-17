@@ -60,18 +60,25 @@ picks this up next.
   a dated `1.12.0` section (the Sleep tracker, plus the iPad numeric-keypad
   fix from JOS-54, which had been waiting in `[Unreleased]`),
   `package.json`/`package-lock.json` bumped, and
-  `NestlogReleaseNotesv1.12.0.pdf` (3 pages; four captioned screenshots
-  of the shipped UI on page one: the first version had them buried at the
-  bottom of page two and Joseph reported "no screenshots", so they now
-  lead the PDF and the script takes `path::caption`) and
+  `NestlogReleaseNotesv1.12.0.pdf` and
   `NestlogSleepTrackerUserGuidev1.12.0.pdf` sent to
   Joseph in chat and attached to JOS-56 and JOS-54 (release notes as a
   comment on each). Because the harness confines this session to one
   branch, the release rides on PR #38 with the user guide; **merging
-  PR #38 is the release**. `scripts/generate-release-notes.py` learned
-  nested bullets, `**bold**`/`code` and a side-by-side screenshot row
-  (the Sleep entry has sub-bullets and tall phone shots, which the old
-  script would have turned into a wall of text and full-page images).
+  PR #38 is the release**.
+- **Release notes redone twice after Joseph's feedback.** First round:
+  "no screenshots" (they were buried on page two). Second round: "check
+  the last three releases and use the structure that has been used
+  before". I had built a three-page PDF with a "What it looks like" grid
+  up front, captions and a seven-bullet Sleep entry; the earlier ones
+  (v1.11.0 to v1.11.2, read from the Drive "Release Notes" folder) are one
+  Letter page with one plain paragraph per CHANGELOG entry and the
+  screenshots after the bullets. So the 1.12.0 CHANGELOG entries were
+  condensed to that form (the detail that was cut lives in PR #37, this
+  log and the user guide), the generator puts screenshots after the
+  bullets again (one row of three, no heading or captions), and CLAUDE.md
+  now says to read the previous releases' PDFs before cutting one. The
+  PDF is one page with the three screenshots on it.
 
 **In flight / open:**
 - PR #38 needs Joseph's review (docs, tooling and the release bookkeeping;
