@@ -10,7 +10,11 @@ Example:
         /tmp/NestlogReleaseNotesv1.6.0.pdf /tmp/shot1.png /tmp/shot2.png
 
 Trailing arguments are optional screenshots of the shipped feature(s),
-embedded after the changelog bullets in the order given.
+embedded after the changelog bullets in the order given, side by side in
+one row (each capped in height, so tall phone-card shots stay readable).
+
+Bullets may have indented sub-bullets (two-space `  - `); `**bold**` and
+`code` in the text are rendered as bold and monospace.
 
 Requires reportlab (pip install reportlab). Per CLAUDE.md's release
 process, the resulting PDF is attached to the release's Linear ticket(s)
@@ -26,7 +30,7 @@ from reportlab.lib.pagesizes import LETTER
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.colors import HexColor
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable, Image
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable, Image, Table, TableStyle
 
 PAPER = HexColor("#fbf7ec")
 INK = HexColor("#2a2a26")
@@ -40,6 +44,13 @@ SECTION_COLORS = {
     "Fixed": HexColor("#a45d3f"),
     "Removed": HexColor("#a45d3f"),
 }
+
+
+def inline(text):
+    """Escape for Paragraph, then turn `**bold**` and `code` into markup."""
+    text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
+    return re.sub(r"`([^`]+)`", r'<font face="Courier" size="9.5">\1</font>', text)
 
 
 def parse_changelog_section(changelog_path, version):
@@ -57,6 +68,7 @@ def parse_changelog_section(changelog_path, version):
     body = m.group(1)
     sections = {}
     current = None
+    last = None  # "item" or "sub": what a wrapped line continues
     for line in body.splitlines():
         h = re.match(r"^### (\w+)", line)
         if h:
@@ -64,11 +76,20 @@ def parse_changelog_section(changelog_path, version):
             sections[current] = []
             continue
         item = re.match(r"^- (.*)", line)
+        sub = re.match(r"^  - (.*)", line)
         if item and current:
-            sections[current].append(item.group(1))
+            sections[current].append({"text": item.group(1), "subs": []})
+            last = "item"
+        elif sub and current and sections[current]:
+            sections[current][-1]["subs"].append(sub.group(1))
+            last = "sub"
         elif line.strip() and current and sections[current]:
-            # continuation of a wrapped bullet
-            sections[current][-1] += " " + line.strip()
+            # continuation of a wrapped bullet or sub-bullet
+            entry = sections[current][-1]
+            if last == "sub" and entry["subs"]:
+                entry["subs"][-1] += " " + line.strip()
+            else:
+                entry["text"] += " " + line.strip()
     return date_str, sections
 
 
@@ -94,10 +115,15 @@ def build_pdf(version, date_str, sections, out_path, screenshots=None):
     )
     section_style = ParagraphStyle(
         "Section", fontName="Helvetica-Bold", fontSize=11.5, spaceBefore=16, spaceAfter=8,
+        keepWithNext=1,
     )
     bullet_style = ParagraphStyle(
         "Bullet", fontName="Helvetica", fontSize=10.5, textColor=INK,
         leading=15, spaceAfter=7, leftIndent=14, bulletIndent=0,
+    )
+    sub_style = ParagraphStyle(
+        "SubBullet", parent=bullet_style, fontSize=10, leading=14, spaceAfter=5,
+        leftIndent=30, bulletIndent=16,
     )
 
     story = [
@@ -120,20 +146,38 @@ def build_pdf(version, date_str, sections, out_path, screenshots=None):
             f"Section{kind}", parent=section_style, textColor=color,
         )))
         for item in items:
-            story.append(Paragraph(f"&bull;&nbsp;&nbsp;{item}", bullet_style))
+            story.append(Paragraph(f"&bull;&nbsp;&nbsp;{inline(item['text'])}", bullet_style))
+            for sub in item["subs"]:
+                story.append(Paragraph(f"&bull;&nbsp;&nbsp;{inline(sub)}", sub_style))
 
     content_width = LETTER[0] - 1.8 * inch
-    for shot in screenshots or []:
-        img = Image(shot)
-        # Read imageWidth/imageHeight before setting drawWidth/drawHeight —
-        # reportlab lazily computes the former on first access and that
-        # computation clobbers drawWidth/drawHeight back to native pixel
-        # size, undoing an override made beforehand.
-        aspect = img.imageHeight / img.imageWidth
-        img.drawWidth = content_width
-        img.drawHeight = content_width * aspect
+    shots = screenshots or []
+    if shots:
+        # One row, side by side. Each slot is an equal share of the width and
+        # each image is capped in height, so a tall phone-card shot stays a
+        # readable size instead of filling a page.
+        gap = 0.18 * inch
+        slot = (content_width - gap * (len(shots) - 1)) / len(shots)
+        max_h = 4.4 * inch
+        cells = []
+        for shot in shots:
+            img = Image(shot)
+            # Read imageWidth/imageHeight before setting drawWidth/drawHeight —
+            # reportlab lazily computes the former on first access and that
+            # computation clobbers drawWidth/drawHeight back to native pixel
+            # size, undoing an override made beforehand.
+            w, h = img.imageWidth, img.imageHeight
+            scale = min(slot / w, max_h / h)
+            img.drawWidth, img.drawHeight = w * scale, h * scale
+            cells.append(img)
+        row = Table([cells], colWidths=[slot + gap] * len(cells), hAlign="LEFT")
+        row.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), gap),
+            ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ]))
         story.append(Spacer(1, 14))
-        story.append(img)
+        story.append(row)
 
     story.append(Spacer(1, 24))
     story.append(HRFlowable(width="100%", thickness=0.5, color=LINE_STRONG, spaceAfter=6))
