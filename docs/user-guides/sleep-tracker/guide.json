@@ -1,0 +1,275 @@
+{
+  "app": "Nestlog",
+  "feature": "Sleep tracker",
+  "version": "1.12",
+  "pages": [
+    {
+      "title": "Start a sleep",
+      "lead": "Time a nap or a night. You and Jen both see it, live.",
+      "rows": [
+        {
+          "cols": [
+            [
+              {
+                "image": "img/01-log-a-moment.png",
+                "chip": "Step 1",
+                "chip_color": "sage",
+                "caption": "Tap **Log a moment**."
+              },
+              {
+                "image": "img/02-blank-card.png",
+                "chip": "Step 2",
+                "chip_color": "sage",
+                "caption": "Tick **Sleep** on the new blank card.",
+                "note": "Already ticked a feed or nappy on that card? Sleep starts its own new card."
+              },
+              {
+                "panel": true,
+                "title": "What it does",
+                "bullets": [
+                  "Times a nap or a night, start to finish.",
+                  "Jen sees it on her phone, live, and can pause or stop it too.",
+                  "Started late, stopped too soon, or a mistake? That's all covered in this guide."
+                ]
+              }
+            ],
+            [
+              {
+                "image": "img/03-just-started.png",
+                "chip": "Step 3",
+                "chip_color": "sage",
+                "caption": "The timer runs. Lock your phone if you like: it stays right."
+              }
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Pause, resume, stop",
+      "lead": "Stop works at any time. Pause needs a minute of sleep first.",
+      "rows": [
+        {
+          "cols": [
+            [
+              {
+                "image": "img/04-running.png",
+                "chip": "Sleeping",
+                "chip_color": "night",
+                "legend": [
+                  "Time asleep. Pauses don't count.",
+                  "Baby woke for a bit? **Pause**.",
+                  "All done? **Stop**."
+                ]
+              }
+            ],
+            [
+              {
+                "image": "img/05-paused.png",
+                "chip": "Paused",
+                "chip_color": "amber",
+                "legend": [
+                  "Back to sleep? **Resume**.",
+                  "All done? **Stop**."
+                ],
+                "note": "The timer holds while baby is awake."
+              }
+            ]
+          ]
+        },
+        {
+          "cols": [
+            [
+              {
+                "image": "img/06-finished.png",
+                "chip": "Finished",
+                "chip_color": "sage",
+                "caption": "Saved. A finished sleep is read-only. Stopped too soon? Tap **Reopen sleep**."
+              }
+            ],
+            [
+              {
+                "panel": true,
+                "title": "Good to know",
+                "bullets": [
+                  "Only time asleep is counted, not time awake while paused.",
+                  "Paused for 3 hours? The sleep closes itself at the time baby woke, and can't be reopened.",
+                  "Use **Stop** when baby is up for the day or the night. Use **Pause** for a short wake."
+                ]
+              }
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Started late? Fix the time",
+      "lead": "Forgot to tap when baby dropped off? Set the real time. **Woke earlier?** does the same for waking up.",
+      "rows": [
+        {
+          "cols": [
+            [
+              {
+                "image": "img/08-started-earlier.png",
+                "chip": "Step 1",
+                "chip_color": "sage",
+                "caption": "Tap **Started earlier?**"
+              },
+              {
+                "panel": true,
+                "title": "Pick a time",
+                "bullets": [
+                  "Your phone's own clock opens. Choose the time and confirm. It saves right away.",
+                  "A time **more than 3 hours ago** asks you to confirm first (**Save anyway**).",
+                  "A time that overlaps another sleep is refused, and the card says why."
+                ]
+              }
+            ],
+            [
+              {
+                "image": "img/09-two-ways.png",
+                "chip": "Step 2",
+                "chip_color": "sage",
+                "legend": [
+                  "**How long ago**: scroll a wheel.",
+                  "**Pick a time**: use your phone's clock."
+                ]
+              },
+              {
+                "image": "img/10-wheel.png",
+                "chip": "How long ago",
+                "chip_color": "night",
+                "legend": [
+                  "Scroll to the time.",
+                  "Tap **Set** (or tap the highlighted time). Done."
+                ]
+              }
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Stopped by accident?",
+      "lead": "A quick stop asks first, and a finished sleep can be reopened for a while.",
+      "rows": [
+        {
+          "cols": [
+            [
+              {
+                "image": "img/07-short-dialog.png",
+                "chip": "Less than a minute",
+                "chip_color": "night",
+                "caption": "**Keep sleeping** carries on. **Stop and save** keeps it. **Discard sleep** deletes it (you can restore it)."
+              },
+              {
+                "panel": true,
+                "title": "When you can reopen a sleep",
+                "bullets": [
+                  "Within **3 hours** of waking.",
+                  "Only while it's the **latest** sleep. Once a new one starts, the old one is locked.",
+                  "Not after it closed itself from 3 hours paused.",
+                  "It goes back to paused, in the same place in your list."
+                ]
+              }
+            ],
+            [
+              {
+                "image": "img/11-cant-reopen.png",
+                "chip": "No Reopen button?",
+                "chip_color": "night",
+                "caption": "The card says why."
+              }
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Edit, delete, restore",
+      "lead": "Fix the details, or delete a sleep and bring it back within 7 days.",
+      "rows": [
+        {
+          "cols": [
+            [
+              {
+                "image": "img/14-card-header.png",
+                "chip": "Tap to change",
+                "chip_color": "night",
+                "legend": [
+                  "The start time.",
+                  "Who's logging it. Tap the name to switch.",
+                  "**×** deletes the sleep.",
+                  "Add a note any time."
+                ]
+              }
+            ],
+            [
+              {
+                "image": "img/12-delete.png",
+                "chip": "Delete",
+                "chip_color": "rose",
+                "caption": "Tap **×**. You're asked first."
+              },
+              {
+                "image": "img/13-recently-deleted.png",
+                "chip": "Changed your mind?",
+                "chip_color": "sage",
+                "caption": "**Timeline**, then **Recently Deleted**, then **Restore**. Kept for 7 days."
+              }
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Two phones, one sleep",
+      "lead": "You and Jen see the same sleep, live. Either of you can pause, resume or stop it.",
+      "rows": [
+        {
+          "cols": [
+            [
+              {
+                "image": "img/15-joseph-phone.png",
+                "chip": "Joseph's phone",
+                "chip_color": "night",
+                "caption": "Joseph started it."
+              }
+            ],
+            [
+              {
+                "image": "img/16-jen-phone.png",
+                "chip": "Jen's phone",
+                "chip_color": "night",
+                "caption": "Jen sees the same card and the same timer."
+              }
+            ]
+          ]
+        },
+        {
+          "cols": [
+            [
+              {
+                "image": "img/17-conflict-toast.png",
+                "chip": "Both tapped at once?",
+                "chip_color": "amber",
+                "caption": "The first tap wins. The other phone says what happened, and its card is already up to date."
+              }
+            ],
+            [
+              {
+                "panel": true,
+                "title": "Good to know",
+                "bullets": [
+                  "Times follow your phone's clock and time zone. The timer uses the server's clock, so a wrong phone clock can't throw it off.",
+                  "Sleeps don't show in Timeline or Reports yet.",
+                  "On iPad, sleep cards sit above the table, and Sleep has its own column."
+                ]
+              }
+            ]
+          ]
+        }
+      ]
+    }
+  ]
+}
