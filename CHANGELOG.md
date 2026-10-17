@@ -9,61 +9,31 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-10-17
+
 ### Added
-- Sleep tracker (JOS-56 — the headline feature of v1.12). Sleep is now the
-  fifth tile on the Log screen, after Pee. Ticking it starts a timed sleep
-  and opens a sleep card with a big `01 h 35 m` timer and full-width
-  **Pause Sleep** and **Stop Sleep** buttons. A sleep is one shared session
-  stored in the database, so Joseph and Jen both see it, from any device,
-  and either can pause, resume or stop it; if both act at once the first
-  one wins and the other is told what happened ("Jen already paused this
-  sleep (6:08 pm)"). The timer is always worked out from the stored times
-  and the server's clock, never counted, so a phone locked for 95 minutes
-  reads `01 h 35 m` the moment it wakes, and a phone with the wrong time
-  can't skew it.
-  - **Stop works at any time**; if the whole sleep is under a minute it
-    asks first (Keep sleeping / Stop and save / Discard sleep). Pause needs
-    at least a minute of sleep.
-  - Started the log late? **Started earlier?** (and **Woke earlier?** on a
-    paused sleep) sets the time with a how-long-ago wheel or the device's
-    own time picker — time only, no dates, and a time later than now means
-    yesterday. Times are 12-hour am/pm in the device's time zone. Both
-    save as soon as you choose: on the wheel, scroll and tap **Set** (or
-    tap the highlighted row); with **Pick a time**, the phone's own picker
-    saves when it hands a time back. Only a time more than 3 hours ago asks
-    you to confirm (Save anyway).
-  - The card reads top to bottom: **Sleeping** (or Paused / Slept) at the
-    same size as the card's own time, the big timer, the start time, and
-    **Started earlier?** on a line of its own. **Stop Sleep** is the app's
-    dark rose so it can't be mistaken for Pause.
-  - A finished sleep card is read-only. **Reopen sleep** puts it back to
-    paused (within 3 hours of the last wake, and only if no newer sleep
-    exists), right where it was in the day's list. A sleep left paused for
-    3 hours closes itself at the last wake. When a finished sleep can't be
-    reopened the card says why ("This sleep can't be reopened: it ended
-    more than 3 hours ago").
-  - The Sleep tile on a blank new card turns it into the sleep card; on a
-    card that already has other ticks it starts a new one. A running sleep
-    sits among the day's entries by when it began, like every other card
-    (Sleep is also a column in the table on the iPad layout).
-  - Deleting or discarding a sleep is a soft delete like every other
-    entry: it lands in Recently Deleted for 7 days and can be restored.
-  - Requires the new `20261017000000_sleeps` database migration (a `sleeps`
-    table, its realtime entry, and the functions that enforce the rules)
-    and its small follow-up `20261017000001_sleep_helpers_search_path`.
-    Sleeps aren't shown in Timeline or Reports yet.
+- Sleep tracker (JOS-56). Sleep is now the fifth tile on the Log screen:
+  tick it to start a timed sleep, and a card shows a big timer with
+  full-width Pause Sleep and Stop Sleep buttons. It's one shared session,
+  so Joseph and Jen both see it from any device and either can pause,
+  resume or stop it; if both tap at once the first wins and the other
+  phone says what happened. The timer comes from the stored times and the
+  server's clock, so a locked phone reads right the moment it wakes.
+  Started late? "Started earlier?" sets the time with a how-long-ago
+  wheel or the phone's own time picker. A finished sleep is read-only,
+  with "Reopen sleep" available for 3 hours, and a deleted sleep goes to
+  Recently Deleted for 7 days like any other entry. Needs the new sleeps
+  database migrations (already applied). Sleeps don't show in Timeline or
+  Reports yet.
 
 ### Fixed
 - The bottle/pump mL amount fields now reliably bring up the numeric-only
-  keypad on iPad, including when the app is running as an installed
-  home-screen PWA (JOS-9). The previous fix (`inputMode="numeric"`) was
-  sufficient in a regular mobile browser tab but iPadOS's installed-PWA
-  runtime was ignoring `inputMode` and falling back to the full keyboard;
-  switching the fields to `type="tel"` (kept alongside `inputMode="numeric"`
-  and `pattern="[0-9]*"` for browsers that do honor it) forces the numeric
-  keypad through the input's `type` instead, which iOS has always honored
-  regardless of runtime. The keypad's stray `*`/`#` keys are stripped by
-  the existing digit-only sanitization, so no non-digit value can land.
+  keypad on iPad, including when the app runs as an installed home-screen
+  app (JOS-54, following up JOS-9). The earlier fix (inputMode) worked in
+  a regular browser tab, but the installed iPad app ignored it and fell
+  back to the full keyboard. The fields now also use type="tel", which iOS
+  honors everywhere; the keypad's stray * and # keys are stripped by the
+  existing digit-only filter, so no non-digit value can land.
 
 ## [1.11.2] - 2026-09-15
 

@@ -113,9 +113,36 @@
   isolation) — a narrower or wider test container than production can
   make text wrap differently than it actually renders, which is
   misleading in release notes even though it's harmless in a quick
-  verification screenshot. Pass the screenshot file paths as trailing
-  args to `generate-release-notes.py`, in the same order as their
-  CHANGELOG bullets.
+  verification screenshot. Pass them as trailing args to
+  `generate-release-notes.py` (plain paths, no captions): they go after
+  the bullets, before the footer, a lone shot at full width and several
+  side by side in one row. A PDF preview (Linear's, the chat's) shows
+  only page one, and a release with a UI change must visibly have
+  screenshots, so the notes have to stay on **one page** — see the next
+  bullet. Cover the headline UI change in up to three shots. Buried at
+  the bottom of page two they were present but invisible, and Joseph
+  reported "no screenshots" (v1.12.0 cut), the second time this has had
+  to be raised. **Before sending, check what he'll see**: `pdfimages -list
+  -f 1 -l 1 <pdf>` must list the images, and view page one (`pdftoppm -r
+  70 -f 1 -l 1`).
+- **Release notes keep one structure, release after release** (v1.12.0
+  cut: a first version with a "What it looks like" grid up front,
+  captions, sub-bullets and three pages was sent back with "use the
+  structure that has been used before"). The established form, read from
+  the last releases in Joseph's Drive "Release Notes" folder
+  (`1yAyDoPTxjhcOI9DsOG69vIBTVoeVik-K`; v1.11.0, v1.11.1, v1.11.2 and the
+  `generate-release-notes.py` history): one Letter page; NESTLOG, the
+  title, the date and a rule; an Added / Changed / Fixed heading per
+  section; **one flat bullet per CHANGELOG entry, a single plain paragraph
+  with the ticket in parentheses** (about 60–140 words, no sub-bullets, no
+  bold); screenshots after the bullets, no heading and no captions; a rule
+  and the one-line footer. So write CHANGELOG entries in that form (detail
+  that doesn't fit belongs in the PR, `PROJECT_LOG.md` or the user guide),
+  and before cutting a release **read the previous releases' PDFs and
+  compare**: when the new notes differ in structure, change the new ones,
+  not the old pattern. `read_file_content` on a Drive file id gives the
+  text; `download_file_content` gives the PDF base64 (small enough to
+  decode with `base64 -d` and render with `pdftoppm`).
 - Do not upload the PDF to Google Drive yourself. Attach it directly to
   the Linear ticket(s) for that release (Linear supports file
   attachments on issues) AND send it through chat via `SendUserFile` —
@@ -130,7 +157,54 @@
   PDF and post the release notes (the relevant CHANGELOG section, or at
   minimum that ticket's entry) as a comment on the ticket before moving it
   to Done. Both — attachment and comment — come first; the Done transition
-  happens after, not before.
+  happens after, not before. (Linear's GitHub integration can move a
+  ticket to Done the moment its PR merges, so on a release cut this order
+  is often already broken before the release starts. Attach and comment
+  anyway, after the fact; it is still the record.)
+  - **How to attach a file to a Linear ticket** (v1.12.0 cut): call
+    `mcp__Linear__prepare_attachment_upload` (issue, filename,
+    `application/pdf`, the file's exact byte size), then **within 60
+    seconds** `curl -X PUT --data-binary @<file>` to the returned URL
+    with every header in `uploadRequest.headers` sent verbatim (a missing
+    or altered one is a 403), then `mcp__Linear__create_attachment_from_upload`
+    with the returned `assetUrl`. One file at a time, and once per ticket:
+    a PDF going to two tickets is uploaded twice. Don't also pass the
+    URL as a `link` on `save_issue`.
+- **User guides** (JOS-59; first one: the Sleep tracker, v1.12.0). Every
+  release that ships a **new user-facing feature** (a minor or major, not
+  a fix-only patch) also gets a short, visual user guide for it,
+  generated automatically as part of cutting the release — no need to
+  ask each time, same as the release notes.
+  - **What it is:** a few A4 pages, one task per page, phone-first. Big
+    annotated screenshots, one short sentence per step, plain words
+    ("tap", never "interact with"), written for Joseph and Jen rather
+    than engineers. Aim for six pages or fewer; if it won't fit, cut
+    words, not screenshots.
+  - **Where it lives:** `docs/user-guides/<feature>/` holds `guide.json`
+    (all the words, so a change is a reviewable diff) and `img/` (the
+    screenshots). `python3 scripts/generate-user-guide.py <guide.json>
+    <out.pdf>` builds it, named `Nestlog{Feature}UserGuidev{version}.pdf`
+    (no hyphens, like the release notes), e.g.
+    `NestlogSleepTrackerUserGuidev1.12.0.pdf`. Commit the JSON and images;
+    the PDF is a build output and isn't committed.
+  - **Screenshots:** the real app, via the same dev-preview + Playwright
+    workflow below, at phone width (390 px, 2x), as a realistic story
+    (a sleep with a pause in it, not an empty screen). Capture only after
+    the feature's last UI change has merged, so the guide shows what
+    shipped. Use fixture names only (Joseph, Jen, no surnames, no real
+    baby data). Draw the numbered badges (dark circle, amber ring) and
+    highlight rings *into the page* just before each shot so every PNG
+    is self-contained. Before shooting, inject CSS to hide the Next.js dev
+    overlay (`nextjs-portal { display: none }`) and freeze animation
+    (`animation: none`) so the pulsing dot isn't caught mid-fade.
+  - **Keeping it current:** a later release that changes a screen or a
+    step a guide shows (a fix or a polish counts) refreshes that guide's
+    screenshots and `guide.json` in the same release and ships the new
+    PDF. A change that doesn't alter anything the guide shows needs no
+    guide work. Older features aren't backfilled unless Joseph asks.
+  - **Delivery:** exactly like the release notes. Attach the PDF to the
+    feature's Linear ticket(s) and send it via `SendUserFile`; never
+    upload it to Drive.
 
 ## Development environment & gotchas
 
@@ -183,6 +257,16 @@ time.
     a `Compaction failed` error — cost three separate kill/restart cycles
     to recover. Kill the dev server first, then clear the cache, then
     restart.
+  - **The Next.js dev overlay (`<nextjs-portal>`, a badge at the
+    bottom-left that reads "1 Issue" whenever a hydration warning fired)
+    sits above the page in dev.** It ends up in screenshots, and it also
+    *intercepts hit-tests*: an `elementFromPoint` check on the left of a
+    row near the bottom of the viewport returned the portal, not the
+    row, and read as a real bug (JOS-56 review round). Hide it before
+    shooting or hit-testing with `nextjs-portal { display: none !important }`,
+    or scroll the target to the middle of the viewport. The badge itself
+    is expected under a fake clock (hydration mismatch on the glance
+    cards) and is not a regression.
   - **Give the dev-preview wrapper a genuinely fixed `width`, not just a
     `maxWidth` + `margin: auto`** (JOS-49 session). A `maxWidth` wrapper
     only fills to that width if something in its ancestor chain hands it
@@ -279,8 +363,12 @@ time.
   pattern inferred from other branches' aliases) — a wrong guess costs a
   real round trip (he hits a `DEPLOYMENT_NOT_FOUND` 404, reports back,
   waits again). Always call `mcp__Vercel__list_deployments` for the
-  project and read the actual `branchAlias`/`url` off the matching
-  deployment before sharing a preview link.
+  project (pass `branch`, `projectId: "baby-tracker-app"`, `slug:
+  "josephemmis-projects"`) to find the matching deployment and check it
+  is `READY`; that listing carries the deployment's own `url` but **not**
+  its stable branch alias, so read the alias with
+  `mcp__Vercel__list_deployment_aliases` on that deployment's `id`
+  before sharing a preview link (JOS-56 review round).
 - **Git identity on web sessions**: a SessionStart hook
   (`.claude/hooks/session-start.sh`) sets the local clone's
   `user.name`/`user.email` to the repo owner so commits count toward their
@@ -335,7 +423,10 @@ time.
   time: Postgres refuses to run as root, and its data directory must live
   under the `postgres` user's home (`/var/lib/postgresql/…`) — in the
   scratchpad path it works until permissions on the parent dirs reset and the
-  server PANICs mid-run; the Supabase stand-ins it needs are the roles
+  server PANICs mid-run; the cluster is **not running after a session
+  resumes** (the data directory survives, the process doesn't): `rm -f
+  <data>/postmaster.pid`, then `pg_ctl start` as `postgres` again; the
+  Supabase stand-ins it needs are the roles
   `anon`/`authenticated`/`service_role` (cluster-wide, created once), an
   `auth` schema with `auth.uid()` reading `request.jwt.claim.sub`, a
   `supabase_realtime` publication, and — per database, *before* applying

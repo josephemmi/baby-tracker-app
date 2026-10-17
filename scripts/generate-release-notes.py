@@ -9,8 +9,17 @@ Example:
     python3 scripts/generate-release-notes.py 1.6.0 CHANGELOG.md \
         /tmp/NestlogReleaseNotesv1.6.0.pdf /tmp/shot1.png /tmp/shot2.png
 
-Trailing arguments are optional screenshots of the shipped feature(s),
-embedded after the changelog bullets in the order given.
+Trailing arguments are screenshots of the shipped feature(s). They go after
+the bullets, before the footer, as earlier releases did, in the order given:
+one on its own at full width, several side by side in a single row at one
+height. Entries in the CHANGELOG are one plain paragraph each (ticket in
+parentheses, no sub-bullets) so the notes stay on one page and the
+screenshots land on it. A PDF preview shows only page one, and a release
+with a UI change must visibly have screenshots.
+
+`**bold**` and `code` in the text are rendered as bold and monospace.
+Indented sub-bullets (two-space `  - `) still work, but earlier releases
+never used them.
 
 Requires reportlab (pip install reportlab). Per CLAUDE.md's release
 process, the resulting PDF is attached to the release's Linear ticket(s)
@@ -26,7 +35,7 @@ from reportlab.lib.pagesizes import LETTER
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.colors import HexColor
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable, Image
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable, Image, Table, TableStyle
 
 PAPER = HexColor("#fbf7ec")
 INK = HexColor("#2a2a26")
@@ -40,6 +49,42 @@ SECTION_COLORS = {
     "Fixed": HexColor("#a45d3f"),
     "Removed": HexColor("#a45d3f"),
 }
+
+
+def inline(text):
+    """Escape for Paragraph, then turn `**bold**` and `code` into markup."""
+    text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
+    return re.sub(r"`([^`]+)`", r'<font face="Courier" size="9.5">\1</font>', text)
+
+
+def screenshot_block(shots, content_width):
+    """The shipped UI: a lone shot at full width, several in one row at a shared height."""
+    if not shots:
+        return []
+    images = [Image(path) for path in shots]
+    # Read imageWidth/imageHeight before setting drawWidth/drawHeight —
+    # reportlab lazily computes the former on first access and that
+    # computation clobbers drawWidth/drawHeight back to native pixel size,
+    # undoing an override made beforehand.
+    ratios = [img.imageWidth / img.imageHeight for img in images]
+    if len(images) == 1:
+        images[0].drawWidth = content_width
+        images[0].drawHeight = content_width / ratios[0]
+        return [Spacer(1, 14), images[0]]
+    gap = 10
+    height = min(3.0 * inch, (content_width - gap * (len(images) - 1)) / sum(ratios))
+    for img, ratio in zip(images, ratios):
+        img.drawWidth = height * ratio
+        img.drawHeight = height
+    row = Table([images], colWidths=[img.drawWidth + gap for img in images])
+    row.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), gap),
+        ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    row.hAlign = "CENTER"
+    return [Spacer(1, 14), row]
 
 
 def parse_changelog_section(changelog_path, version):
@@ -57,6 +102,7 @@ def parse_changelog_section(changelog_path, version):
     body = m.group(1)
     sections = {}
     current = None
+    last = None  # "item" or "sub": what a wrapped line continues
     for line in body.splitlines():
         h = re.match(r"^### (\w+)", line)
         if h:
@@ -64,11 +110,20 @@ def parse_changelog_section(changelog_path, version):
             sections[current] = []
             continue
         item = re.match(r"^- (.*)", line)
+        sub = re.match(r"^  - (.*)", line)
         if item and current:
-            sections[current].append(item.group(1))
+            sections[current].append({"text": item.group(1), "subs": []})
+            last = "item"
+        elif sub and current and sections[current]:
+            sections[current][-1]["subs"].append(sub.group(1))
+            last = "sub"
         elif line.strip() and current and sections[current]:
-            # continuation of a wrapped bullet
-            sections[current][-1] += " " + line.strip()
+            # continuation of a wrapped bullet or sub-bullet
+            entry = sections[current][-1]
+            if last == "sub" and entry["subs"]:
+                entry["subs"][-1] += " " + line.strip()
+            else:
+                entry["text"] += " " + line.strip()
     return date_str, sections
 
 
@@ -94,10 +149,15 @@ def build_pdf(version, date_str, sections, out_path, screenshots=None):
     )
     section_style = ParagraphStyle(
         "Section", fontName="Helvetica-Bold", fontSize=11.5, spaceBefore=16, spaceAfter=8,
+        keepWithNext=1,
     )
     bullet_style = ParagraphStyle(
         "Bullet", fontName="Helvetica", fontSize=10.5, textColor=INK,
         leading=15, spaceAfter=7, leftIndent=14, bulletIndent=0,
+    )
+    sub_style = ParagraphStyle(
+        "SubBullet", parent=bullet_style, fontSize=10, leading=14, spaceAfter=5,
+        leftIndent=30, bulletIndent=16,
     )
 
     story = [
@@ -120,20 +180,11 @@ def build_pdf(version, date_str, sections, out_path, screenshots=None):
             f"Section{kind}", parent=section_style, textColor=color,
         )))
         for item in items:
-            story.append(Paragraph(f"&bull;&nbsp;&nbsp;{item}", bullet_style))
+            story.append(Paragraph(f"&bull;&nbsp;&nbsp;{inline(item['text'])}", bullet_style))
+            for sub in item["subs"]:
+                story.append(Paragraph(f"&bull;&nbsp;&nbsp;{inline(sub)}", sub_style))
 
-    content_width = LETTER[0] - 1.8 * inch
-    for shot in screenshots or []:
-        img = Image(shot)
-        # Read imageWidth/imageHeight before setting drawWidth/drawHeight —
-        # reportlab lazily computes the former on first access and that
-        # computation clobbers drawWidth/drawHeight back to native pixel
-        # size, undoing an override made beforehand.
-        aspect = img.imageHeight / img.imageWidth
-        img.drawWidth = content_width
-        img.drawHeight = content_width * aspect
-        story.append(Spacer(1, 14))
-        story.append(img)
+    story.extend(screenshot_block(screenshots or [], LETTER[0] - 1.8 * inch))
 
     story.append(Spacer(1, 24))
     story.append(HRFlowable(width="100%", thickness=0.5, color=LINE_STRONG, spaceAfter=6))
