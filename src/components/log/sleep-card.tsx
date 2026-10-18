@@ -76,7 +76,7 @@ const BUTTON =
 
 // Stop is the app's dark rose (already Discard sleep's colour): red enough to
 // say "this ends it", calm enough not to read as an alarm. Pause stays blue.
-const STOP_BUTTON = "border-rose-dark bg-rose-dark text-white";
+const STOP_BUTTON = "border-stop bg-stop text-white";
 
 function Dim({ children }: { children: React.ReactNode }) {
   return <div className="flex flex-1 opacity-[0.42]">{children}</div>;

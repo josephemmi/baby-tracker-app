@@ -1,13 +1,13 @@
 interface StatCardProps {
   label: string;
   value: string;
-  accent?: "default" | "plum" | "rose";
+  accent?: "default" | "pump" | "breast";
 }
 
 const ACCENT_CLASS: Record<NonNullable<StatCardProps["accent"]>, string> = {
   default: "text-ink",
-  plum: "text-plum",
-  rose: "text-rose",
+  pump: "text-cat-pump-ink",
+  breast: "text-cat-breast-ink",
 };
 
 export function StatCard({ label, value, accent = "default" }: StatCardProps) {

@@ -9,6 +9,9 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+### Changed
+- Category colours now follow what they stand for (JOS-66). Pee is yellow, Poo is brown, Bottle is blue, Breast is teal and Pump is a deeper violet; Sleep keeps its night indigo. Breast no longer shares rose with Delete and Stop, which are now their own darker rose, so a feed can't be mistaken for a destructive action. Every category pair stays apart for colour-blind eyes and meets the WCAG AA contrast levels, including the Delete button on hover. The same colours carry through Log, Timeline, Recently Deleted and Reports. The colours now live in one named block in the stylesheet, so a later palette change is a one-file edit.
+
 ## [1.12.0] - 2026-10-17
 
 ### Added

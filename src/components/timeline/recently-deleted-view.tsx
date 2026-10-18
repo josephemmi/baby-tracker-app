@@ -26,9 +26,9 @@ import {
 import { initials, personColor } from "@/lib/person-colors";
 
 const PUMP_STYLE: CheckboxStyle = {
-  border: "border-plum",
-  bg: "bg-plum-soft",
-  check: "text-plum",
+  border: "border-cat-pump",
+  bg: "bg-cat-pump-soft",
+  check: "text-cat-pump-ink",
   label: "Pump",
 };
 

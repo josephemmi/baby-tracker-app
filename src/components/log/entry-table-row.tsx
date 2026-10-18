@@ -189,7 +189,7 @@ export function EntryTableRow({
               onChange={(checked) => onToggleFeedFlag?.(moment, "breast", checked)}
             />
           ) : (
-            moment.feed?.breast && <Check colorClass="text-rose" />
+            moment.feed?.breast && <Check colorClass="text-cat-breast-ink" />
           )}
           {moment.feed && (
             <BreastSessionSummary
@@ -209,7 +209,7 @@ export function EntryTableRow({
             onChange={(checked) => onToggleFeedFlag?.(moment, "bottle", checked)}
           />
         ) : (
-          moment.feed?.bottle && <Check colorClass="text-amber" />
+          moment.feed?.bottle && <Check colorClass="text-cat-bottle-ink" />
         )}
       </td>
       <td className="px-3 py-2.5 tabular-nums text-ink">
@@ -238,7 +238,7 @@ export function EntryTableRow({
               onKeyDown={(e) => {
                 if (e.key === "Enter") e.currentTarget.blur();
               }}
-              className="w-16 rounded-[10px] border border-line-strong bg-paper-raised px-2 py-1 text-right text-[13.5px] tabular-nums text-ink focus:border-amber focus:outline focus:outline-2 focus:outline-offset-1 focus:outline-amber disabled:cursor-not-allowed disabled:border-line disabled:text-line-strong"
+              className="w-16 rounded-[10px] border border-line-strong bg-paper-raised px-2 py-1 text-right text-[13.5px] tabular-nums text-ink focus:border-cat-bottle focus:outline focus:outline-2 focus:outline-offset-1 focus:outline-cat-bottle disabled:cursor-not-allowed disabled:border-line disabled:text-line-strong"
             />
             <span
               className={`text-[13.5px] text-ink-soft transition-opacity duration-150 ${amountEditing ? "opacity-0" : ""}`}
@@ -287,7 +287,7 @@ export function EntryTableRow({
             onChange={(checked) => onToggleType?.(moment, "poop", checked)}
           />
         ) : (
-          moment.poop && <Check colorClass="text-terracotta" />
+          moment.poop && <Check colorClass="text-cat-poo-ink" />
         )}
       </td>
       <td className="px-3 py-2.5">
@@ -298,7 +298,7 @@ export function EntryTableRow({
             onChange={(checked) => onToggleType?.(moment, "pee", checked)}
           />
         ) : (
-          moment.pee && <Check colorClass="text-brand-blue" />
+          moment.pee && <Check colorClass="text-cat-pee-ink" />
         )}
       </td>
       {onStartSleep && (
@@ -354,7 +354,7 @@ export function EntryTableRow({
                   onKeyDown={(e) => {
                     if (e.key === "Enter") e.currentTarget.blur();
                   }}
-                  className="w-14 rounded-[10px] border border-line-strong bg-paper-raised px-2 py-1 text-right text-[13.5px] tabular-nums text-ink focus:border-plum focus:outline focus:outline-2 focus:outline-offset-1 focus:outline-plum"
+                  className="w-14 rounded-[10px] border border-line-strong bg-paper-raised px-2 py-1 text-right text-[13.5px] tabular-nums text-ink focus:border-cat-pump focus:outline focus:outline-2 focus:outline-offset-1 focus:outline-cat-pump"
                 />
                 <span
                   className={`text-[11px] text-ink-soft transition-opacity duration-150 ${pumpAmountEditing ? "opacity-0" : ""}`}

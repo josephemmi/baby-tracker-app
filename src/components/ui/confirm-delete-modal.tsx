@@ -90,7 +90,7 @@ export function ConfirmDeleteModal({
           <button
             type="button"
             onClick={onConfirm}
-            className="h-10 flex-1 rounded-[10px] bg-rose text-sm font-medium text-paper transition-[filter] duration-150 hover:brightness-[1.06]"
+            className="h-10 flex-1 rounded-[10px] bg-danger text-sm font-medium text-paper transition-[filter] duration-150 hover:brightness-[1.06]"
           >
             {confirmLabel}
           </button>

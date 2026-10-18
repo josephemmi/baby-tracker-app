@@ -16,7 +16,7 @@ interface BarChartProps {
   title: string;
   data: BarChartDatum[];
   valueFormatter?: (value: number) => string;
-  color?: "amber" | "sage" | "plum";
+  color?: "bottle" | "sage" | "pump";
   // Marks specific bars (by index) with a small indicator under the day
   // label — used for "also had a breastfeed" on the bottle-only mL chart.
   indicators?: boolean[];
@@ -24,9 +24,9 @@ interface BarChartProps {
 }
 
 const BAR_COLOR = {
-  amber: "bg-amber",
+  bottle: "bg-cat-bottle",
   sage: "bg-sage",
-  plum: "bg-plum",
+  pump: "bg-cat-pump",
 };
 
 export function BarChart({
@@ -70,7 +70,7 @@ export function BarChart({
                 {d.subLabel ? (
                   <div className="mb-1 flex flex-col items-center gap-0.5 whitespace-nowrap text-[11px] font-bold text-ink">
                     <span>{valueFormatter(d.value)}</span>
-                    <span className="text-[10px] font-semibold text-plum">{d.subLabel}</span>
+                    <span className="text-[10px] font-semibold text-cat-pump-ink">{d.subLabel}</span>
                   </div>
                 ) : (
                   hoveredIndex === index && (
