@@ -276,6 +276,11 @@ export function useSleeps({ babyId, initialRows, memberNames, onMessage }: UseSl
     [run, api],
   );
 
+  const removePause = useCallback(
+    (s: Sleep, index: number) => run(s.id, () => api.removePause(s, index)),
+    [run, api],
+  );
+
   // The note and the who-pill are the two things a member may edit on the row
   // directly; neither changes the sleep's state, so neither bumps its rev.
   const updateColumn = useCallback(
@@ -309,5 +314,18 @@ export function useSleeps({ babyId, initialRows, memberNames, onMessage }: UseSl
     [updateColumn],
   );
 
-  return { sleeps, pending, start, pause, resume, stop, reopen, remove, setTime, setNotes, setLoggedBy };
+  return {
+    sleeps,
+    pending,
+    start,
+    pause,
+    resume,
+    stop,
+    reopen,
+    remove,
+    setTime,
+    removePause,
+    setNotes,
+    setLoggedBy,
+  };
 }

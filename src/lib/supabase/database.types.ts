@@ -210,6 +210,10 @@ export interface Database {
         };
         Returns: Json;
       };
+      remove_sleep_pause: {
+        Args: { p_id: string; p_rev: number; p_index: number };
+        Returns: Json;
+      };
       delete_sleep: { Args: { p_id: string; p_rev: number }; Returns: Json };
       restore_sleep: { Args: { p_id: string }; Returns: Json };
       create_household: {

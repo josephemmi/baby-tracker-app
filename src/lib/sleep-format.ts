@@ -16,6 +16,7 @@ import {
   firstStart,
   lastStretch,
   pickBounds,
+  stateOf,
   type ReopenBlock,
   type Sleep,
   type SleepAction,
@@ -186,6 +187,58 @@ export function durationLabel(ms: number): string {
   if (h === 0) return `${total} min`;
   return m === 0 ? `${h} h` : `${h} h ${m} min`;
 }
+
+/* ---------- the pauses ---------- */
+
+// One completed pause: `index` is the 0-based number of the stretch before it,
+// which is what Remove sends.
+export interface PauseRow {
+  index: number;
+  start: number;
+  end: number;
+}
+
+export interface PauseList {
+  rows: PauseRow[];
+  // The pause still going — a paused sleep only, from its last wake. It is not
+  // a row anyone can remove (Resume ends it) but it counts in the total.
+  open: { start: number; ms: number } | null;
+  totalMs: number;
+}
+
+// Every pause of a sleep, in time order, worked out from the stored stretches
+// like every other number on the card.
+export function listPauses(s: Sleep, now: number): PauseList {
+  const rows: PauseRow[] = [];
+  for (let i = 0; i < s.stretches.length - 1; i++) {
+    rows.push({ index: i, start: s.stretches[i].end as number, end: s.stretches[i + 1].start });
+  }
+  const wake = lastStretch(s).end;
+  const open =
+    stateOf(s, now) === "paused" && wake != null ? { start: wake, ms: Math.max(0, now - wake) } : null;
+  const totalMs = rows.reduce((t, r) => t + (r.end - r.start), 0) + (open?.ms ?? 0);
+  return { rows, open, totalMs };
+}
+
+// "2 min", "1 h 5 min" — whole minutes, rounded down like the timer, and a
+// pause of a few seconds (paused by mistake, resumed straight away) says so
+// instead of "0 min".
+export function pauseLength(ms: number): string {
+  return ms < MIN ? "under 1 min" : durationLabel(Math.floor(ms / MIN) * MIN);
+}
+
+export const pauseCountLabel = (n: number): string => (n === 1 ? "1 pause" : `${n} pauses`);
+
+// The hint under the rows of a finished card, which is read-only.
+export const REMOVE_NEEDS_REOPEN = "To remove a pause, tap Reopen sleep first.";
+
+// What the screen reader says for a Remove button.
+export const removePauseLabel = (zone: Zone, p: PauseRow): string =>
+  `Remove pause from ${zone.fmtTime(p.start)} to ${zone.fmtTime(p.end)}`;
+
+// The confirm box's second line.
+export const removePauseBody = (zone: Zone, p: PauseRow): string =>
+  `${zone.fmtTime(p.start)} to ${zone.fmtTime(p.end)} (${pauseLength(p.end - p.start)}). That time will count as sleep again.`;
 
 /* ---------- the time picker ---------- */
 
@@ -364,6 +417,8 @@ export function describeSleepError(
       return `That is after the sleep ended (${time(d.limit)}).`;
     case "before-start":
       return "Before the sleep started.";
+    case "no-pause":
+      return "That pause is not there any more.";
     case "no-reopen":
       return reopenHint(d.reason ?? "not-finished");
     case "bad-time":

@@ -197,6 +197,12 @@ export function sleepApi(supabase: SupabaseClient<Database>) {
           p_ago_minutes: "agoMinutes" in input ? input.agoMinutes : null,
         }),
       ),
+    // `index` is the 0-based number of the stretch before the pause. The rev
+    // is the one on screen, so a stale index can never hit another pause.
+    removePause: (s: Sleep, index: number) =>
+      action(() =>
+        supabase.rpc("remove_sleep_pause", { p_id: s.id, p_rev: s.rev, p_index: index }),
+      ),
     // Home's read: the server's clock and every sleep still of interest.
     async fetch(babyId: string, sinceISO: string): Promise<{ now: number; sleeps: Sleep[] }> {
       const data = (await timed(() =>
