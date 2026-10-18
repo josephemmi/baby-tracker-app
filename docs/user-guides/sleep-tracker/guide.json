@@ -1,7 +1,7 @@
 {
   "app": "Nestlog",
   "feature": "Sleep tracker",
-  "version": "1.12.0",
+  "version": "1.13.0",
   "pages": [
     {
       "title": "Start a sleep",
@@ -69,6 +69,7 @@
                 "chip": "Paused",
                 "chip_color": "amber",
                 "legend": [
+                  "See each pause: tap **1 pause**.",
                   "Back to sleep? **Resume**.",
                   "All done? **Stop**."
                 ],
@@ -84,7 +85,7 @@
                 "image": "img/06-finished.png",
                 "chip": "Finished",
                 "chip_color": "sage",
-                "caption": "Saved. A finished sleep is read-only. Stopped too soon? Tap **Reopen sleep**."
+                "caption": "Saved. A finished sleep is read-only. Tap **2 pauses** to see each one. Stopped too soon? Tap **Reopen sleep**."
               }
             ],
             [
@@ -151,7 +152,7 @@
     },
     {
       "title": "Stopped by accident?",
-      "lead": "A quick stop asks first, and a finished sleep can be reopened for a while.",
+      "lead": "A quick stop asks first. A finished sleep can be reopened for a while, and a pause you didn't mean can be removed.",
       "rows": [
         {
           "cols": [
@@ -179,6 +180,13 @@
                 "chip": "No Reopen button?",
                 "chip_color": "night",
                 "caption": "The card says why."
+              },
+              {
+                "image": "img/18-remove-pause.png",
+                "chip": "Paused by mistake?",
+                "chip_color": "rose",
+                "caption": "**Reopen sleep**, tap **Remove** next to that pause, then **Stop Sleep**. It ends at the same wake time.",
+                "note": "Only while a sleep is open. A finished sleep is read-only."
               }
             ]
           ]
