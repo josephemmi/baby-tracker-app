@@ -25,6 +25,34 @@
   --color-night-soft: #e2e6f3;
   --color-night-deep: #2a3563;
 
+  /* Category colours (JOS-66, D9). Each colour follows what it stands for:
+     Pee yellow, Poo brown, Bottle blue, Breast teal, Pump violet; Sleep is
+     the night indigo above. Components use these names, never the raw
+     amber/terracotta/brand-blue/rose/plum above, so a palette refresh is a
+     change to this block only.
+       solid: borders, check marks, chart bars (3:1 on paper)
+       soft:  tinted fill
+       ink:   text on soft (4.5:1) */
+  --color-cat-pee: #ad8a0e;
+  --color-cat-pee-soft: #f7edbd;
+  --color-cat-pee-ink: #80660a;
+  --color-cat-poo: #8a5a3c;
+  --color-cat-poo-soft: #eee2d3;
+  --color-cat-poo-ink: #89593b;
+  --color-cat-bottle: #3f7391;
+  --color-cat-bottle-soft: #dde9ee;
+  --color-cat-bottle-ink: #3b6c88;
+  --color-cat-breast: #2f8a85;
+  --color-cat-breast-soft: #d6ece6;
+  --color-cat-breast-ink: #26706c;
+  --color-cat-pump: #6a54a3;
+  --color-cat-pump-soft: #eae4f2;
+  --color-cat-pump-ink: #6a54a3;
+
+  /* Destructive actions (JOS-66, D4). Rose now means only these two. */
+  --color-danger: #9a516b; /* Delete button, 4.5:1 with a paper label, also on hover */
+  --color-stop: #8b4a63; /* Stop sleep, Discard */
+
   --radius: 10px;
   --shadow-card: 0 1px 2px rgba(42, 42, 38, 0.06), 0 4px 14px rgba(42, 42, 38, 0.05);
 

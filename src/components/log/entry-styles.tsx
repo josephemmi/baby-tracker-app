@@ -3,6 +3,8 @@ import type { EntryType } from "@/lib/supabase/database.types";
 export interface CheckboxStyle {
   border: string;
   bg: string;
+  // Used for the tick and the tile's label text, so it is the category's "ink"
+  // (4.5:1 on its soft fill), not the lighter solid used for the border.
   check: string;
   label: string;
 }
@@ -35,22 +37,23 @@ export function Check({
 // Pump isn't part of this checkbox lineup — it's a bespoke chip (PumpPill
 // below), not an EditableCheckbox/EditableToggleTile, so it's excluded here.
 export const TYPE_STYLES: Record<Exclude<EntryType, "pump">, CheckboxStyle> = {
+  // Feed is the parent of Bottle and Breast; it takes the bottle blue.
   feed: {
-    border: "border-amber",
-    bg: "bg-amber-soft",
-    check: "text-amber",
+    border: "border-cat-bottle",
+    bg: "bg-cat-bottle-soft",
+    check: "text-cat-bottle-ink",
     label: "Feed",
   },
   poop: {
-    border: "border-terracotta",
-    bg: "bg-terracotta-soft",
-    check: "text-terracotta",
+    border: "border-cat-poo",
+    bg: "bg-cat-poo-soft",
+    check: "text-cat-poo-ink",
     label: "Poo",
   },
   pee: {
-    border: "border-brand-blue",
-    bg: "bg-brand-blue-soft",
-    check: "text-brand-blue",
+    border: "border-cat-pee",
+    bg: "bg-cat-pee-soft",
+    check: "text-cat-pee-ink",
     label: "Pee",
   },
 };
@@ -59,15 +62,15 @@ export const TYPE_STYLES: Record<Exclude<EntryType, "pump">, CheckboxStyle> = {
 // same tick/checkmark treatment as Poo/Pee, just color-coded differently.
 export const FEED_FLAG_STYLES: Record<"bottle" | "breast", CheckboxStyle> = {
   bottle: {
-    border: "border-amber",
-    bg: "bg-amber-soft",
-    check: "text-amber",
+    border: "border-cat-bottle",
+    bg: "bg-cat-bottle-soft",
+    check: "text-cat-bottle-ink",
     label: "Bottle",
   },
   breast: {
-    border: "border-rose",
-    bg: "bg-rose-soft",
-    check: "text-rose",
+    border: "border-cat-breast",
+    bg: "bg-cat-breast-soft",
+    check: "text-cat-breast-ink",
     label: "Breast",
   },
 };
@@ -180,7 +183,7 @@ export function StaticToggleTile({
 // markup at all (genuinely absent, not hidden) so "Pump" centers on its
 // own; on state adds the checkmark before the label. Used compact/inline on
 // desktop and full-width/taller on mobile via the fullWidth/large props.
-const PUMP_ON = "border-plum bg-plum-soft text-plum";
+const PUMP_ON = "border-cat-pump bg-cat-pump-soft text-cat-pump-ink";
 const PUMP_OFF = "border-line bg-transparent text-line-strong";
 
 export function PumpPill({
@@ -202,7 +205,7 @@ export function PumpPill({
         large ? "px-3 py-3 text-[13px]" : "px-3 py-1.5 text-[11.5px]"
       } ${fullWidth ? "w-full" : ""} ${checked ? PUMP_ON : PUMP_OFF}`}
     >
-      {checked && <Check colorClass="text-plum" />}
+      {checked && <Check colorClass="text-cat-pump-ink" />}
       Pump
     </button>
   );
@@ -224,7 +227,7 @@ export function PumpPillStatic({
         large ? "px-3 py-3 text-[13px]" : "px-3 py-1.5 text-[11.5px]"
       } ${fullWidth ? "w-full" : ""} ${checked ? PUMP_ON : PUMP_OFF}`}
     >
-      {checked && <Check colorClass="text-plum" />}
+      {checked && <Check colorClass="text-cat-pump-ink" />}
       Pump
     </span>
   );

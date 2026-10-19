@@ -193,17 +193,17 @@ export function ReportsView({
             <StatCard
               label="Pump sessions"
               value={String(stats.pumpSessions)}
-              accent="plum"
+              accent="pump"
             />
             <StatCard
               label="Total pumped"
               value={`${stats.totalPumpedMl} mL`}
-              accent="plum"
+              accent="pump"
             />
             <StatCard
               label="Breastfeed sessions"
               value={String(stats.breastfeedSessions)}
-              accent="rose"
+              accent="breast"
             />
             <StatCard
               label="Avg. session length"
@@ -212,14 +212,14 @@ export function ReportsView({
                   ? fmtDuration(stats.avgBreastfeedSessionSeconds)
                   : "—"
               }
-              accent="rose"
+              accent="breast"
             />
           </div>
 
           <div className="rounded-[10px] border border-line bg-paper-raised p-4 shadow-card">
             <div className="mb-3 flex items-center gap-4 text-[11.5px] text-ink-soft">
               <span className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-amber" />
+                <span className="h-2 w-2 rounded-full bg-cat-bottle" />
                 Bottle mL logged
               </span>
             </div>
@@ -230,7 +230,7 @@ export function ReportsView({
                 value: day.totalMl,
               }))}
               valueFormatter={(value) => `${value} mL`}
-              color="amber"
+              color="bottle"
               indicators={dailyStats.map((day) => day.breastCount > 0)}
             />
           </div>
@@ -238,19 +238,19 @@ export function ReportsView({
           <div className="rounded-[10px] border border-line bg-paper-raised p-4 shadow-card">
             <div className="mb-3 flex items-center gap-4 text-[11.5px] text-ink-soft">
               <span className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-amber" />
+                <span className="h-2 w-2 rounded-full bg-cat-bottle" />
                 Bottle
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-rose" />
+                <span className="h-2 w-2 rounded-full bg-cat-breast" />
                 Breast
               </span>
             </div>
             <GroupedBarChart
               title="Feeds by day, by method"
               series={[
-                { key: "bottle", className: "bg-amber" },
-                { key: "breast", className: "bg-rose" },
+                { key: "bottle", className: "bg-cat-bottle" },
+                { key: "breast", className: "bg-cat-breast" },
               ]}
               data={dailyStats.map((day) => ({
                 label: day.dayLabel,
@@ -262,19 +262,19 @@ export function ReportsView({
           <div className="rounded-[10px] border border-line bg-paper-raised p-4 shadow-card">
             <div className="mb-3 flex items-center gap-4 text-[11.5px] text-ink-soft">
               <span className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-rose" />
+                <span className="h-2 w-2 rounded-full bg-cat-breast" />
                 Right
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-rose-dark" />
+                <span className="h-2 w-2 rounded-full bg-cat-breast-ink" />
                 Left
               </span>
             </div>
             <GroupedBarChart
               title="Breastfeeding time by day"
               series={[
-                { key: "right", className: "bg-rose" },
-                { key: "left", className: "bg-rose-dark" },
+                { key: "right", className: "bg-cat-breast" },
+                { key: "left", className: "bg-cat-breast-ink" },
               ]}
               data={dailyStats.map((day) => ({
                 label: day.dayLabel,
@@ -287,7 +287,7 @@ export function ReportsView({
           <div className="rounded-[10px] border border-line bg-paper-raised p-4 shadow-card">
             <div className="mb-3 flex items-center gap-4 text-[11.5px] text-ink-soft">
               <span className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-plum" />
+                <span className="h-2 w-2 rounded-full bg-cat-pump" />
                 Pumped mL (Jen)
               </span>
             </div>
@@ -299,7 +299,7 @@ export function ReportsView({
                 subLabel: day.pumpCount === 1 ? "1 session" : `${day.pumpCount} sessions`,
               }))}
               valueFormatter={(value) => `${value} mL`}
-              color="plum"
+              color="pump"
             />
           </div>
 

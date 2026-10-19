@@ -90,7 +90,7 @@ const BUTTON =
 
 // Stop is the app's dark rose (already Discard sleep's colour): red enough to
 // say "this ends it", calm enough not to read as an alarm. Pause stays blue.
-const STOP_BUTTON = "border-rose-dark bg-rose-dark text-white";
+const STOP_BUTTON = "border-stop bg-stop text-white";
 
 function Dim({ children }: { children: React.ReactNode }) {
   return <div className="flex flex-1 opacity-[0.42]">{children}</div>;
@@ -253,7 +253,7 @@ function PauseList({
                 disabled={busy}
                 aria-label={removePauseLabel(zone, row)}
                 onClick={(event) => onRemove(row, event.currentTarget)}
-                className="ml-auto min-h-[44px] min-w-[80px] rounded-full border-[1.5px] border-rose-dark bg-transparent px-3 text-[13px] font-bold text-rose-dark transition-colors hover:bg-rose-soft disabled:cursor-not-allowed disabled:opacity-60"
+                className="ml-auto min-h-[44px] min-w-[80px] rounded-full border-[1.5px] border-stop bg-transparent px-3 text-[13px] font-bold text-stop transition-colors hover:bg-rose-soft disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Remove
               </button>

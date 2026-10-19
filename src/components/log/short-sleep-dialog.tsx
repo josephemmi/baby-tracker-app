@@ -101,7 +101,7 @@ export function ShortSleepDialog({
           <button
             type="button"
             onClick={onDiscard}
-            className="h-10 rounded-[10px] border border-transparent bg-transparent text-sm font-medium text-rose-dark transition-colors hover:bg-rose-soft"
+            className="h-10 rounded-[10px] border border-transparent bg-transparent text-sm font-medium text-stop transition-colors hover:bg-rose-soft"
           >
             Discard sleep
           </button>

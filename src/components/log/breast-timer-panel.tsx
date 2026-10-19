@@ -10,7 +10,7 @@ import {
   hasBreastTime,
 } from "@/lib/breastfeed-timer";
 
-const SIDE_ON = "border-rose bg-rose-soft text-rose";
+const SIDE_ON = "border-cat-breast bg-cat-breast-soft text-cat-breast-ink";
 const SIDE_OFF = "border-line-strong bg-transparent text-ink-soft";
 
 interface BreastTimerPanelProps {
@@ -54,8 +54,8 @@ export function BreastTimerPanel({
     if (!entry.breast_active_side) return null;
     const activeSeconds = entry.breast_active_side === "right" ? rightSeconds : leftSeconds;
     return (
-      <div className="flex items-center gap-2 rounded-[8px] border border-rose bg-rose-soft px-3 py-2 text-[13px] font-bold text-rose">
-        <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-rose" aria-hidden="true" />
+      <div className="flex items-center gap-2 rounded-[8px] border border-cat-breast bg-cat-breast-soft px-3 py-2 text-[13px] font-bold text-cat-breast-ink">
+        <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-cat-breast" aria-hidden="true" />
         {entry.breast_active_side === "right" ? "Right" : "Left"} — {fmtDuration(activeSeconds)}
       </div>
     );
@@ -123,7 +123,7 @@ export function BreastSessionSummary({
 
   if (variant === "inline") {
     return (
-      <div className="text-[13px] font-bold text-rose">
+      <div className="text-[13px] font-bold text-cat-breast-ink">
         🤱 Breastfed — R {right} · L {left} · Total {total}
       </div>
     );
@@ -133,7 +133,7 @@ export function BreastSessionSummary({
     <button
       type="button"
       onClick={onToggleExpand}
-      className="rounded-[8px] border border-rose/40 bg-rose-soft px-2 py-1 text-center text-[11.5px] font-bold tabular-nums text-rose transition-colors hover:bg-rose-soft/70"
+      className="rounded-[8px] border border-cat-breast/40 bg-cat-breast-soft px-2 py-1 text-center text-[11.5px] font-bold tabular-nums text-cat-breast-ink transition-colors hover:bg-cat-breast-soft/70"
     >
       {expanded ? (
         <span className="flex flex-col leading-tight">
