@@ -19,6 +19,31 @@ picks this up next.
 
 ---
 
+## 2026-10-19, later (v1.13.1 release)
+
+**Done:**
+- Docs PR #41 merged (retro notes and log; production redeployed READY).
+- **v1.13.1 cut** (patch, confirmed with Joseph): `[Unreleased]` moved into
+  `1.13.1` with the Pee/Bottle swap added to the entry, `package.json` and lock
+  bumped, `NestlogReleaseNotesv1.13.1.pdf` (one page, two card shots) and the
+  refreshed `NestlogSleepTrackerUserGuidev1.13.1.pdf` sent in chat and attached
+  to JOS-66 with the notes as a comment. The guide needed one new screenshot
+  (12, the Delete button, now the `danger` rose); the other 17 show nothing that
+  changed colour. [PR #42](https://github.com/josephemmi/baby-tracker-app/pull/42)
+  is open; **merging it is the release.**
+
+**In flight / open:**
+- JOS-66 is still In Progress (remaining token work, see the entry below). The
+  release PR's branch, title and body leave the ticket id out on purpose so
+  Linear does not close it on merge.
+- JOS-79, JOS-80 still in the backlog.
+
+**Worth knowing:**
+- Release shots came from a temporary dev-preview route on the real tile
+  components (removed before commit); the harness is still not committed (JOS-57).
+
+---
+
 ## 2026-10-19 (JOS-66 colour half, JOS-79, JOS-80, JOS-82)
 
 **Done:**
