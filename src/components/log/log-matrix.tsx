@@ -993,6 +993,22 @@ export function LogMatrix({
     return null;
   }
 
+  async function handleSleepRemovePause(sleep: Sleep, index: number): Promise<string | null> {
+    const outcome = await sleepCtl.removePause(sleep, index);
+    if (outcome.ok) {
+      flashSleep(sleep.id, false);
+      return null;
+    }
+    // A rule said no (the pause is gone, it would overlap another sleep) or
+    // the network dropped: that belongs under the list. Someone else changing
+    // the sleep first is a toast, and the card has already moved on.
+    if (outcome.status === "error" || outcome.status === "offline") {
+      return outcome.message ?? "Couldn't remove that pause.";
+    }
+    if (outcome.message) showToast(outcome.message);
+    return null;
+  }
+
   function handleSleepLoggedByCycle(sleep: Sleep) {
     if (members.length === 0) return;
     const currentIndex = members.findIndex((m) => m.id === sleep.by);
@@ -1074,6 +1090,7 @@ export function LogMatrix({
         onReopen={() => void reopenSleep(sleep)}
         onDelete={() => setPendingSleepDelete({ id: sleep.id, rev: sleep.rev })}
         onSetTime={(field, input) => handleSleepSetTime(sleep, field, input)}
+        onRemovePause={(index) => handleSleepRemovePause(sleep, index)}
         onLoggedByCycle={() => handleSleepLoggedByCycle(sleep)}
         onNotesCommit={(value) => handleSleepNotes(sleep, value)}
         onNotice={showToast}

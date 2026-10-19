@@ -9,6 +9,21 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-10-18
+
+### Added
+- The sleep card now shows each pause (JOS-78). A finished card shows when the
+  sleep began and ended (9:00 pm to 8:34 am) centred on its own line, with a
+  "2 pauses" button below it, and running and paused cards get the same button
+  where "· 2 pauses" used to sit. Tap the button, or anywhere on the summary
+  box, to open a list of every pause: when it began and ended and how long it
+  lasted, with the total paused time at the top. A paused card also lists the
+  pause still going. While a sleep is running, paused or reopened, each
+  finished pause has a Remove button; confirm, and that time counts as sleep
+  again. A finished card lists its pauses read-only and says to tap Reopen
+  sleep first. Needs one new database function, remove_sleep_pause (no table
+  changes).
+
 ## [1.12.0] - 2026-10-17
 
 ### Added

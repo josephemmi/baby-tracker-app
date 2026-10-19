@@ -137,7 +137,9 @@
   with the ticket in parentheses** (about 60–140 words, no sub-bullets, no
   bold); screenshots after the bullets, no heading and no captions; a rule
   and the one-line footer. So write CHANGELOG entries in that form (detail
-  that doesn't fit belongs in the PR, `PROJECT_LOG.md` or the user guide),
+  that doesn't fit belongs in the PR, `PROJECT_LOG.md` or the user guide;
+  and plain characters only, since the PDF's built-in font renders `→` as a
+  substitute glyph: write "to"),
   and before cutting a release **read the previous releases' PDFs and
   compare**: when the new notes differ in structure, change the new ones,
   not the old pattern. `read_file_content` on a Drive file id gives the
@@ -201,7 +203,10 @@
     step a guide shows (a fix or a polish counts) refreshes that guide's
     screenshots and `guide.json` in the same release and ships the new
     PDF. A change that doesn't alter anything the guide shows needs no
-    guide work. Older features aren't backfilled unless Joseph asks.
+    guide work. Check every image, not only the ones the ticket names:
+    JOS-78's list named 05 and 06, but 04 and 14 also showed the old
+    "· 1 pause" text. Look at them all (`Read` each PNG) before deciding
+    which to reshoot. Older features aren't backfilled unless Joseph asks.
   - **Delivery:** exactly like the release notes. Attach the PDF to the
     feature's Linear ticket(s) and send it via `SendUserFile`; never
     upload it to Drive.
@@ -442,6 +447,35 @@ time.
   (pre-existing, not yours). Not exercised this way: the realtime WebSocket,
   so say so and ask Joseph to watch it on two devices. And `pkill -f "next
   dev"` kills your own shell (it matches the command line) — find the PID.
+  Four more traps from JOS-78, each of which looked like an app bug first:
+  (1) don't `page.clock.pauseAt` before `goto` — the page never hydrates
+  (the Log a moment button stays hidden); `install` alone lets time flow.
+  (2) When jumping time, move the **server's** clock first, then
+  `fastForward` the pages: the jump fires the 10 s poll, and a reply
+  stamped before the jump makes the app (correctly) take the timer back
+  by the whole jump. (3) For narrow-width checks the preview wrapper's
+  width must follow the viewport (`?w=`); a fixed 393 px wrapper in a
+  320 px viewport makes Chrome's mobile emulation zoom out, and Playwright's
+  hit-testing and measurements then lie. (4) A control under a stretched
+  `::after` overlay (the pause box) can't be `locator.click()`ed — Playwright
+  refuses because the overlay is on top, which is the point; click by
+  coordinates, and assert `elementFromPoint` hits the overlay's button.
+- **A SQL scenario drafted standalone must be made to start clean when it
+  is merged into `supabase/tests/sleeps.sql` (JOS-78).** Every scenario opens
+  with `reset role; delete from public.sleeps; set local role authenticated;`.
+  Scenario 17 passed alone and failed merged: an earlier scenario leaves a
+  running sleep on the same baby, so `start_sleep` answered `open_exists` with
+  *that* sleep and the scenario quietly ran against it until a later assert
+  tripped. After merging, run the whole file, and mutation-check the new
+  scenario (break the migration in a copy, rebuild from a template database
+  that has the earlier migrations, confirm the file goes red).
+- **Getting a Drive file onto disk (JOS-78).** `download_file_content` returns
+  base64 in the tool result, so it only reaches disk by being re-typed into
+  `base64 -d`: fine for a ~15 KB SQL file (check the byte size against the
+  listing's `fileSize`), not practical for a PDF or a 30 KB HTML prototype
+  (a long paste got cut off once). `read_file_content` gives text for .md and
+  .sql, with markdown escapes (`\-`, `\_`) to undo. Take the part you need
+  (the CSS and markup of a prototype, not its script).
 - **"App not loading" diagnostic playbook (2026-08-27 incident).** Joseph
   reported `baby-tracker-app-bay.vercel.app` unreachable from every real
   device (phone on WiFi and cellular, iPad), while every server-side
