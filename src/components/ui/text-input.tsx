@@ -17,7 +17,7 @@ export function TextInput({
   return (
     <input
       {...props}
-      className={`rounded-[10px] border border-line-strong bg-paper-raised px-3 py-2 text-[13.5px] text-ink placeholder:text-line-strong placeholder:italic focus:outline focus:outline-2 focus:outline-offset-1 disabled:cursor-not-allowed disabled:border-line disabled:text-line-strong ${focusRing[focusColor]} ${className}`}
+      className={`rounded-[10px] border border-line-strong bg-paper-raised px-3 py-1.5 text-[16px] text-ink placeholder:text-line-strong placeholder:italic focus:outline focus:outline-2 focus:outline-offset-1 disabled:cursor-not-allowed disabled:border-line disabled:text-line-strong ${focusRing[focusColor]} ${className}`}
     />
   );
 }

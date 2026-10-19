@@ -194,7 +194,7 @@ export function EntryCard({
               onKeyDown={(e) => {
                 if (e.key === "Enter") e.currentTarget.blur();
               }}
-              className="rounded-md border border-transparent bg-transparent text-[15px] font-bold tabular-nums text-ink hover:border-line focus:border-line-strong focus:bg-paper focus:outline-none"
+              className="rounded-md border border-transparent bg-transparent text-[16px] font-bold tabular-nums text-ink hover:border-line focus:border-line-strong focus:bg-paper focus:outline-none"
             />
           ) : editable ? (
             <button
@@ -320,10 +320,10 @@ export function EntryCard({
               onKeyDown={(e) => {
                 if (e.key === "Enter") e.currentTarget.blur();
               }}
-              className="flex-1 bg-transparent text-right text-[14px] tabular-nums text-ink focus:outline-none"
+              className="flex-1 bg-transparent text-right text-[16px] tabular-nums text-ink focus:outline-none"
             />
           ) : (
-            <span className="flex-1 text-right text-[14px] tabular-nums text-ink">
+            <span className="flex-1 text-right text-[16px] tabular-nums text-ink">
               {moment.feed?.amount_ml ?? ""}
             </span>
           )}
@@ -412,10 +412,10 @@ export function EntryCard({
                 onKeyDown={(e) => {
                   if (e.key === "Enter") e.currentTarget.blur();
                 }}
-                className="flex-1 bg-transparent text-right text-[14px] tabular-nums text-ink focus:outline-none"
+                className="flex-1 bg-transparent text-right text-[16px] tabular-nums text-ink focus:outline-none"
               />
             ) : (
-              <span className="flex-1 text-right text-[14px] tabular-nums text-ink">
+              <span className="flex-1 text-right text-[16px] tabular-nums text-ink">
                 {moment.pump?.amount_ml ?? ""}
               </span>
             )}

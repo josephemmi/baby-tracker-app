@@ -166,7 +166,7 @@ export function EntryTableRow({
             onKeyDown={(e) => {
               if (e.key === "Enter") e.currentTarget.blur();
             }}
-            className="w-full rounded-[10px] border border-transparent bg-transparent px-2 py-1.5 text-[13.5px] tabular-nums text-ink hover:border-line focus:border-line-strong focus:bg-paper focus:outline-none"
+            className="w-full rounded-[10px] border border-transparent bg-transparent px-2 py-1 text-[16px] tabular-nums text-ink hover:border-line focus:border-line-strong focus:bg-paper focus:outline-none"
           />
         ) : editable ? (
           <button
@@ -238,7 +238,7 @@ export function EntryTableRow({
               onKeyDown={(e) => {
                 if (e.key === "Enter") e.currentTarget.blur();
               }}
-              className="w-16 rounded-[10px] border border-line-strong bg-paper-raised px-2 py-1 text-right text-[13.5px] tabular-nums text-ink focus:border-cat-bottle focus:outline focus:outline-2 focus:outline-offset-1 focus:outline-cat-bottle disabled:cursor-not-allowed disabled:border-line disabled:text-line-strong"
+              className="w-16 rounded-[10px] border border-line-strong bg-paper-raised px-2 py-0.5 text-right text-[16px] tabular-nums text-ink focus:border-cat-bottle focus:outline focus:outline-2 focus:outline-offset-1 focus:outline-cat-bottle disabled:cursor-not-allowed disabled:border-line disabled:text-line-strong"
             />
             <span
               className={`text-[13.5px] text-ink-soft transition-opacity duration-150 ${amountEditing ? "opacity-0" : ""}`}
@@ -354,7 +354,7 @@ export function EntryTableRow({
                   onKeyDown={(e) => {
                     if (e.key === "Enter") e.currentTarget.blur();
                   }}
-                  className="w-14 rounded-[10px] border border-line-strong bg-paper-raised px-2 py-1 text-right text-[13.5px] tabular-nums text-ink focus:border-cat-pump focus:outline focus:outline-2 focus:outline-offset-1 focus:outline-cat-pump"
+                  className="w-14 rounded-[10px] border border-line-strong bg-paper-raised px-2 py-0.5 text-right text-[16px] tabular-nums text-ink focus:border-cat-pump focus:outline focus:outline-2 focus:outline-offset-1 focus:outline-cat-pump"
                 />
                 <span
                   className={`text-[11px] text-ink-soft transition-opacity duration-150 ${pumpAmountEditing ? "opacity-0" : ""}`}
