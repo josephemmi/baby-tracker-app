@@ -19,6 +19,55 @@ picks this up next.
 
 ---
 
+## 2026-10-19 (JOS-66 colour half, JOS-79, JOS-80, JOS-82)
+
+**Done:**
+- [JOS-66](https://linear.app/josephemmi/issue/JOS-66) (In Progress, half
+  shipped): category colours follow what they stand for (decisions D4 and D9
+  in plan §11). A `cat-*` token block in `globals.css` (solid, soft and ink for
+  Pee yellow `#ad8a0e`, Poo brown `#8a5a3c`, Bottle blue `#3f7391`, Breast teal
+  `#2f8a85`, Pump violet `#6a54a3`; Sleep stays `night`), plus `danger`
+  `#9a516b` (Delete button) and `stop` `#8b4a63` (Stop sleep, Discard, the
+  pause Remove button). Tiles, ticks and tile labels use the ink, borders and
+  chart bars the solid. 12 files: Log, breast timer, Pump pill, mL focus rings,
+  Recently Deleted, Reports. [PR #39](https://github.com/josephemmi/baby-tracker-app/pull/39)
+  was reviewed by Joseph on the Vercel preview on his phone ("looks good") and
+  merged; production deployed. Checked by eye with a temporary dev-preview route
+  on the real components (removed before commit), not against live data.
+- Production had moved under the PR (PR #40, v1.13.0). Merged production into
+  the branch, kept both CHANGELOG entries, and moved the new pause Remove
+  button from `rose-dark` to `stop` (same hex). 225 tests pass under `TZ=UTC`.
+- Filed [JOS-79](https://linear.app/josephemmi/issue/JOS-79) (Bug): two
+  `partitionHomeMoments` tests fail whenever the machine isn't on UTC (fails
+  the same on production). [JOS-80](https://linear.app/josephemmi/issue/JOS-80)
+  (Polish): the delete-X icons still hover in terracotta, and the sleep time
+  picker's amber warning text is 2.7:1.
+- `retro`: [JOS-82](https://linear.app/josephemmi/issue/JOS-82) (Process, In
+  Review): CLAUDE.md notes on `gh pr create` not working here, the REST
+  replacement, and Linear closing a ticket on a partial PR. Docs only.
+
+**In flight / open:**
+- JOS-66 is **not finished**: the three-tier raw/semantic structure, `ink-faint`
+  and `control-border`, the radius, type, z-index and motion tokens (the type
+  remap is a visible change that needs a screenshot diff), and deleting the dead
+  `--radius`. Linear closed it on merge; it was moved back to In Progress.
+- Pre-existing raw colour names remain on purpose: terracotta (errors, person
+  colour 2), brand-blue (person colour 3), amber (Paused dot, brand mark, the
+  warn text in the sleep time picker), sage.
+- The Left/Right bars in Reports are two teals (`cat-breast` and its ink), a
+  colour difference of about 9 even for colour-blind eyes.
+- Night mode (JOS-77) will need dark values for the `cat-*` block, `danger` and
+  `stop`.
+
+**Worth knowing:**
+- The Pee and Bottle colours swapped (blue was Pee, amber was Bottle), so
+  existing users will notice; mention it in the next release notes. This PR
+  added an `[Unreleased]` CHANGELOG entry but nothing is released yet.
+- A branch or PR title carrying a ticket id links that ticket in Linear and
+  can close it on merge (see CLAUDE.md).
+
+---
+
 ## 2026-10-18/19 (JOS-78, v1.13.0)
 
 **Done:**

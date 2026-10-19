@@ -60,6 +60,25 @@
   Skip it for docs-only or config-only PRs (e.g. a `CLAUDE.md` note, a
   `CHANGELOG.md`/`PROJECT_LOG.md` update) — there's nothing there for
   him to do with a preview link, so don't hand him one.
+- **Opening and merging a PR from a web session (JOS-82).** `gh pr create`
+  fails here with HTTP 403 (GitHub GraphQL is blocked); use REST instead:
+  `gh api repos/josephemmi/baby-tracker-app/pulls --method POST --input
+  pr.json` (a JSON file with `title`, `head`, `base`, `body`), and
+  `gh api .../pulls/N/merge --method PUT -f merge_method=merge` to merge
+  (the repo uses merge commits). Right after a push, `mergeable_state` reads
+  `unknown`, then `unstable` while the preview builds, then `clean`; poll it
+  rather than merging blind. If production moved while the PR waited (another
+  session released), merge production into the branch rather than
+  rebasing; the conflict is almost always the top of `CHANGELOG.md`
+  under `[Unreleased]`, where you keep both entries.
+- **Linear closes a ticket when any linked PR merges, even a partial one**
+  (JOS-66 session: a ticket meant for two PRs went to Done when the first
+  merged). The link comes from the ticket id in the branch name, PR title or
+  PR body. When a ticket will take more than one PR, either split it into one
+  ticket per PR first, or, right after merging the first, check the ticket
+  and move it back to In Progress with a note of what is left. This also
+  applies to a docs-only follow-up PR: name its branch for its own ticket,
+  not the one it follows.
 - Every piece of work gets a Linear ticket in the JOS team / Momentini
   project — including process or tooling fixes noticed along the way
   (like this section, or JOS-43), not just product features and bugs.
