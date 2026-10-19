@@ -624,6 +624,262 @@ begin
 end $$;
 reset role;
 
+-- 17. Remove a pause (JOS-78): while the sleep is running or paused, never once it is
+--     finished (Reopen first), and the time adds up --------------------------------
+reset role;
+delete from public.sleeps;
+set local role authenticated;
+
+-- 17a. The night from the screenshot: 21:00-21:06, 21:08-02:10, 02:43-08:34, then
+--      finished. A finished sleep refuses; Reopen, then remove both pauses; Stop.
+do $$
+declare
+  j constant uuid := '00000000-0000-0000-0000-0000000000a1';
+  n constant uuid := '00000000-0000-0000-0000-0000000000a2';
+  baby constant uuid := '00000000-0000-0000-0000-0000000000d1';
+  sid uuid; r jsonb; s jsonb;
+begin
+  perform public.t_as(j, '2026-10-16 21:00:00+00');
+  r := public.start_sleep(baby);  sid := (r -> 'sleep' ->> 'id')::uuid;
+  perform public.t_as(n, '2026-10-16 21:06:00+00'); r := public.pause_sleep(sid, 1);
+  perform public.t_as(n, '2026-10-16 21:08:00+00'); r := public.resume_sleep(sid, 2);
+  perform public.t_as(n, '2026-10-17 02:10:00+00'); r := public.pause_sleep(sid, 3);
+  perform public.t_as(n, '2026-10-17 02:43:00+00'); r := public.resume_sleep(sid, 4);
+  perform public.t_as(j, '2026-10-17 08:34:00+00'); r := public.stop_sleep(sid, 5);
+  s := r -> 'sleep';
+  assert (s ->> 'rev')::int = 6 and s ->> 'closed_at' is not null and jsonb_array_length(s -> 'segments') = 3,
+         '17a night is finished with 3 stretches: ' || r::text;
+
+  -- finished: read-only, even with the right rev
+  perform public.t_as(n, '2026-10-17 08:40:00+00');
+  r := public.remove_sleep_pause(sid, 6, 0);
+  assert r ->> 'status' = 'conflict' and r ->> 'reason' = 'stale', '17a a finished sleep refuses: ' || r::text;
+  assert (select rev from public.sleeps where sleeps.id = sid) = 6, '17a and nothing changed';
+
+  -- Reopen sleep (JOS-56): back to paused, last wake kept
+  r := public.reopen_sleep(sid, 6);
+  assert r ->> 'status' = 'ok' and (r -> 'sleep' ->> 'rev')::int = 7 and r -> 'sleep' ->> 'closed_at' is null, '17a reopened: ' || r::text;
+
+  -- stale rev: the screen is one change behind
+  r := public.remove_sleep_pause(sid, 6, 0);
+  assert r ->> 'status' = 'conflict' and r ->> 'reason' = 'stale', '17a stale rev is a conflict: ' || r::text;
+
+  -- a pause that is not there
+  r := public.remove_sleep_pause(sid, 7, 2);
+  assert r ->> 'status' = 'error' and r ->> 'code' = 'no-pause', '17a index past the last pause: ' || r::text;
+  r := public.remove_sleep_pause(sid, 7, -1);
+  assert r ->> 'status' = 'error' and r ->> 'code' = 'no-pause', '17a negative index: ' || r::text;
+  r := public.remove_sleep_pause(sid, 7, null);
+  assert r ->> 'status' = 'error' and r ->> 'code' = 'no-pause', '17a null index: ' || r::text;
+  assert (select rev from public.sleeps where sleeps.id = sid) = 7, '17a refusals change nothing';
+
+  -- remove the first (2 min) pause, as Jen
+  perform public.t_as(n, '2026-10-17 08:41:00+00');
+  r := public.remove_sleep_pause(sid, 7, 0);
+  assert r ->> 'status' = 'ok', '17a remove first pause: ' || r::text;
+  s := r -> 'sleep';
+  assert s -> 'segments' = '[{"start": "2026-10-16T21:00:00.000Z", "end": "2026-10-17T02:10:00.000Z"},
+                            {"start": "2026-10-17T02:43:00.000Z", "end": "2026-10-17T08:34:00.000Z"}]'::jsonb,
+         '17a stretches merged, the 33 min pause stays: ' || (s -> 'segments')::text;
+  assert (s ->> 'rev')::int = 8, '17a rev bumps';
+  assert s ->> 'last_action' = 'edit' and (s ->> 'last_by')::uuid = n, '17a recorded as Jen editing';
+  assert (s ->> 'started_at')::timestamptz = '2026-10-16 21:00:00+00', '17a start unchanged';
+  assert s ->> 'closed_at' is null, '17a still reopened (paused)';
+
+  -- repeating the same call is a conflict, not a second removal
+  r := public.remove_sleep_pause(sid, 7, 0);
+  assert r ->> 'status' = 'conflict', '17a repeat is a conflict: ' || r::text;
+
+  -- remove the last remaining pause, as Joseph: one stretch, no pauses
+  perform public.t_as(j, '2026-10-17 08:42:00+00');
+  r := public.remove_sleep_pause(sid, 8, 0);
+  assert r ->> 'status' = 'ok', '17a remove last pause: ' || r::text;
+  assert r -> 'sleep' -> 'segments' = '[{"start": "2026-10-16T21:00:00.000Z", "end": "2026-10-17T08:34:00.000Z"}]'::jsonb,
+         '17a one stretch left: ' || (r -> 'sleep' -> 'segments')::text;
+  assert (r -> 'sleep' ->> 'last_by')::uuid = j, '17a recorded as Joseph editing';
+  r := public.remove_sleep_pause(sid, 9, 0);
+  assert r ->> 'status' = 'error' and r ->> 'code' = 'no-pause', '17a nothing left to remove: ' || r::text;
+
+  -- Stop closes it at the last wake again; wake time did not move
+  perform public.t_as(j, '2026-10-17 08:50:00+00');
+  r := public.stop_sleep(sid, 9);
+  assert r ->> 'status' = 'ok' and (r -> 'sleep' ->> 'closed_at')::timestamptz = '2026-10-17 08:34:00+00', '17a stopped at the last wake: ' || r::text;
+  r := public.remove_sleep_pause(sid, 10, 0);
+  assert r ->> 'status' = 'conflict', '17a finished again, read-only again: ' || r::text;
+end $$;
+
+-- 17b. A RUNNING sleep: the open last stretch survives the merge and keeps running.
+do $$
+declare
+  j constant uuid := '00000000-0000-0000-0000-0000000000a1';
+  baby constant uuid := '00000000-0000-0000-0000-0000000000d1';
+  sid uuid; r jsonb; s jsonb;
+begin
+  perform public.t_as(j, '2026-10-17 10:00:00+00');
+  r := public.start_sleep(baby);  sid := (r -> 'sleep' ->> 'id')::uuid;
+  perform public.t_as(j, '2026-10-17 10:30:00+00'); r := public.pause_sleep(sid, 1);
+  perform public.t_as(j, '2026-10-17 10:40:00+00'); r := public.resume_sleep(sid, 2);
+  assert (select x.closed_at is null and x.segments -> -1 ->> 'end' is null from public.sleeps x where x.id = sid), '17b running';
+  r := public.remove_sleep_pause(sid, 3, 0);
+  assert r ->> 'status' = 'ok', '17b remove while running: ' || r::text;
+  s := r -> 'sleep';
+  assert s -> 'segments' = '[{"start": "2026-10-17T10:00:00.000Z", "end": null}]'::jsonb, '17b one open stretch: ' || (s -> 'segments')::text;
+  assert s ->> 'closed_at' is null, '17b still open';
+  perform public.t_as(j, '2026-10-17 10:45:00+00');
+  r := public.pause_sleep(sid, 4);
+  assert r ->> 'status' = 'ok', '17b can pause again after: ' || r::text;
+  -- paused now: the pause in progress is not removable (there is only one stretch)
+  r := public.remove_sleep_pause(sid, 5, 0);
+  assert r ->> 'status' = 'error' and r ->> 'code' = 'no-pause', '17b the open pause is not removable: ' || r::text;
+  r := public.stop_sleep(sid, 5);
+  assert r ->> 'status' = 'ok', '17b stop';
+end $$;
+
+-- 17c. A PAUSED sleep with an earlier completed pause: remove it, the sleep stays paused.
+do $$
+declare
+  j constant uuid := '00000000-0000-0000-0000-0000000000a1';
+  baby constant uuid := '00000000-0000-0000-0000-0000000000d1';
+  sid uuid; r jsonb; s jsonb;
+begin
+  perform public.t_as(j, '2026-10-17 12:00:00+00');
+  r := public.start_sleep(baby);  sid := (r -> 'sleep' ->> 'id')::uuid;
+  perform public.t_as(j, '2026-10-17 12:10:00+00'); r := public.pause_sleep(sid, 1);
+  perform public.t_as(j, '2026-10-17 12:18:00+00'); r := public.resume_sleep(sid, 2);
+  perform public.t_as(j, '2026-10-17 12:40:00+00'); r := public.pause_sleep(sid, 3);
+  perform public.t_as(j, '2026-10-17 12:52:00+00');
+  r := public.remove_sleep_pause(sid, 4, 0);
+  assert r ->> 'status' = 'ok', '17c remove the 8 min pause: ' || r::text;
+  s := r -> 'sleep';
+  assert s -> 'segments' = '[{"start": "2026-10-17T12:00:00.000Z", "end": "2026-10-17T12:40:00.000Z"}]'::jsonb,
+         '17c one stretch; the pause in progress is not touched: ' || (s -> 'segments')::text;
+  assert s ->> 'closed_at' is null and s -> 'segments' -> -1 ->> 'end' is not null, '17c still paused';
+  r := public.resume_sleep(sid, 5);
+  assert r ->> 'status' = 'ok', '17c and it can resume: ' || r::text;
+  r := public.stop_sleep(sid, 6);
+end $$;
+
+-- 17d. Another sleep inside the pause: removing would overlap it, so it is refused.
+--      (No app flow creates this today; the guard keeps a future "add a past sleep"
+--      from being able to.) Both sleeps are forged as the table owner.
+reset role;
+do $$
+declare
+  baby constant uuid := '00000000-0000-0000-0000-0000000000d1';
+  j constant uuid := '00000000-0000-0000-0000-0000000000a1';
+  sid uuid; r jsonb;
+begin
+  insert into public.sleeps (baby_id, segments, started_at, closed_at, rev, last_by, last_action, last_at)
+  values (baby,
+          '[{"start": "2026-10-18T01:00:00.000Z", "end": "2026-10-18T01:20:00.000Z"},
+            {"start": "2026-10-18T02:00:00.000Z", "end": "2026-10-18T03:00:00.000Z"}]',
+          '2026-10-18 01:00:00+00', null, 7, j, 'pause', '2026-10-18 03:00:00+00')
+  returning sleeps.id into sid;
+  insert into public.sleeps (baby_id, segments, started_at, closed_at, rev, last_by, last_action, last_at)
+  values (baby,
+          '[{"start": "2026-10-18T01:30:00.000Z", "end": "2026-10-18T01:45:00.000Z"}]',
+          '2026-10-18 01:30:00+00', '2026-10-18 01:45:00+00', 1, j, 'finish', '2026-10-18 01:45:00+00');
+  set local role authenticated;
+  perform public.t_as(j, '2026-10-18 03:30:00+00');
+  r := public.remove_sleep_pause(sid, 7, 0);
+  assert r ->> 'status' = 'error' and r ->> 'code' = 'overlap', '17d overlap is refused: ' || r::text;
+  assert (select rev from public.sleeps where sleeps.id = sid) = 7, '17d and nothing changed';
+  reset role;
+  -- close it so the next scenarios can start sleeps
+  update public.sleeps set closed_at = '2026-10-18 03:00:00+00' where sleeps.id = sid;
+end $$;
+
+-- 17e. Deleted sleeps are gone; strangers and signed-out callers are refused.
+do $$
+declare
+  j constant uuid := '00000000-0000-0000-0000-0000000000a1';
+  baby constant uuid := '00000000-0000-0000-0000-0000000000d1';
+  sid uuid; r jsonb; victim uuid;
+begin
+  reset role;
+  insert into public.sleeps (baby_id, segments, started_at, closed_at, rev, last_by, last_action, last_at, deleted_at, deleted_by)
+  values (baby,
+          '[{"start": "2026-10-19T01:00:00.000Z", "end": "2026-10-19T01:20:00.000Z"},
+            {"start": "2026-10-19T02:00:00.000Z", "end": "2026-10-19T03:00:00.000Z"}]',
+          '2026-10-19 01:00:00+00', null, 2, j, 'delete', '2026-10-19 03:00:00+00',
+          '2026-10-19 04:00:00+00', j)
+  returning sleeps.id into sid;
+  select x.id into victim from public.sleeps x where x.started_at = '2026-10-18 01:00:00+00';
+  assert victim is not null, '17e found the 17d sleep';
+  set local role authenticated;
+  perform public.t_as(j, '2026-10-19 03:30:00+00');
+  r := public.remove_sleep_pause(sid, 2, 0);
+  assert r ->> 'status' = 'gone', '17e deleted sleep is gone: ' || r::text;
+  r := public.remove_sleep_pause(gen_random_uuid(), 1, 0);
+  assert r ->> 'status' = 'gone', '17e unknown sleep is gone: ' || r::text;
+
+  -- the stranger (other household) can not touch someone else's sleep
+  perform public.t_as('00000000-0000-0000-0000-0000000000b1', '2026-10-19 09:00:00+00');
+  begin
+    perform public.remove_sleep_pause(victim, 7, 0);
+    assert false, '17e stranger';
+  exception when others then
+    assert sqlerrm = 'Not allowed', '17e stranger refused: ' || sqlerrm; end;
+end $$;
+reset role;
+set local role anon;
+do $$
+begin
+  begin
+    perform public.remove_sleep_pause(gen_random_uuid(), 1, 0);
+    assert false, '17e anon';
+  exception when insufficient_privilege then null; end;
+end $$;
+reset role;
+
+-- 17f. The time adds up: removing a pause moves exactly its length into "asleep",
+--      and Stop puts the sleep back with the same wake time.
+do $$
+declare
+  j constant uuid := '00000000-0000-0000-0000-0000000000a1';
+  baby constant uuid := '00000000-0000-0000-0000-0000000000d1';
+  sid uuid; r jsonb; before_ms numeric; after_ms numeric;
+begin
+  set local role authenticated;
+  perform public.t_as(j, '2026-10-20 21:00:00+00');
+  r := public.start_sleep(baby);  sid := (r -> 'sleep' ->> 'id')::uuid;
+  perform public.t_as(j, '2026-10-20 21:06:00+00'); r := public.pause_sleep(sid, 1);
+  perform public.t_as(j, '2026-10-20 21:08:00+00'); r := public.resume_sleep(sid, 2);
+  perform public.t_as(j, '2026-10-21 02:10:00+00'); r := public.pause_sleep(sid, 3);
+  perform public.t_as(j, '2026-10-21 02:43:00+00'); r := public.resume_sleep(sid, 4);
+  perform public.t_as(j, '2026-10-21 08:34:00+00'); r := public.stop_sleep(sid, 5);
+  perform public.t_as(j, '2026-10-21 08:40:00+00'); r := public.reopen_sleep(sid, 6);
+  select sum(extract(epoch from ((e ->> 'end')::timestamptz - (e ->> 'start')::timestamptz)) * 1000) into before_ms
+    from public.sleeps s, jsonb_array_elements(s.segments) e where s.id = sid;
+  r := public.remove_sleep_pause(sid, 7, 0);
+  select sum(extract(epoch from ((e ->> 'end')::timestamptz - (e ->> 'start')::timestamptz)) * 1000) into after_ms
+    from public.sleeps s, jsonb_array_elements(s.segments) e where s.id = sid;
+  assert before_ms = (10 * 3600 + 59 * 60) * 1000, '17f 10 h 59 m before: ' || before_ms;
+  assert after_ms = before_ms + 2 * 60 * 1000, '17f 11 h 01 m after: ' || after_ms;
+  perform public.t_as(j, '2026-10-21 08:41:00+00');
+  r := public.stop_sleep(sid, 8);
+  assert (r -> 'sleep' ->> 'closed_at')::timestamptz = '2026-10-21 08:34:00+00', '17f same wake time after Stop: ' || r::text;
+end $$;
+
+-- 17g. A sleep that closed itself (3 h paused) is finished too, even though closed_at
+--      has not been written yet: read-only, with the auto-close reason.
+do $$
+declare
+  j constant uuid := '00000000-0000-0000-0000-0000000000a1';
+  baby constant uuid := '00000000-0000-0000-0000-0000000000d1';
+  sid uuid; r jsonb;
+begin
+  perform public.t_as(j, '2026-10-22 21:00:00+00');
+  r := public.start_sleep(baby);  sid := (r -> 'sleep' ->> 'id')::uuid;
+  perform public.t_as(j, '2026-10-22 21:30:00+00'); r := public.pause_sleep(sid, 1);
+  perform public.t_as(j, '2026-10-22 21:40:00+00'); r := public.resume_sleep(sid, 2);
+  perform public.t_as(j, '2026-10-22 22:10:00+00'); r := public.pause_sleep(sid, 3);
+  perform public.t_as(j, '2026-10-23 01:11:00+00');
+  r := public.remove_sleep_pause(sid, 4, 0);
+  assert r ->> 'status' = 'conflict' and r ->> 'reason' = 'autoclosed', '17g auto-closed sleep is read-only: ' || r::text;
+  assert (select rev from public.sleeps where sleeps.id = sid) = 4, '17g and nothing changed';
+end $$;
+
 select 'sleeps.sql: all checks passed' as result;
 
 rollback;

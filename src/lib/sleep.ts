@@ -94,6 +94,7 @@ export type SleepErrorCode =
   | "before-prev" // start before the previous sleep ended
   | "after-end" // start after this sleep's first stretch ended
   | "before-start" // wake before this stretch began
+  | "no-pause" // there is no completed pause at that position
   | "no-reopen";
 
 export interface SleepErrorData {
@@ -500,6 +501,36 @@ export function editSleepTime(
     if (field === "end" && i === s.stretches.length - 1) return { ...g, end: at };
     return g;
   });
+  validateStretches(world, id, stretches);
+  return replace(world, touch({ ...s, stretches }, who, "edit", world.now));
+}
+
+// Remove one completed pause (JOS-78). `index` is the 0-based number of the
+// stretch BEFORE the pause, so 0 is the first pause. The stretch either side
+// of it become one — the paused time counts as sleep — and the sleep's start
+// and end do not move. Only while the sleep is open: a finished sleep is
+// read-only (JOS-56), so removing means Reopen first. That also covers one
+// that closed itself after 3 h paused: staleError says so. The pause still in
+// progress (after the last stretch) is not a pause yet; Resume ends it.
+export function removePause(
+  world: SleepWorld,
+  who: string | null,
+  id: string,
+  index: number,
+  baseRev?: number,
+): SleepWorld {
+  const s = byId(world, id);
+  checkRev(world, s, baseRev);
+  if (stateOf(s, world.now) === "finished") throw staleError(world, s);
+  if (!Number.isInteger(index) || index < 0 || index > s.stretches.length - 2) {
+    throw new SleepError("no-pause");
+  }
+
+  const stretches = [
+    ...s.stretches.slice(0, index),
+    { start: s.stretches[index].start, end: s.stretches[index + 1].end },
+    ...s.stretches.slice(index + 2),
+  ];
   validateStretches(world, id, stretches);
   return replace(world, touch({ ...s, stretches }, who, "edit", world.now));
 }

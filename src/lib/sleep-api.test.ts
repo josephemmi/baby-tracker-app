@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { resetServerClock, serverNow, syncServerClock } from "@/lib/server-clock";
 import {
@@ -7,10 +8,12 @@ import {
   isNetworkFailure,
   parseReply,
   rowToSleep,
+  sleepApi,
   SleepServerError,
   type SleepRow,
 } from "@/lib/sleep-api";
 import { MIN, type Sleep } from "@/lib/sleep";
+import type { Database } from "@/lib/supabase/database.types";
 
 function row(over: Partial<SleepRow> = {}): SleepRow {
   return {
@@ -217,5 +220,56 @@ describe("the server clock", () => {
   it("ignores a reply with no usable time", () => {
     syncServerClock(NaN, 0, 0);
     expect(Math.abs(serverNow() - Date.now())).toBeLessThan(50);
+  });
+});
+
+describe("removePause", () => {
+  const reply = (over: object) => ({
+    data: { now: "2026-10-16T17:20:00.000Z", ...over },
+    error: null,
+  });
+
+  function api(result: ReturnType<typeof reply>) {
+    const rpc = vi.fn().mockResolvedValue(result);
+    return { rpc, api: sleepApi({ rpc } as unknown as SupabaseClient<Database>) };
+  }
+
+  it("sends the rev on screen and the stretch before the pause", async () => {
+    const { rpc, api: a } = api(reply({ status: "ok", sleep: row({ id: "s9", rev: 8 }) }));
+    const held: Sleep = { ...rowToSleep(row({ id: "s9" })), rev: 7 };
+    const out = await a.removePause(held, 1);
+    expect(rpc).toHaveBeenCalledWith("remove_sleep_pause", { p_id: "s9", p_rev: 7, p_index: 1 });
+    expect(out.status === "ok" && out.sleep.rev).toBe(8);
+  });
+
+  it("reads a pause that is not there as a rule error, with the sleep as it now is", async () => {
+    const { api: a } = api(reply({ status: "error", code: "no-pause", sleep: row({ rev: 8 }) }));
+    const out = await a.removePause(rowToSleep(row()), 4);
+    expect(out.status).toBe("error");
+    if (out.status === "error") {
+      expect(out.error.code).toBe("no-pause");
+      expect(out.sleep?.rev).toBe(8);
+    }
+  });
+
+  it("reads a finished sleep as a conflict", async () => {
+    const { api: a } = api(
+      reply({
+        status: "conflict",
+        reason: "stale",
+        sleep: row({ closed_at: "2026-10-16T17:20:00.000Z", last_action: "finish" }),
+      }),
+    );
+    const out = await a.removePause(rowToSleep(row()), 0);
+    expect(out.status === "conflict" && out.reason).toBe("stale");
+  });
+
+  it("calls a function the database doesn't have an answer we can't use, not a dropped connection", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: { message: "Could not find the function public.remove_sleep_pause in the schema cache" },
+    });
+    const a = sleepApi({ rpc } as unknown as SupabaseClient<Database>);
+    await expect(a.removePause(rowToSleep(row()), 0)).rejects.toBeInstanceOf(SleepServerError);
   });
 });

@@ -19,6 +19,65 @@ picks this up next.
 
 ---
 
+## 2026-10-18/19 (JOS-78, v1.13.0)
+
+**Done:**
+- [JOS-78](https://linear.app/josephemmi/issue/JOS-78) (Feature, In Review):
+  the Sleep card shows each pause and lets a mistaken one be removed, built
+  from the Drive v1.13 spec, prototype and tested SQL draft.
+  [PR #40](https://github.com/josephemmi/baby-tracker-app/pull/40) is open,
+  not merged. The finished card has `9:00 pm to 8:34 am` centred on its own
+  line with a `2 pauses` button below it; running and paused cards get the
+  same button; tapping the summary box or the button opens an inline list
+  (header total, one row per pause, nothing under the rows; the pause in
+  progress shows on a paused card with no Remove). Remove only while the sleep
+  is running, paused or reopened, through the new `remove_sleep_pause`
+  (`20261018000000_sleep_remove_pause.sql`); finished cards stay read-only
+  (no exception to JOS-56) and say "To remove a pause, tap Reopen sleep
+  first", or just the "can't be reopened" line. Reuses `ConfirmDeleteModal`.
+  `removePause` in `sleep.ts` mirrors the SQL (stale error on a finished
+  sleep, new `no-pause` code); scenario 17 is in `supabase/tests/sleeps.sql`.
+  225 unit tests (194 before), 111 browser checks on the scratch-Postgres
+  harness, nine SQL and nine TS mutations each turned the tests red.
+- The migration was **applied to the live Supabase project** this session with
+  Joseph's go-ahead (recorded as `20261019000456_sleep_remove_pause`; verified
+  read-only: security definer, `search_path=public`, anon can't execute).
+- **v1.13.0 cut** (version given in the brief): CHANGELOG entry, version bump,
+  `NestlogReleaseNotesv1.13.0.pdf` (one page, two shots) and the refreshed
+  `NestlogSleepTrackerUserGuidev1.13.0.pdf` (still six pages: 04, 05, 06, 14
+  reshot, new 18, page 2 legend, page 4 block) sent in chat and attached to
+  JOS-78. **Merging PR #40 is the release.**
+- `retro`: [JOS-81](https://linear.app/josephemmi/issue/JOS-81) (Process, In
+  Review): CLAUDE.md notes on the harness traps, merging a standalone SQL
+  scenario, getting Drive files onto disk, PDF glyphs and the guide's refresh
+  scope. Docs only, a separate commit on PR #40.
+
+**In flight / open:**
+- PR #40 needs Joseph's review; the preview shares the live database, which
+  now has the function, so Remove works there.
+- Device checks (can't be done from Claude Code): Android Chrome (about 364 px
+  wide), Jen's iPad home-screen app, two devices for realtime (a removal on one
+  should show on the other within a couple of seconds). Realtime delivery
+  itself was not exercised, only the poll/refetch path.
+- [JOS-58](https://linear.app/josephemmi/issue/JOS-58) (notifications) is next;
+  [JOS-57](https://linear.app/josephemmi/issue/JOS-57) (commit the harness) is
+  still open and the harness (`h/lib.mjs`, `night.mjs`, `more.mjs`,
+  `shots.mjs`, the dev-preview route) still lives only in a session scratchpad.
+
+**Worth knowing:**
+- Judgement calls flagged on the PR: a paused card whose only pause is the one
+  in progress has no button yet (the prototype counts finished pauses only);
+  the running box has no hover tint (its secondary text is already 4.36:1 and
+  the prototype's tint made it 4.05:1); lengths round down like the timer and a
+  few seconds reads "under 1 min"; Remove is today's `rose-dark` until JOS-66.
+- A pause noticed after the 3 h Reopen window can't be removed (known
+  consequence of the brief; parked as a follow-up if it bites).
+- Two tool facts: Drive's `download_file_content` is base64 you re-type (see
+  CLAUDE.md), and the Linear MCP renders ticket links in descriptions as
+  `<issue>` tags, which is harmless.
+
+---
+
 ## 2026-10-17, later (JOS-56 review round and merge, JOS-58, JOS-59)
 
 **Done:**

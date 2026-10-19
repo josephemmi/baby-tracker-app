@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { Moment } from "@/lib/entries";
 import {
   asleepMs,
@@ -18,9 +18,17 @@ import type { SleepTimeInput } from "@/lib/sleep-api";
 import {
   durationLabel,
   deviceZone,
+  listPauses,
+  pauseCountLabel,
+  pauseLength,
+  REMOVE_NEEDS_REOPEN,
+  removePauseBody,
+  removePauseLabel,
   reopenHint,
   timerDigits,
   timerSpoken,
+  type PauseList as PauseListData,
+  type PauseRow,
   type Zone,
 } from "@/lib/sleep-format";
 import { initials, personColor } from "@/lib/person-colors";
@@ -31,6 +39,7 @@ import {
   TYPE_STYLES,
 } from "@/components/log/entry-styles";
 import { NotesCell } from "@/components/log/notes-cell";
+import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
 import { SleepTimePicker } from "@/components/log/sleep-time-picker";
 import { useServerNow } from "@/components/log/use-server-now";
 
@@ -61,6 +70,11 @@ export interface SleepCardProps {
   onDelete: () => void;
   // Resolves to a message when the server refused the time, null when saved.
   onSetTime: (field: SleepField, input: SleepTimeInput) => Promise<string | null>;
+  // Resolves to a message when the server refused (the pause is gone, it would
+  // overlap another sleep, the network dropped), null when it went or when the
+  // other parent's change already explained itself. `index` is the 0-based
+  // number of the stretch before the pause.
+  onRemovePause: (index: number) => Promise<string | null>;
   onLoggedByCycle: () => void;
   onNotesCommit: (value: string) => void;
   onNotice: (text: string) => void;
@@ -69,7 +83,7 @@ export interface SleepCardProps {
 // "Started earlier?" / "Woke earlier?": on a line of its own under the start
 // (or awake) time, with room to tap.
 const LINK =
-  "min-h-[40px] px-2 pt-2.5 pb-2 text-[13px] font-bold text-night underline decoration-night decoration-dotted underline-offset-[3px]";
+  "relative z-10 min-h-[40px] px-2 pt-2.5 pb-2 text-[13px] font-bold text-night underline decoration-night decoration-dotted underline-offset-[3px]";
 
 const BUTTON =
   "w-full rounded-full border-[1.5px] p-3 text-center text-[14px] font-bold transition-transform active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60";
@@ -108,6 +122,172 @@ function StatusLabel({
       />
       <span>{children}</span>
     </div>
+  );
+}
+
+// The "2 pauses ⌄" button under the summary, and — because the summary box is
+// one big tap target for it — the way a tap anywhere on the box opens the list.
+// The button is the only thing a keyboard or screen reader meets; its ::after
+// covers the whole box (the box is `relative`), and the box's own buttons
+// ("Started earlier?") sit above it.
+function PauseToggle({
+  count,
+  open,
+  controls,
+  onToggle,
+}: {
+  count: number;
+  open: boolean;
+  controls: string;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="flex justify-center pb-0.5">
+      <button
+        type="button"
+        data-pause-toggle
+        aria-expanded={open}
+        aria-controls={controls}
+        onClick={onToggle}
+        className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full border-[1.5px] border-line-strong bg-paper-raised px-3.5 text-[13px] font-bold text-ink-soft after:absolute after:inset-0 after:rounded-[11px] after:content-[''] hover:bg-[#f3eedf] focus-visible:outline-none"
+      >
+        {pauseCountLabel(count)}
+        <svg
+          viewBox="0 0 24 24"
+          className={`h-3.5 w-3.5 transition-transform duration-200 motion-reduce:transition-none ${
+            open ? "rotate-180" : ""
+          }`}
+          aria-hidden="true"
+        >
+          <path
+            d="M6 9l6 6 6-6"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+// What the summary box does when there are pauses to show: it is tappable all
+// over, and shows the keyboard focus of the button inside it. (The running box
+// has no hover tint: its secondary text is 4.4:1 on the night tint already,
+// and a darker one would take it lower.)
+const WELL_TAPPABLE =
+  "cursor-pointer has-[[data-pause-toggle]:focus-visible]:outline-[3px] has-[[data-pause-toggle]:focus-visible]:outline-offset-[3px] has-[[data-pause-toggle]:focus-visible]:outline-night";
+
+// Opens and closes without taking its content out of the page: a one-row grid
+// that grows from 0fr to 1fr. Closed, it is `inert` so nothing in it can be
+// tabbed to or read out.
+function Reveal({ id, open, children }: { id: string; open: boolean; children: React.ReactNode }) {
+  return (
+    <div
+      id={id}
+      inert={!open}
+      className={`grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none ${
+        open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+      }`}
+    >
+      <div className="min-h-0 overflow-hidden">{children}</div>
+    </div>
+  );
+}
+
+// Every pause of the sleep, in time order: when it began and ended, and how
+// long it lasted. A header with the total and nothing under the rows. Remove
+// is offered only while the sleep is open; a finished card is read-only, and
+// says how to change that.
+function PauseList({
+  headingId,
+  list,
+  zone,
+  canRemove,
+  needsReopen,
+  busy,
+  error,
+  onRemove,
+}: {
+  headingId: string;
+  list: PauseListData;
+  zone: Zone;
+  canRemove: boolean;
+  needsReopen: boolean;
+  busy: boolean;
+  error: string | null;
+  onRemove: (row: PauseRow, opener: HTMLButtonElement) => void;
+}) {
+  return (
+    <section
+      aria-labelledby={headingId}
+      className="mb-2.5 rounded-[12px] border border-line bg-paper px-3 pb-2.5"
+    >
+      <div className="flex items-baseline justify-between gap-3 pt-3 pb-2 text-[12.5px] tabular-nums text-ink-soft">
+        <h3 id={headingId} className="text-[14px] font-bold text-ink">
+          Pauses
+        </h3>
+        <span>{pauseLength(list.totalMs)} paused</span>
+      </div>
+      <ul>
+        {list.rows.map((row) => (
+          <li
+            key={row.index}
+            className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line py-2"
+          >
+            <div className="min-w-0 flex-auto">
+              <span className="block text-[14px] font-bold whitespace-nowrap tabular-nums">
+                {zone.fmtTime(row.start)} <span aria-hidden="true">→</span>
+                <span className="sr-only">to</span> {zone.fmtTime(row.end)}
+              </span>
+              <span className="block text-[12.5px] tabular-nums text-ink-soft">
+                {pauseLength(row.end - row.start)}
+              </span>
+            </div>
+            {canRemove && (
+              <button
+                type="button"
+                data-pause-remove
+                disabled={busy}
+                aria-label={removePauseLabel(zone, row)}
+                onClick={(event) => onRemove(row, event.currentTarget)}
+                className="ml-auto min-h-[44px] min-w-[80px] rounded-full border-[1.5px] border-stop bg-transparent px-3 text-[13px] font-bold text-stop transition-colors hover:bg-rose-soft disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Remove
+              </button>
+            )}
+          </li>
+        ))}
+        {list.open && (
+          <li className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line py-2">
+            <div className="min-w-0 flex-auto">
+              <span className="block text-[14px] font-bold whitespace-nowrap tabular-nums">
+                {zone.fmtTime(list.open.start)} <span aria-hidden="true">→</span>
+                <span className="sr-only">to</span> now
+              </span>
+              <span className="block text-[12.5px] tabular-nums text-ink-soft">
+                {pauseLength(list.open.ms)} so far
+              </span>
+            </div>
+            <span className="ml-auto text-right text-[12.5px] font-bold text-ink-soft">
+              Resume to end it
+            </span>
+          </li>
+        )}
+      </ul>
+      {needsReopen && (
+        <p className="border-t border-line pt-2 text-[12px] leading-normal text-ink-soft">
+          {REMOVE_NEEDS_REOPEN}
+        </p>
+      )}
+      {error && (
+        <p role="alert" className="border-t border-line pt-2 text-[12px] leading-normal text-rose-dark">
+          {error}
+        </p>
+      )}
+    </section>
   );
 }
 
@@ -162,6 +342,7 @@ export function SleepCard({
   onReopen,
   onDelete,
   onSetTime,
+  onRemovePause,
   onLoggedByCycle,
   onNotesCommit,
   onNotice,
@@ -172,7 +353,9 @@ export function SleepCard({
   const started = firstStart(sleep);
   const asleep = asleepMs(sleep, now);
   const pauses = pausesOf(sleep);
-  const pauseText = pauses === 1 ? "1 pause" : `${pauses} pauses`;
+  const pauseList = listPauses(sleep, now);
+  const revealId = useId();
+  const headingId = useId();
 
   const [picker, setPicker] = useState<{ field: SleepField; state: SleepState } | null>(null);
   // The subcard goes away when the sleep's state changes under it (the other
@@ -180,6 +363,54 @@ export function SleepCard({
   if (picker && (state === "finished" || picker.state !== state)) setPicker(null);
   const openPicker = (field: SleepField) =>
     setPicker((cur) => (cur?.field === field ? null : { field, state }));
+
+  // The pause list stays open through changes (a removal, the other parent's
+  // resume) and closes itself only when the last pause is gone, so a later
+  // pause doesn't find it already open.
+  const [pausesOpen, setPausesOpen] = useState(false);
+  if (pausesOpen && pauses === 0) setPausesOpen(false);
+  const listOpen = pausesOpen && pauses > 0;
+  const [removeError, setRemoveError] = useState<string | null>(null);
+  if (removeError && !listOpen) setRemoveError(null);
+
+  // "Remove this pause?" is open for the very version that was on screen when
+  // Remove was tapped: if the sleep changes under it (the other parent edits
+  // or stops it) it closes, like the under-a-minute dialog.
+  const [removing, setRemoving] = useState<{ index: number; rev: number } | null>(null);
+  if (removing && (removing.rev !== sleep.rev || state === "finished")) setRemoving(null);
+  const removingRow = removing ? pauseList.rows.find((r) => r.index === removing.index) : undefined;
+  // Where the keyboard goes back to when the box closes.
+  const removeOpener = useRef<HTMLButtonElement | null>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  // After a removal the keyboard goes to the Remove button now in the removed
+  // pause's place, or to the pause button once the last one is gone. The row
+  // it was on no longer exists, so this waits for the render that drops it.
+  // After a refused one it goes back to the same button.
+  const refocusAt = useRef<number | null>(null);
+  const [, nudge] = useState(0);
+  useEffect(() => {
+    if (refocusAt.current === null) return;
+    const buttons = cardRef.current?.querySelectorAll<HTMLButtonElement>("button[data-pause-remove]");
+    const target = buttons?.length
+      ? buttons[Math.min(refocusAt.current, buttons.length - 1)]
+      : cardRef.current?.querySelector<HTMLButtonElement>("button[data-pause-toggle]");
+    refocusAt.current = null;
+    target?.focus();
+  });
+
+  async function confirmRemove() {
+    if (!removing) return;
+    const { index } = removing;
+    setRemoving(null);
+    setRemoveError(null);
+    const message = await onRemovePause(index);
+    if (message) setRemoveError(message);
+    // Refused or removed, the keyboard goes back to that place in the list. It
+    // waits for the next render: the buttons are still disabled until the
+    // in-flight flag clears, and a disabled button can't take focus.
+    refocusAt.current = index;
+    nudge((n) => n + 1);
+  }
 
   const loggedByIndex = members.findIndex((m) => m.id === sleep.by);
   const loggedByName = (sleep.by && memberNames[sleep.by]) ?? "Unknown";
@@ -205,6 +436,7 @@ export function SleepCard({
 
   return (
     <div
+      ref={cardRef}
       data-sleep-card={sleep.id}
       data-state={state}
       aria-busy={busy}
@@ -284,7 +516,11 @@ export function SleepCard({
       </div>
 
       {state === "asleep" && (
-        <div className="mb-2.5 rounded-[12px] border-[1.5px] border-night bg-night-soft px-2.5 pt-3.5 pb-2 text-center">
+        <div
+          className={`relative mb-2.5 rounded-[12px] border-[1.5px] border-night bg-night-soft px-2.5 pt-3.5 pb-2 text-center ${
+            pauses > 0 ? WELL_TAPPABLE : ""
+          }`}
+        >
           <StatusLabel tone="text-night" dot="bg-night" pulse>
             Sleeping
           </StatusLabel>
@@ -292,17 +528,28 @@ export function SleepCard({
           <div className="flex flex-col items-center text-ink-soft">
             <div className="mt-0.5 text-[14px]">
               Started <b className="text-[15px] tabular-nums text-ink">{zone.fmtTime(started)}</b>
-              {pauses > 0 && ` · ${pauseText}`}
             </div>
             <button type="button" onClick={() => openPicker("start")} className={LINK}>
               Started earlier?
             </button>
           </div>
+          {pauses > 0 && (
+            <PauseToggle
+              count={pauses}
+              open={listOpen}
+              controls={revealId}
+              onToggle={() => setPausesOpen(!listOpen)}
+            />
+          )}
         </div>
       )}
 
       {state === "paused" && (
-        <div className="mb-2.5 rounded-[12px] border-[1.5px] border-line-strong bg-paper px-2.5 pt-3.5 pb-2 text-center">
+        <div
+          className={`relative mb-2.5 rounded-[12px] border-[1.5px] border-line-strong bg-paper px-2.5 pt-3.5 pb-2 text-center ${
+            pauses > 0 ? `${WELL_TAPPABLE} hover:bg-[#f3eedf]` : ""
+          }`}
+        >
           <StatusLabel tone="text-ink-soft" dot="bg-amber" pulse>
             Paused
           </StatusLabel>
@@ -319,22 +566,64 @@ export function SleepCard({
               Woke earlier?
             </button>
           </div>
+          {pauses > 0 && (
+            <PauseToggle
+              count={pauses}
+              open={listOpen}
+              controls={revealId}
+              onToggle={() => setPausesOpen(!listOpen)}
+            />
+          )}
         </div>
       )}
 
       {state === "finished" && (
-        <div className="mb-2.5 rounded-[12px] border-[1.5px] border-line-strong bg-paper px-2.5 pt-3.5 pb-1.5 text-center">
+        <div
+          className={`relative mb-2.5 rounded-[12px] border-[1.5px] border-line-strong bg-paper px-2.5 pt-3.5 pb-1.5 text-center ${
+            pauses > 0 ? `${WELL_TAPPABLE} hover:bg-[#f3eedf]` : ""
+          }`}
+        >
           <StatusLabel tone="text-ink-soft" dot="bg-sage">
             Slept
           </StatusLabel>
           <Timer ms={asleep} tone="done" size="done" />
-          <div className="flex min-h-[40px] flex-wrap items-center justify-center gap-x-1.5 text-[12.5px] text-ink-soft">
-            <b className="px-1 py-[9px] text-[12.5px] tabular-nums text-ink">{zone.fmtTime(started)}</b>
-            <span className="text-line-strong">→</span>
-            <b className="px-1 py-[9px] text-[12.5px] tabular-nums text-ink">{zone.fmtTime(end)}</b>
-            {pauses > 0 && <span className="text-line-strong">{pauseText}</span>}
+          {/* On its own line, centred; the pause button is on the next. */}
+          <div className="flex min-h-[40px] flex-wrap items-center justify-center gap-x-1.5 text-[12.5px] tabular-nums text-ink-soft">
+            <b className="px-1 font-bold text-ink">{zone.fmtTime(started)}</b>
+            <span className="text-line-strong" aria-hidden="true">
+              →
+            </span>
+            <span className="sr-only">to</span>
+            <b className="px-1 font-bold text-ink">{zone.fmtTime(end)}</b>
           </div>
+          {pauses > 0 && (
+            <PauseToggle
+              count={pauses}
+              open={listOpen}
+              controls={revealId}
+              onToggle={() => setPausesOpen(!listOpen)}
+            />
+          )}
         </div>
+      )}
+
+      {pauses > 0 && (
+        <Reveal id={revealId} open={listOpen}>
+          <PauseList
+            headingId={headingId}
+            list={pauseList}
+            zone={zone}
+            canRemove={live}
+            needsReopen={!live && reopenable}
+            busy={busy}
+            error={removeError}
+            onRemove={(row, opener) => {
+              removeOpener.current = opener;
+              setRemoveError(null);
+              setRemoving({ index: row.index, rev: sleep.rev });
+            }}
+          />
+        </Reveal>
       )}
 
       {picker && live && (
@@ -415,6 +704,18 @@ export function SleepCard({
           {noReopenHint}
         </p>
       )}
+
+      <ConfirmDeleteModal
+        open={removing !== null && removingRow !== undefined}
+        title="Remove this pause?"
+        body={removingRow ? removePauseBody(zone, removingRow) : ""}
+        confirmLabel="Remove pause"
+        onConfirm={() => void confirmRemove()}
+        onCancel={() => {
+          setRemoving(null);
+          removeOpener.current?.focus();
+        }}
+      />
 
       <NotesCell
         moment={noteMoment}

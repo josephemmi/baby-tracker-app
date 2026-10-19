@@ -10,6 +10,12 @@ import {
   defaultAgo,
   describeSleepError,
   judgePick,
+  listPauses,
+  pauseCountLabel,
+  pauseLength,
+  REMOVE_NEEDS_REOPEN,
+  removePauseBody,
+  removePauseLabel,
   reopenHint,
   timerDigits,
   timerSpoken,
@@ -324,5 +330,92 @@ describe("reopenHint: the line under a finished card with no Reopen button", () 
       "This sleep can't be reopened: it closed itself after 3 hours paused.",
     );
     expect(reopenHint("not-finished")).toBe("This sleep can't be reopened: it is still running.");
+  });
+});
+
+describe("the pause list", () => {
+  // Saturday night: 9:00 pm to 8:34 am in London (BST), paused 9:06 to 9:08
+  // pm and 2:10 to 2:43 am — 2 min and 33 min, 35 in all.
+  const T = (clock: string) => Date.parse(`2026-10-${clock}:00Z`);
+  const night = sleep(
+    [
+      [T("16T20:00"), T("16T20:06")],
+      [T("16T20:08"), T("17T01:10")],
+      [T("17T01:43"), T("17T07:34")],
+    ],
+    { closedAt: T("17T07:34") },
+  );
+
+  it("lists every pause in time order, with the stretch before it as its index", () => {
+    const list = listPauses(night, T("17T07:40"));
+    expect(list.rows).toEqual([
+      { index: 0, start: T("16T20:06"), end: T("16T20:08") },
+      { index: 1, start: T("17T01:10"), end: T("17T01:43") },
+    ]);
+    expect(list.open).toBeNull();
+    expect(list.totalMs).toBe(35 * MIN);
+    expect(pauseLength(list.totalMs)).toBe("35 min");
+  });
+
+  it("has no pauses on a sleep that has not been paused", () => {
+    expect(listPauses(sleep([[at(-30), null]]), NOW)).toEqual({ rows: [], open: null, totalMs: 0 });
+  });
+
+  it("shows the pause in progress on a paused sleep, and counts it in the total", () => {
+    const paused = sleep([
+      [at(-100), at(-60)],
+      [at(-52), at(-12)],
+    ]);
+    const list = listPauses(paused, NOW);
+    expect(list.rows).toHaveLength(1);
+    expect(list.rows[0]).toEqual({ index: 0, start: at(-60), end: at(-52) });
+    expect(list.open).toEqual({ start: at(-12), ms: 12 * MIN });
+    expect(list.totalMs).toBe(20 * MIN);
+  });
+
+  it("counts a paused sleep's first pause too, though no row exists for it yet", () => {
+    const list = listPauses(sleep([[at(-60), at(-10)]]), NOW);
+    expect(list.rows).toEqual([]);
+    expect(list.open?.ms).toBe(10 * MIN);
+    expect(list.totalMs).toBe(10 * MIN);
+  });
+
+  it("shows no pause in progress on a running sleep, or on one that closed itself", () => {
+    expect(listPauses(sleep([[at(-100), at(-60)], [at(-50), null]]), NOW).open).toBeNull();
+    const auto = sleep([[at(-400), at(-250)]]);
+    expect(listPauses(auto, NOW).open).toBeNull();
+  });
+
+  it("writes a length in whole minutes, rounded down like the timer", () => {
+    expect(pauseLength(0)).toBe("under 1 min");
+    expect(pauseLength(59_999)).toBe("under 1 min");
+    expect(pauseLength(MIN)).toBe("1 min");
+    expect(pauseLength(MIN + 59_999)).toBe("1 min");
+    expect(pauseLength(33 * MIN)).toBe("33 min");
+    expect(pauseLength(65 * MIN)).toBe("1 h 5 min");
+    expect(pauseLength(120 * MIN)).toBe("2 h");
+  });
+
+  it("counts pauses in words", () => {
+    expect(pauseCountLabel(1)).toBe("1 pause");
+    expect(pauseCountLabel(2)).toBe("2 pauses");
+  });
+
+  it("names the Remove button and the confirm box for the pause in the device's zone", () => {
+    const first = listPauses(night, T("17T07:40")).rows[0];
+    expect(removePauseLabel(london, first)).toBe("Remove pause from 9:06 pm to 9:08 pm");
+    expect(removePauseBody(london, first)).toBe(
+      "9:06 pm to 9:08 pm (2 min). That time will count as sleep again.",
+    );
+  });
+
+  it("tells a finished card how to remove a pause", () => {
+    expect(REMOVE_NEEDS_REOPEN).toBe("To remove a pause, tap Reopen sleep first.");
+  });
+
+  it("explains a pause that has gone", () => {
+    expect(describeSleepError(new SleepError("no-pause"), london, NOW, names)).toBe(
+      "That pause is not there any more.",
+    );
   });
 });
