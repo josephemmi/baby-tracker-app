@@ -9,6 +9,9 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+### Fixed
+- Tapping a box you can type in no longer zooms the page on iPhone and iPad (JOS-61). Every one now uses 16 px text, the size iOS needs before it leaves the zoom alone: the sign-in, sign-up and household fields, the mL amounts, the time, Notes and the date pickers in Reports. The boxes keep their size, so nothing moves on the Log screen. Pinch-zoom still works.
+
 ## [1.13.1] - 2026-10-19
 
 ### Changed

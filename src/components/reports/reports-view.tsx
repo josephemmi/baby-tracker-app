@@ -151,7 +151,7 @@ export function ReportsView({
             type="month"
             value={month}
             onChange={(e) => setMonth(e.target.value)}
-            className="rounded-[10px] border border-line-strong bg-paper-raised px-3 py-1.5 text-[13.5px] text-ink tabular-nums focus:border-sage focus:outline focus:outline-2 focus:outline-offset-1 focus:outline-sage"
+            className="rounded-[10px] border border-line-strong bg-paper-raised px-3 py-1 text-[16px] text-ink tabular-nums focus:border-sage focus:outline focus:outline-2 focus:outline-offset-1 focus:outline-sage"
           />
         )}
 
@@ -159,7 +159,7 @@ export function ReportsView({
           <select
             value={year}
             onChange={(e) => setYear(Number(e.target.value))}
-            className="rounded-[10px] border border-line-strong bg-paper-raised px-3 py-1.5 text-[13.5px] text-ink tabular-nums focus:border-sage focus:outline focus:outline-2 focus:outline-offset-1 focus:outline-sage"
+            className="rounded-[10px] border border-line-strong bg-paper-raised px-3 py-1 text-[16px] text-ink tabular-nums focus:border-sage focus:outline focus:outline-2 focus:outline-offset-1 focus:outline-sage"
           >
             {years.length === 0 ? (
               <option value={year}>{year}</option>

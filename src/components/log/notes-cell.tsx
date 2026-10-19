@@ -148,7 +148,7 @@ function NotesModal({
           onChange={(e) => setValue(e.target.value)}
           readOnly={!editable}
           placeholder="Add a note…"
-          className="min-h-[120px] w-full resize-y rounded-[10px] border border-line-strong bg-paper p-3 text-[14.5px] leading-relaxed text-ink placeholder:text-line-strong placeholder:italic focus:border-sage focus:outline focus:outline-2 focus:outline-offset-1 focus:outline-sage"
+          className="min-h-[120px] w-full resize-y rounded-[10px] border border-line-strong bg-paper p-3 text-[16px] leading-relaxed text-ink placeholder:text-line-strong placeholder:italic focus:border-sage focus:outline focus:outline-2 focus:outline-offset-1 focus:outline-sage"
         />
         {editable && (
           <div className={`mt-3.5 flex items-center ${hasExisting ? "justify-between" : "justify-end"}`}>
