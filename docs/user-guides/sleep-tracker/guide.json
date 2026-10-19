@@ -1,7 +1,7 @@
 {
   "app": "Nestlog",
   "feature": "Sleep tracker",
-  "version": "1.13.0",
+  "version": "1.13.1",
   "pages": [
     {
       "title": "Start a sleep",
