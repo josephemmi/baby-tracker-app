@@ -9,6 +9,8 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+## [1.15.1] - 2026-10-20
+
 ### Fixed
 - Double tap on a Log box no longer adds a second row (JOS-100). Ticking a type
   (Pump, Pee, Poo, Bottle or Breast) on a moment now ignores another tap on the
