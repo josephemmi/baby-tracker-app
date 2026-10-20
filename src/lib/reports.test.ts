@@ -247,3 +247,100 @@ describe("formatMinutes", () => {
     expect(formatMinutes(3190 * 60 + 59.6)).toBe("3191h");
   });
 });
+
+// JOS-99: Reports counted 6 pump sessions where 4 were real.
+describe("pump sessions (JOS-99)", () => {
+  const pump = (o: Parameters<typeof makeEntry>[0]) =>
+    makeEntry({ type: "pump", amount_ml: 250, timestamp: "2026-10-20T11:13:00.000Z", ...o });
+
+  function pumpCountFor(entries: ReturnType<typeof makeEntry>[]) {
+    const overall = computeOverallStats(entries);
+    const daily = computeDailyStats(entries);
+    // The cards, the chart and the table must always agree.
+    expect(daily.reduce((n, d) => n + d.pumpCount, 0)).toBe(overall.pumpSessions);
+    expect(daily.reduce((n, d) => n + d.pumpedMl, 0)).toBe(overall.totalPumpedMl);
+    return overall;
+  }
+
+  it("does not count a deleted entry", () => {
+    const stats = pumpCountFor([
+      pump({ amount_ml: 300 }),
+      pump({ timestamp: "2026-10-20T14:48:00.000Z", deleted_at: "2026-10-20T15:00:00.000Z" }),
+    ]);
+    expect(stats.pumpSessions).toBe(1);
+    expect(stats.totalPumpedMl).toBe(300);
+  });
+
+  it("counts a restored entry again", () => {
+    const stats = pumpCountFor([
+      pump({ timestamp: "2026-10-20T14:48:00.000Z", deleted_at: null, deleted_by: null }),
+    ]);
+    expect(stats.pumpSessions).toBe(1);
+  });
+
+  it("counts a duplicated event (same id twice) once", () => {
+    const row = pump({ id: "dup-1" });
+    const stats = pumpCountFor([row, { ...row }]);
+    expect(stats.pumpSessions).toBe(1);
+    expect(stats.totalPumpedMl).toBe(250);
+  });
+
+  it("counts a double-tapped moment (two rows, same instant) once, keeping the latest", () => {
+    const stats = pumpCountFor([
+      pump({ amount_ml: 260, created_at: "2026-10-20T13:49:02.000Z" }),
+      pump({ amount_ml: 300, created_at: "2026-10-20T13:49:03.000Z" }),
+    ]);
+    expect(stats.pumpSessions).toBe(1);
+    expect(stats.totalPumpedMl).toBe(300);
+  });
+
+  it("does not count a ticked pump that has no amount yet", () => {
+    const stats = pumpCountFor([
+      pump({ amount_ml: null, timestamp: "2026-10-20T06:06:19.911Z", created_at: "2026-10-20T21:30:21.000Z" }),
+      pump({ amount_ml: 300, timestamp: "2026-10-20T06:06:19.911Z", created_at: "2026-10-20T21:30:23.000Z" }),
+    ]);
+    expect(stats.pumpSessions).toBe(1);
+  });
+
+  it("keeps separate users' pumps at the same instant apart", () => {
+    const stats = pumpCountFor([pump({ logged_by: "a" }), pump({ logged_by: "b" })]);
+    expect(stats.pumpSessions).toBe(2);
+  });
+
+  it("reproduces the 20 Oct data: six rows, four sessions", () => {
+    const stats = pumpCountFor([
+      pump({ timestamp: "2026-10-20T00:50:26.080Z", amount_ml: 250 }),
+      pump({ timestamp: "2026-10-20T06:06:19.911Z", amount_ml: null, created_at: "2026-10-20T21:30:21Z" }),
+      pump({ timestamp: "2026-10-20T06:06:19.911Z", amount_ml: 300, created_at: "2026-10-20T21:30:23Z" }),
+      pump({ timestamp: "2026-10-20T11:13:00.000Z", amount_ml: 260, created_at: "2026-10-20T13:49:02Z" }),
+      pump({ timestamp: "2026-10-20T11:13:00.000Z", amount_ml: 300, created_at: "2026-10-20T13:49:03Z" }),
+      pump({ timestamp: "2026-10-20T14:48:00.000Z", amount_ml: 240 }),
+    ]);
+    expect(stats.pumpSessions).toBe(4);
+    expect(computeDailyStats([]).length).toBe(0);
+  });
+
+  it("buckets an entry just after local midnight (BST) on the London day", () => {
+    // 23:30 UTC on 19 Oct is 00:30 on 20 Oct in London (BST, UTC+1).
+    const daily = computeDailyStats([
+      pump({ timestamp: "2026-10-19T23:30:00.000Z" }),
+      pump({ timestamp: "2026-10-19T22:59:00.000Z" }), // 23:59 BST, still the 19th
+    ]);
+    expect(daily.map((d) => [d.dayKey, d.pumpCount])).toEqual([
+      ["2026-10-19", 1],
+      ["2026-10-20", 1],
+    ]);
+  });
+
+  it("buckets in London over the clock change too (GMT, UTC+0)", () => {
+    const daily = computeDailyStats([pump({ timestamp: "2026-11-01T00:30:00.000Z" })]);
+    expect(daily[0].dayKey).toBe("2026-11-01");
+  });
+
+  it("filters month and year ranges by the London calendar", () => {
+    const e = pump({ timestamp: "2026-09-30T23:30:00.000Z" }); // 1 Oct in London
+    const now = new Date("2026-10-20T12:00:00Z");
+    expect(filterEntriesByRange([e], { kind: "month", month: "2026-10" }, now)).toHaveLength(1);
+    expect(filterEntriesByRange([e], { kind: "month", month: "2026-09" }, now)).toHaveLength(0);
+  });
+});

@@ -38,23 +38,75 @@ function isFinishedBreastSession(entry: EntryRow): boolean {
   );
 }
 
+// Reports buckets days, months and years in the household's timezone, not the
+// device's (JOS-99): a phone set to another zone, or a server-rendered pass,
+// must not move an entry across midnight.
+export const REPORT_TIME_ZONE = "Europe/London";
+
+const zoneParts = new Intl.DateTimeFormat("en-GB", {
+  timeZone: REPORT_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+function zonedYMD(timestamp: string): { y: string; m: string; d: string } {
+  const parts = zoneParts.formatToParts(new Date(timestamp));
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return { y: get("year"), m: get("month"), d: get("day") };
+}
+
 function localDayKey(timestamp: string): string {
-  const date = new Date(timestamp);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  const { y, m, d } = zonedYMD(timestamp);
+  return `${y}-${m}-${d}`;
 }
 
 function localMonthKey(timestamp: string): string {
-  const date = new Date(timestamp);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}`;
+  const { y, m } = zonedYMD(timestamp);
+  return `${y}-${m}`;
+}
+
+function localYear(timestamp: string): number {
+  return Number(zonedYMD(timestamp).y);
+}
+
+// The one place Reports decides which rows count (JOS-99). Every stat, chart
+// and table goes through it, so they cannot disagree:
+//  - deleted rows never count (JOS-20 soft delete);
+//  - the same id appearing twice (a refetch overlapping a realtime event)
+//    counts once;
+//  - a pump row with no amount is a ticked-but-unsaved session and is left out
+//    until its amount is saved;
+//  - the Log holds one pump per moment, so two pump rows with the same baby,
+//    user and instant (a double tap inserts two) are one session: the most
+//    recently created row is kept.
+export function reportableEntries(entries: EntryRow[]): EntryRow[] {
+  const byId = new Map<string, EntryRow>();
+  for (const entry of entries) {
+    if (entry.deleted_at) continue;
+    if (!byId.has(entry.id)) byId.set(entry.id, entry);
+  }
+
+  const pumpByMoment = new Map<string, EntryRow>();
+  const result: EntryRow[] = [];
+  for (const entry of byId.values()) {
+    if (entry.type !== "pump") {
+      result.push(entry);
+      continue;
+    }
+    if (entry.amount_ml == null) continue;
+    const key = `${entry.baby_id}|${entry.timestamp}|${entry.logged_by ?? "unknown"}`;
+    const kept = pumpByMoment.get(key);
+    if (!kept || entry.created_at > kept.created_at) pumpByMoment.set(key, entry);
+  }
+  return [...result, ...pumpByMoment.values()];
 }
 
 export type ReportRange =
   | { kind: "7d" }
   | { kind: "30d" }
   | { kind: "month"; month: string } // "YYYY-MM", local calendar month
-  | { kind: "year"; year: number } // local calendar year
+  | { kind: "year"; year: number } // Europe/London calendar year
   | { kind: "all" };
 
 export function filterEntriesByRange(
@@ -76,22 +128,19 @@ export function filterEntriesByRange(
     case "month":
       return entries.filter((e) => localMonthKey(e.timestamp) === range.month);
     case "year":
-      return entries.filter(
-        (e) => new Date(e.timestamp).getFullYear() === range.year,
-      );
+      return entries.filter((e) => localYear(e.timestamp) === range.year);
   }
 }
 
 // Distinct calendar years present in the data, most recent first — used to
 // populate the "Yearly" range picker.
 export function availableYears(entries: EntryRow[]): number[] {
-  const years = new Set(entries.map((e) => new Date(e.timestamp).getFullYear()));
+  const years = new Set(entries.map((e) => localYear(e.timestamp)));
   return Array.from(years).sort((a, b) => b - a);
 }
 
 export function currentMonthValue(now: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
+  return localMonthKey(now.toISOString());
 }
 
 function localDayLabel(dayKey: string): string {
@@ -102,7 +151,8 @@ function localDayLabel(dayKey: string): string {
   });
 }
 
-export function computeOverallStats(entries: EntryRow[]): OverallStats {
+export function computeOverallStats(allEntries: EntryRow[]): OverallStats {
+  const entries = reportableEntries(allEntries);
   const feeds = entries.filter(
     (entry) => entry.type === "feed" && (entry.bottle || entry.breast),
   );
@@ -146,7 +196,8 @@ export function computeOverallStats(entries: EntryRow[]): OverallStats {
   };
 }
 
-export function computeDailyStats(entries: EntryRow[]): DailyStat[] {
+export function computeDailyStats(allEntries: EntryRow[]): DailyStat[] {
+  const entries = reportableEntries(allEntries);
   interface Accumulator {
     dayKey: string;
     dayLabel: string;

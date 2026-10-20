@@ -34,6 +34,14 @@ feature, and PATCH is a fix with no new functionality.
   deleted. Deleted sleeps still go to Recently Deleted for 7 days.
 
 ### Fixed
+- Reports no longer over-counts pump sessions (JOS-99). A pump was counted
+  once for every saved row, so a double tap on the Pump box (two rows at the same
+  moment, which the Log shows as one) and a Pump box ticked with no amount yet
+  both counted as extra sessions: 6 were shown for a day with 4. Now a pump counts
+  once its amount is saved, one session per moment, and deleted entries and
+  repeated copies of the same entry never count. The cards, the chart and the
+  table all use the same count, and days, months and years are split on London
+  time whatever time zone the phone is set to.
 - The Sleep averages no longer count a daytime sleep as a night (JOS-90). A
   night is now a sleep of at least 5 hours, so a day with no night in it, such as
   the first day of logging, has none, and its sleeps are naps. That day is also
