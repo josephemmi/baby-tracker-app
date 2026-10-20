@@ -5,9 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { serverNow } from "@/lib/server-clock";
-import { asleepMs, interleaveByTime, firstStart, type Sleep } from "@/lib/sleep";
+import { asleepMs, interleaveByTime, firstStart, SleepError, type Sleep } from "@/lib/sleep";
 import { newestFirst, rowToSleep, sleepApi, type SleepRow } from "@/lib/sleep-api";
-import { describeSleepError, deviceZone, durationLabel } from "@/lib/sleep-format";
+import { describeRestoreRefusal, deviceZone, durationLabel } from "@/lib/sleep-format";
 import {
   daysLeftToRestore,
   formatTime,
@@ -131,11 +131,14 @@ export function RecentlyDeletedView({
         setError("That sleep can't be restored any more.");
         return;
       }
-      // A rule said no — it would now overlap a sleep logged since.
+      // A rule said no: it would now overlap a sleep logged since (or one that
+      // is running). Say which, in the restore's own words.
       setError(
         reply.status === "error"
-          ? describeSleepError(reply.error, deviceZone(), serverNow(), nameOf)
-          : "Couldn't restore that sleep.",
+          ? describeRestoreRefusal(reply.error, deviceZone(), serverNow(), nameOf)
+          : reply.status === "open_exists"
+            ? describeRestoreRefusal(new SleepError("already-open"), deviceZone(), serverNow(), nameOf)
+            : "Couldn't restore that sleep.",
       );
     } catch {
       setError("Couldn't reach the server. Try again.");

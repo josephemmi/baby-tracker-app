@@ -30,6 +30,13 @@ begin
   if at is not null then perform set_config('test.now', at::text, true); end if;
 end $$;
 
+-- A step that must succeed: a wrong rev would otherwise be a quiet "conflict" reply.
+create function public.t_ok(r jsonb, what text) returns jsonb language plpgsql as $$
+begin
+  assert r ->> 'status' = 'ok', what || ': ' || r::text;
+  return r;
+end $$;
+
 -- Fixtures: Joseph and Jen share a household and a baby; a stranger has another.
 insert into auth.users (id) values
   ('00000000-0000-0000-0000-0000000000a1'),
@@ -878,6 +885,155 @@ begin
   r := public.remove_sleep_pause(sid, 4, 0);
   assert r ->> 'status' = 'conflict' and r ->> 'reason' = 'autoclosed', '17g auto-closed sleep is read-only: ' || r::text;
   assert (select rev from public.sleeps where sleeps.id = sid) = 4, '17g and nothing changed';
+end $$;
+
+-- 18. Delete sleep on a FINISHED sleep (JOS-83) ------------------------------------
+--     One write, first write wins; the household can read who deleted it (the app
+--     says "Jen already deleted this sleep (6:08 pm)" from that row); and deleting
+--     the newest sleep makes the one before it reopenable again.
+reset role;
+delete from public.sleeps;
+set local role authenticated;
+
+do $$
+declare
+  j constant uuid := '00000000-0000-0000-0000-0000000000a1';
+  n constant uuid := '00000000-0000-0000-0000-0000000000a2';
+  baby constant uuid := '00000000-0000-0000-0000-0000000000d1';
+  t0 constant timestamptz := '2026-10-24 13:00:00+00';
+  a uuid; b uuid; r jsonb; seen record;
+begin
+  -- a: a nap 13:00 to 14:00. b: started by mistake, 15:00 to 15:03. Both finished.
+  perform public.t_as(j, t0);
+  a := (public.start_sleep(baby) -> 'sleep' ->> 'id')::uuid;
+  perform public.t_as(j, t0 + interval '1 hour');
+  perform public.t_ok(public.stop_sleep(a, 1), '18 stop a');
+  perform public.t_as(j, t0 + interval '2 hours');
+  b := (public.start_sleep(baby) -> 'sleep' ->> 'id')::uuid;
+  perform public.t_as(j, t0 + interval '2 hours 3 minutes');
+  perform public.t_ok(public.stop_sleep(b, 1), '18 stop b');
+
+  -- 18a the newer sleep blocks reopening a
+  perform public.t_as(j, t0 + interval '2 hours 10 minutes');
+  r := public.reopen_sleep(a, 2);
+  assert r ->> 'code' = 'no-reopen' and r ->> 'reason' = 'newer', '18a newer sleep blocks Reopen: ' || r::text;
+
+  -- 18b Jen deletes the finished b: one write, nothing else about it changes
+  perform public.t_as(n, t0 + interval '2 hours 11 minutes');
+  r := public.delete_sleep(b, 2);
+  assert r ->> 'status' = 'ok', '18b delete a finished sleep: ' || r::text;
+  assert r -> 'sleep' ->> 'last_action' = 'delete' and (r -> 'sleep' ->> 'last_by')::uuid = n, '18b who and what';
+  assert (r -> 'sleep' ->> 'rev')::int = 3, '18b one rev';
+  assert (r -> 'sleep' ->> 'closed_at')::timestamptz = t0 + interval '2 hours 3 minutes', '18b it keeps the wake it had';
+  assert (r -> 'sleep' ->> 'deleted_at')::timestamptz = t0 + interval '2 hours 11 minutes', '18b deleted at the server time';
+  assert (public.get_sleeps(baby, t0 - interval '1 day') -> 'sleeps' -> 0 ->> 'id')::uuid = a
+     and jsonb_array_length(public.get_sleeps(baby, t0 - interval '1 day') -> 'sleeps') = 1, '18b gone from the Log, a is left';
+
+  -- 18c first write wins: Joseph tapped Delete a moment later, on the rev he was looking at
+  perform public.t_as(j, t0 + interval '2 hours 12 minutes');
+  r := public.delete_sleep(b, 2);
+  assert r ->> 'status' = 'gone', '18c Jen got there first: ' || r::text;
+  -- and the household can read the deleted row to say who and when
+  select s.deleted_by, s.deleted_at into seen from public.sleeps s where s.id = b;
+  assert seen.deleted_by = n and seen.deleted_at = t0 + interval '2 hours 11 minutes',
+    '18c the row says Jen, 2:11 pm after the start: ' || seen::text;
+
+  -- 18d with b gone a can be reopened again, inside 3 h of its wake (until 17:00)
+  perform public.t_as(n, t0 + interval '2 hours 20 minutes');
+  r := public.reopen_sleep(a, 2);
+  assert r ->> 'status' = 'ok', '18d deleting the newer sleep gives Reopen back: ' || r::text;
+
+  -- 18e Jen reopened it first, so Joseph's Delete (tapped on the finished card, rev 2) loses
+  perform public.t_as(j, t0 + interval '2 hours 21 minutes');
+  r := public.delete_sleep(a, 2);
+  assert r ->> 'status' = 'conflict' and r ->> 'reason' = 'stale', '18e delete on a stale finished card: ' || r::text;
+  assert r -> 'sleep' ->> 'last_action' = 'reopen' and (r -> 'sleep' ->> 'last_by')::uuid = n, '18e names what Jen did';
+  assert (select deleted_at from public.sleeps where id = a) is null, '18e and a is untouched';
+
+  -- 18f ... and after the window, deleting the newest sleep brings the previous one back but too late to reopen
+  perform public.t_as(j, t0 + interval '2 hours 22 minutes');
+  perform public.t_ok(public.stop_sleep(a, 3), '18f stop a again');
+  perform public.t_as(j, t0 + interval '5 hours');
+  b := (public.start_sleep(baby) -> 'sleep' ->> 'id')::uuid;
+  perform public.t_as(j, t0 + interval '5 hours 2 minutes');
+  perform public.t_ok(public.stop_sleep(b, 1), '18f stop b');
+  perform public.t_as(j, t0 + interval '5 hours 3 minutes');
+  perform public.t_ok(public.delete_sleep(b, 2), '18f delete b');
+  r := public.reopen_sleep(a, 4);
+  assert r ->> 'code' = 'no-reopen' and r ->> 'reason' = 'expired', '18f back on the tile, too late to reopen: ' || r::text;
+end $$;
+
+-- 19. Restore from Recently Deleted (JOS-83): the overlap check every sleep write goes
+--     through, and a restored sleep is always finished, so never a second open one. --
+reset role;
+delete from public.sleeps;
+set local role authenticated;
+
+do $$
+declare
+  j constant uuid := '00000000-0000-0000-0000-0000000000a1';
+  n constant uuid := '00000000-0000-0000-0000-0000000000a2';
+  baby constant uuid := '00000000-0000-0000-0000-0000000000d1';
+  t0 constant timestamptz := '2026-10-25 09:00:00+00';
+  x uuid; y uuid; z uuid; r jsonb;
+begin
+  -- x: 09:00 to 10:00, finished and then deleted by mistake
+  perform public.t_as(j, t0);
+  x := (public.start_sleep(baby) -> 'sleep' ->> 'id')::uuid;
+  perform public.t_as(j, t0 + interval '1 hour');
+  perform public.t_ok(public.stop_sleep(x, 1), '19 stop x');
+  perform public.t_as(n, t0 + interval '1 hour 5 minutes');
+  perform public.t_ok(public.delete_sleep(x, 2), '19 delete x');
+
+  -- 19a with nothing in the way a finished, deleted sleep comes back finished
+  perform public.t_as(j, t0 + interval '1 hour 10 minutes');
+  r := public.restore_sleep(x);
+  assert r ->> 'status' = 'ok', '19a restore: ' || r::text;
+  assert r -> 'sleep' ->> 'closed_at' is not null and r -> 'sleep' ->> 'deleted_at' is null, '19a finished again';
+  assert r -> 'sleep' ->> 'last_action' = 'restore', '19a';
+  r := public.restore_sleep(x);
+  assert r ->> 'status' = 'gone', '19a restoring what is not deleted: ' || r::text;
+
+  -- 19b the sleep that really happened was logged over x's time ("Started earlier?"),
+  --     which is allowed while x is deleted; then x can not come back, and the answer names y
+  perform public.t_ok(public.delete_sleep(x, 4), '19b delete x again');   -- rev 4: restore bumped it
+  perform public.t_as(j, t0 + interval '2 hours');
+  y := (public.start_sleep(baby) -> 'sleep' ->> 'id')::uuid;
+  r := public.set_sleep_time(y, 1, 'start', t0 + interval '30 minutes', null);
+  assert r ->> 'status' = 'ok', '19b y started earlier, over the deleted x: ' || r::text;
+  r := public.restore_sleep(x);
+  assert r ->> 'status' = 'error' and r ->> 'code' = 'overlap', '19b restore over a RUNNING sleep is refused: ' || r::text;
+  assert r -> 'other' ->> 'id' = y::text, '19b names y';
+  assert (select deleted_at from public.sleeps where id = x) is not null, '19b x is still deleted';
+
+  -- 19c ... and the same once y is finished
+  perform public.t_as(j, t0 + interval '2 hours 5 minutes');
+  perform public.t_ok(public.stop_sleep(y, 2), '19c stop y');
+  r := public.restore_sleep(x);
+  assert r ->> 'code' = 'overlap', '19c restore over a FINISHED sleep is refused: ' || r::text;
+
+  -- 19d a sleep is running elsewhere in the day; restoring a deleted one that does not touch it
+  --     works, and the baby still has exactly one open sleep
+  perform public.t_as(j, t0 + interval '3 hours');
+  z := (public.start_sleep(baby) -> 'sleep' ->> 'id')::uuid;       -- running from 12:00
+  perform public.t_ok(public.delete_sleep(y, 3), '19d delete y');                               -- y (09:30 to 11:05) out of the way
+  r := public.restore_sleep(x);                                    -- x 09:00 to 10:00 fits again
+  assert r ->> 'status' = 'ok', '19d restore beside a running sleep: ' || r::text;
+  assert (select count(*) from public.sleeps where baby_id = baby and closed_at is null and deleted_at is null) = 1,
+    '19d still exactly one open sleep';
+
+  -- 19e a deleted sleep that was open when it was deleted was closed as it went, so it too comes
+  --     back finished and never as a second running one
+  perform public.t_as(n, t0 + interval '3 hours 30 minutes');
+  perform public.t_ok(public.delete_sleep(z, 1), '19e delete z');                               -- z running since 12:00, deleted at 12:30
+  assert (select closed_at from public.sleeps where id = z) = t0 + interval '3 hours 30 minutes', '19e closed where it was deleted';
+  perform public.t_as(j, t0 + interval '4 hours');
+  y := (public.start_sleep(baby) -> 'sleep' ->> 'id')::uuid;       -- a new sleep is running from 13:00
+  r := public.restore_sleep(z);
+  assert r ->> 'status' = 'ok', '19e restore the discarded one beside the new one: ' || r::text;
+  assert r -> 'sleep' ->> 'closed_at' is not null, '19e finished';
+  assert (select count(*) from public.sleeps where baby_id = baby and closed_at is null and deleted_at is null) = 1,
+    '19e the baby still has one open sleep, not two';
 end $$;
 
 select 'sleeps.sql: all checks passed' as result;

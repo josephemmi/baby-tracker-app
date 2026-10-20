@@ -8,7 +8,10 @@ import {
   clockLabel,
   createZone,
   defaultAgo,
+  deleteSleepPrompt,
+  describeRestoreRefusal,
   describeSleepError,
+  joinTimes,
   judgePick,
   listPauses,
   pauseCountLabel,
@@ -272,13 +275,14 @@ describe("what the other parent did, in words", () => {
   });
 
   it("covers every action", () => {
-    const said = (action: "start" | "resume" | "finish" | "reopen" | "edit") =>
+    const said = (action: "start" | "resume" | "finish" | "reopen" | "edit" | "delete") =>
       describe_(new SleepError("stale", { by: "jen", action, at: NOW }));
     expect(said("start")).toBe("Jen already started this sleep (6:20 pm).");
     expect(said("resume")).toBe("Jen already put this sleep back on (6:20 pm).");
     expect(said("finish")).toBe("Jen already finished this sleep (6:20 pm).");
     expect(said("reopen")).toBe("Jen already reopened this sleep (6:20 pm).");
     expect(said("edit")).toBe("Jen already edited this sleep (6:20 pm).");
+    expect(said("delete")).toBe("Jen already deleted this sleep (6:20 pm).");
   });
 
   it("explains an auto-close", () => {
@@ -417,5 +421,109 @@ describe("the pause list", () => {
     expect(describeSleepError(new SleepError("no-pause"), london, NOW, names)).toBe(
       "That pause is not there any more.",
     );
+  });
+});
+
+describe("joinTimes: a range with one am/pm when both ends share it", () => {
+  it("drops the first am/pm when it matches", () => {
+    expect(joinTimes("3:46 pm", "4:26 pm")).toBe("3:46 – 4:26 pm");
+    expect(joinTimes("9:35 am", "10:50 am")).toBe("9:35 – 10:50 am");
+  });
+
+  it("keeps both when they differ, including across noon and midnight", () => {
+    expect(joinTimes("7:25 pm", "6:51 am")).toBe("7:25 pm – 6:51 am");
+    expect(joinTimes("11:50 am", "12:30 pm")).toBe("11:50 am – 12:30 pm");
+    expect(joinTimes("11:40 pm", "12:10 am")).toBe("11:40 pm – 12:10 am");
+  });
+});
+
+describe("deleteSleepPrompt: the confirm box for Delete sleep", () => {
+  // Thu 16 Oct 2026, London (BST): 3:46 to 4:26 pm is 14:46 to 15:26 UTC.
+  const T = (clock: string) => Date.parse(`2026-10-16T${clock}:00Z`);
+  const afterwards = T("16:00");
+
+  it("names a finished sleep by its times and the time asleep", () => {
+    const nap = sleep([[T("14:46"), T("15:26")]], { closedAt: T("15:26") });
+    expect(deleteSleepPrompt(nap, afterwards, london)).toEqual({
+      title: "Delete this sleep?",
+      body: "3:46 – 4:26 pm (40m). You can restore it from Recently Deleted.",
+      confirmLabel: "Delete sleep",
+    });
+  });
+
+  it("counts the time asleep, not the time from first start to wake", () => {
+    // 6:00 to 6:30 pm and 6:40 to 7:10 pm: out for ten minutes in between.
+    const paused = sleep(
+      [
+        [T("17:00"), T("17:30")],
+        [T("17:40"), T("18:10")],
+      ],
+      { closedAt: T("18:10") },
+    );
+    expect(deleteSleepPrompt(paused, T("18:20"), london).body).toBe(
+      "6:00 – 7:10 pm (1h). You can restore it from Recently Deleted.",
+    );
+  });
+
+  it("writes both ends when they are on different sides of noon or midnight", () => {
+    const night = sleep([[T("18:25"), Date.parse("2026-10-17T05:51:00Z")]], {
+      closedAt: Date.parse("2026-10-17T05:51:00Z"),
+    });
+    expect(deleteSleepPrompt(night, Date.parse("2026-10-17T06:00:00Z"), london).body).toBe(
+      "7:25 pm – 6:51 am (11h 26m). You can restore it from Recently Deleted.",
+    );
+  });
+
+  it("ends a sleep that closed itself after 3 h paused at its last wake", () => {
+    const auto = sleep([[T("14:00"), T("14:40")]]);
+    expect(deleteSleepPrompt(auto, T("19:00"), london).body).toBe(
+      "3:00 – 3:40 pm (40m). You can restore it from Recently Deleted.",
+    );
+  });
+
+  it("keeps the plain wording for a sleep still going", () => {
+    const running = sleep([[T("14:46"), null]]);
+    expect(deleteSleepPrompt(running, afterwards, london)).toEqual({
+      title: "Delete this sleep?",
+      body: "You can restore it from Recently Deleted in Timeline for 7 days.",
+      confirmLabel: "Delete",
+    });
+  });
+});
+
+describe("describeRestoreRefusal: why a sleep can't come back from Recently Deleted", () => {
+  const refuse = (err: SleepError) => describeRestoreRefusal(err, london, NOW, names);
+
+  it("names the sleep it would overlap, in the restore's own words", () => {
+    const other = sleep(
+      [[Date.parse("2026-10-16T12:05:00Z"), Date.parse("2026-10-16T13:40:00Z")]],
+      { closedAt: Date.parse("2026-10-16T13:40:00Z") },
+    );
+    expect(refuse(new SleepError("overlap", { other }))).toBe(
+      "This sleep can't be restored: it would overlap the sleep from 1:05 pm to 2:40 pm.",
+    );
+  });
+
+  it("measures a running sleep it would overlap up to now", () => {
+    const running = sleep([[Date.parse("2026-10-16T16:35:00Z"), null]]);
+    expect(refuse(new SleepError("overlap", { other: running }))).toBe(
+      "This sleep can't be restored: it would overlap the sleep from 5:35 pm to 6:20 pm.",
+    );
+  });
+
+  it("still says something plain when the other sleep is not known", () => {
+    expect(refuse(new SleepError("overlap"))).toBe(
+      "This sleep can't be restored: it would overlap another sleep.",
+    );
+  });
+
+  it("refuses a second running sleep", () => {
+    expect(refuse(new SleepError("already-open"))).toBe(
+      "This sleep can't be restored: a sleep is already running.",
+    );
+  });
+
+  it("leaves every other reason in the words it already has", () => {
+    expect(refuse(new SleepError("future"))).toBe("That time is in the future.");
   });
 });

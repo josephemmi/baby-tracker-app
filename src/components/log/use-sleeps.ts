@@ -9,6 +9,7 @@ import {
   applySleep,
   conflictError,
   dropSleep,
+  goneError,
   newestFirst,
   rowToSleep,
   sleepApi,
@@ -219,14 +220,19 @@ export function useSleeps({ babyId, initialRows, memberNames, onMessage }: UseSl
               message: describe(new SleepError("already-open", { other: reply.sleep })),
               sleep: reply.sleep,
             };
-          case "gone":
+          case "gone": {
             setSleeps((prev) => dropSleep(prev, key));
+            // The answer doesn't say why it's gone; the row does, so the loser
+            // of a delete race is told who got there first. If that can't be
+            // read, the plain wording is still true.
+            const deletion = await api.deletion(key).catch(() => null);
             return {
               ok: false,
               status: "gone",
-              message: describe(new SleepError("gone")),
+              message: describe(goneError(deletion)),
               sleep: null,
             };
+          }
           case "error":
             if (reply.sleep) {
               const held = reply.sleep;
@@ -255,7 +261,7 @@ export function useSleeps({ babyId, initialRows, memberNames, onMessage }: UseSl
         });
       }
     },
-    [describe],
+    [describe, api],
   );
 
   const start = useCallback(

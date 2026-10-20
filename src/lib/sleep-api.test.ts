@@ -1,10 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { resetServerClock, serverNow, syncServerClock } from "@/lib/server-clock";
+import { resetServerClock, serverNow, subscribeServerClock, syncServerClock } from "@/lib/server-clock";
 import {
   applySleep,
   conflictError,
   dropSleep,
+  goneError,
   isNetworkFailure,
   parseReply,
   rowToSleep,
@@ -221,6 +222,51 @@ describe("the server clock", () => {
     syncServerClock(NaN, 0, 0);
     expect(Math.abs(serverNow() - Date.now())).toBeLessThan(50);
   });
+
+  describe("telling the screen when the gap changes", () => {
+    it("lets what is on screen redraw the moment a wrong phone clock is found out", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-10-16T18:00:00Z"));
+      const seen = vi.fn(() => serverNow());
+      const stop = subscribeServerClock(seen);
+      syncServerClock(Date.parse("2026-10-16T17:53:00Z"), Date.now(), Date.now()); // the phone is 7 min fast
+      expect(seen).toHaveBeenCalledTimes(1);
+      // and it is told after the gap has changed, so it reads the corrected time
+      expect(seen.mock.results[0].value).toBe(Date.parse("2026-10-16T17:53:00Z"));
+      stop();
+    });
+
+    it("stays quiet for the few milliseconds of jitter every reply has", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-10-16T18:00:00Z"));
+      const seen = vi.fn();
+      const stop = subscribeServerClock(seen);
+      syncServerClock(Date.parse("2026-10-16T18:00:00.040Z"), Date.now(), Date.now());
+      syncServerClock(Date.parse("2026-10-16T17:59:59.980Z"), Date.now(), Date.now());
+      expect(seen).not.toHaveBeenCalled();
+      stop();
+    });
+
+    it("stops telling a screen that has gone", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-10-16T18:00:00Z"));
+      const seen = vi.fn();
+      subscribeServerClock(seen)();
+      syncServerClock(Date.parse("2026-10-16T18:20:00Z"), Date.now(), Date.now());
+      expect(seen).not.toHaveBeenCalled();
+    });
+
+    it("tells it when the gap goes back to nothing", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-10-16T18:00:00Z"));
+      syncServerClock(Date.parse("2026-10-16T18:20:00Z"), Date.now(), Date.now());
+      const seen = vi.fn();
+      const stop = subscribeServerClock(seen);
+      resetServerClock();
+      expect(seen).toHaveBeenCalledTimes(1);
+      stop();
+    });
+  });
 });
 
 describe("removePause", () => {
@@ -271,5 +317,43 @@ describe("removePause", () => {
     });
     const a = sleepApi({ rpc } as unknown as SupabaseClient<Database>);
     await expect(a.removePause(rowToSleep(row()), 0)).rejects.toBeInstanceOf(SleepServerError);
+  });
+});
+
+describe("goneError: what to say about a sleep that has gone", () => {
+  it("says who deleted it and when, as for every other first-write-wins loss", () => {
+    const err = goneError({ by: "jen", at: Date.parse("2026-10-16T17:08:00Z") });
+    expect(err.code).toBe("stale");
+    expect(err.data).toEqual({ by: "jen", action: "delete", at: Date.parse("2026-10-16T17:08:00Z") });
+  });
+
+  it("falls back to the plain 'deleted' when it could not be found out", () => {
+    expect(goneError(null).code).toBe("gone");
+  });
+});
+
+describe("deletion: who deleted a sleep that has gone", () => {
+  function table(result: { data: unknown; error?: { message: string } | null }) {
+    const maybeSingle = vi.fn().mockResolvedValue({ error: null, ...result });
+    const eq = vi.fn().mockReturnValue({ maybeSingle });
+    const select = vi.fn().mockReturnValue({ eq });
+    const from = vi.fn().mockReturnValue({ select });
+    return { from, select, eq, api: sleepApi({ from } as unknown as SupabaseClient<Database>) };
+  }
+
+  it("reads who and when from the sleep's own row", async () => {
+    const t = table({ data: { deleted_at: "2026-10-16T17:08:00+00:00", deleted_by: "jen" } });
+    expect(await t.api.deletion("s1")).toEqual({ by: "jen", at: Date.parse("2026-10-16T17:08:00Z") });
+    expect(t.from).toHaveBeenCalledWith("sleeps");
+    expect(t.select).toHaveBeenCalledWith("deleted_at, deleted_by");
+    expect(t.eq).toHaveBeenCalledWith("id", "s1");
+  });
+
+  it("is null for a sleep that is not deleted, is not there, or can not be read", async () => {
+    expect(await table({ data: { deleted_at: null, deleted_by: null } }).api.deletion("s1")).toBeNull();
+    expect(await table({ data: null }).api.deletion("s1")).toBeNull();
+    expect(
+      await table({ data: null, error: { message: "permission denied" } }).api.deletion("s1"),
+    ).toBeNull();
   });
 });

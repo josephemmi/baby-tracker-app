@@ -9,10 +9,13 @@
 // build a zone with an explicit one.
 
 import { formatTimeAgo } from "@/lib/entries";
+import { formatMinutes } from "@/lib/reports";
 import {
   HOUR,
   MIN,
   SLEEP_RULES,
+  asleepMs,
+  closedAtOf,
   firstStart,
   lastStretch,
   pickBounds,
@@ -239,6 +242,65 @@ export const removePauseLabel = (zone: Zone, p: PauseRow): string =>
 // The confirm box's second line.
 export const removePauseBody = (zone: Zone, p: PauseRow): string =>
   `${zone.fmtTime(p.start)} to ${zone.fmtTime(p.end)} (${pauseLength(p.end - p.start)}). That time will count as sleep again.`;
+
+/* ---------- deleting a sleep ---------- */
+
+// "3:46 pm" and "4:26 pm" -> "3:46 – 4:26 pm": one am/pm when both times share
+// it, the way the Reports rows write a sleep's range.
+export function joinTimes(from: string, to: string): string {
+  const sameHalf = from.slice(-2) === to.slice(-2);
+  return `${sameHalf ? from.slice(0, -3) : from} – ${to}`;
+}
+
+export interface SleepPrompt {
+  title: string;
+  body: string;
+  confirmLabel: string;
+}
+
+// The confirm box for deleting a sleep: the same box as deleting a moment. A
+// finished sleep is named by its times and the time asleep, so it is clear
+// which one is going ("3:46 – 4:26 pm (40m). You can restore it from Recently
+// Deleted."); one still going keeps the plain wording.
+export function deleteSleepPrompt(s: Sleep, now: number, zone: Zone): SleepPrompt {
+  if (stateOf(s, now) !== "finished") {
+    return {
+      title: "Delete this sleep?",
+      body: "You can restore it from Recently Deleted in Timeline for 7 days.",
+      confirmLabel: "Delete",
+    };
+  }
+  const end = closedAtOf(s, now) ?? lastStretch(s).end ?? now;
+  const range = joinTimes(zone.fmtTime(firstStart(s)), zone.fmtTime(end));
+  return {
+    title: "Delete this sleep?",
+    body: `${range} (${formatMinutes(asleepMs(s, now) / MIN)}). You can restore it from Recently Deleted.`,
+    confirmLabel: "Delete sleep",
+  };
+}
+
+// Why a restore from Recently Deleted was refused, in the restore's own words
+// ("That overlaps ..." reads as if the user had picked a time). A restored
+// sleep is always a finished one, so the only rule that can say no is the
+// overlap check every sleep write goes through; a second running sleep is
+// covered too, because that rule would refuse it.
+export function describeRestoreRefusal(
+  err: SleepError,
+  zone: Zone,
+  now: number,
+  nameOf: (memberId: string | null) => string,
+): string {
+  if (err.code === "overlap") {
+    const other = err.data.other;
+    if (!other) return "This sleep can't be restored: it would overlap another sleep.";
+    const end = other.closedAt ?? lastStretch(other).end ?? now;
+    return `This sleep can't be restored: it would overlap the sleep from ${zone.fmtStamp(firstStart(other), now)} to ${zone.fmtStamp(end, now)}.`;
+  }
+  if (err.code === "already-open") {
+    return "This sleep can't be restored: a sleep is already running.";
+  }
+  return describeSleepError(err, zone, now, nameOf);
+}
 
 /* ---------- the time picker ---------- */
 
