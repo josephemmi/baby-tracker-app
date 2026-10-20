@@ -8,6 +8,7 @@ import { formatMinutes, type ReportRange } from "@/lib/reports";
 import { HOUR, MIN, lastStretch, type Sleep } from "@/lib/sleep";
 import { joinTimes } from "@/lib/sleep-format";
 import {
+  CFG,
   addDays,
   atHour,
   fmtClockMin,
@@ -99,9 +100,17 @@ export function defaultDayKey(days: Day[]): string | null {
 
 /* ---------- averages ---------- */
 
+// The days the averages are made from: complete (not today) and with a night,
+// the same test as `summarise` (JOS-90).
+const averaged = (days: Day[]): Day[] => days.filter((d) => !d.partial && d.hasNight);
+
+// Complete days that have sleep but no night: charted and listed, but left out
+// of every average, because their total is missing the night.
+const leftOut = (days: Day[]): Day[] => days.filter((d) => !d.partial && d.totalMs > 0 && !d.hasNight);
+
 // "Sun 11 – Fri 16 Oct": the complete days the averages are made from.
 export function periodText(days: Day[]): string {
-  const done = days.filter((d) => !d.partial && d.totalMs > 0);
+  const done = averaged(days);
   if (!done.length) return "";
   const a = done[0].key;
   const b = done[done.length - 1].key;
@@ -111,12 +120,32 @@ export function periodText(days: Day[]): string {
   return `${pa.wd} ${pa.dd}${pa.mo !== pb.mo ? ` ${pa.mo}` : ""} – ${labelLong(b)}`;
 }
 
-// The line under the "Averages" heading: which days they cover.
+// "Sat 17", "Sat 17 and Sun 18", "Sat 17, Sun 18 and Mon 19"; past three, a count.
+function dayList(keys: string[]): string {
+  if (keys.length > 3) return `${keys.length} days`;
+  const names = keys.map(labelShort);
+  return names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+// The line under the "Averages" heading: which days they cover, and which
+// complete days are left out because no night is logged on them.
 export function averagesNote(days: Day[], sum: Summary): string {
+  const left = leftOut(days).map((d) => d.key);
+  const noNight = left.length ? " (no night sleep logged)" : "";
   if (sum.days === 0) {
+    if (left.length) {
+      return `No complete days with a night in this range yet. Today so far, and ${dayList(left)}${noNight}, are charted but not included.`;
+    }
     return "No complete days in this range yet. Today so far is charted but not included.";
   }
-  return `${periodText(days)} · ${sum.days} complete day${sum.days === 1 ? "" : "s"}. Today so far is not included.`;
+  const count = `${periodText(days)} · ${sum.days} complete day${sum.days === 1 ? "" : "s"}.`;
+  if (!left.length) return `${count} Today so far is not included.`;
+  return `${count} Not included: today so far, and ${dayList(left)}${noNight}.`;
+}
+
+// The line under the cards: what a night is, and which day it counts on.
+export function nightNote(): string {
+  return `A night is a sleep of ${CFG.minNightMs / HOUR} hours or more. It counts on the day he woke.`;
 }
 
 export interface StatCardModel {
@@ -129,17 +158,25 @@ export interface StatCardModel {
   wide?: boolean;
 }
 
-// Nine cards, all averages over the complete days of the range except the one
-// maximum, "Longest unbroken sleep". The night is shown as PART of the daily
-// total, never beside it as if it were another period.
+// Nine cards, all averages over the complete days of the range that have a
+// night, except the one maximum, "Longest unbroken sleep". The night is shown as
+// PART of the daily total, never beside it as if it were another period. The
+// labels say what they measure (JOS-90): "time asleep per day" is the whole
+// day, "length of night sleep" is the night alone, and bedtime and wake-up say
+// which end of the night they are.
 export function averageCards(sum: Summary): StatCardModel[] {
   return [
-    { label: "Average sleep per day", value: dur(sum.avgTotalMs), sub: "Night + naps" },
-    { label: "Average night sleep", value: dur(sum.avgNightMs), sub: "Part of the daily total" },
+    { label: "Average time asleep per day", value: dur(sum.avgTotalMs), sub: "Night + naps" },
+    { label: "Average length of night sleep", value: dur(sum.avgNightMs), sub: "Part of the daily total" },
     { label: "Average naps per day", value: num1(sum.avgNaps) },
     { label: "Average nap length", value: dur(sum.avgNapMs) },
-    { label: "Average bedtime", value: fmtClockMin(sum.avgBedtimeMin) },
-    { label: "Average wake-up", keepTogether: "wake-up", value: fmtClockMin(sum.avgWakeUpMin) },
+    { label: "Average bedtime", value: fmtClockMin(sum.avgBedtimeMin), sub: "When the night sleep starts" },
+    {
+      label: "Average wake-up time",
+      keepTogether: "wake-up",
+      value: fmtClockMin(sum.avgWakeUpMin),
+      sub: "When the night sleep ends",
+    },
     { label: "Longest unbroken sleep", value: dur(sum.bestStretchMs), sub: "Best night in this period" },
     { label: "Average wakes per night", value: num1(sum.avgNightWakes) },
     { label: "Average time awake between sleeps", value: dur(sum.avgWakeWindowMs), wide: true },

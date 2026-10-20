@@ -8,8 +8,12 @@
 //  - A sleep is never cut. It belongs to the local DATE HE WOKE UP: the date
 //    its last stretch ended.
 //  - Of the finished sleeps that ended on a date, the one with the most time
-//    asleep (pauses excluded) is that date's NIGHT. The rest are NAPS. A tie
-//    goes to the earlier sleep.
+//    asleep (pauses excluded) is that date's NIGHT, if it is at least
+//    CFG.minNightMs (5 h). The rest are NAPS. A tie goes to the earlier sleep.
+//    A date whose longest sleep is shorter has no night: they are all naps
+//    (JOS-90, a change from the agreed model: with no minimum, the first day of
+//    logging, which has no night in it, named a 3 h 50 m daytime sleep the
+//    night and pulled the average bedtime to 1:13 am).
 //  - A pause is part of the same sleep, however long (a sleep paused over 3 h
 //    closes itself at its last wake). Stop then Start is two sleeps.
 //  - A sleep still open (running or paused) is in NO total until he wakes. It
@@ -18,6 +22,9 @@
 //    window is the gap between two sleeps (5 min to 6 h; a longer gap is
 //    probably an unlogged sleep), counted on the date he woke into it.
 //  - A date is "partial" until local midnight: charted, never averaged.
+//  - A date with no night is charted and listed but left out of every average
+//    (JOS-90): its total is missing the night, so averaging it would drag the
+//    daily total down (the first day of logging, or a night nobody logged).
 //  - Known weak spot, accepted: stop-and-restart in the night makes the
 //    shorter half a nap. Reopen right after a mistaken Stop avoids it.
 //  - The 24-hour pattern is the one place a sleep is cut: `segments` on each
@@ -32,6 +39,14 @@
 import { HOUR, MIN, SLEEP_RULES, closedAtOf, type Sleep } from "@/lib/sleep";
 
 export const CFG = {
+  // The longest sleep that ended on a date is that date's night only if it is
+  // at least this long (time asleep, pauses excluded); a shorter one is a nap
+  // and the date has no night (JOS-90). Joseph's baby sleeps 10 to 13 h at
+  // night and no more than 4 h in the day, so anything from 5 to 9 h separates
+  // them. 5 h is the low end of that: it keeps the longer half of a night
+  // split by a Stop and a Start (the accepted weak spot) a night, and still
+  // sits above any daytime sleep. A newborn's nights may need a lower value.
+  minNightMs: 5 * HOUR,
   // A pause or gap shorter than this is not a wake.
   minWakeMs: 5 * MIN,
   // A longer gap is probably an unlogged sleep, not time awake between sleeps.
@@ -164,7 +179,8 @@ function normalise(sleeps: ReportSleep[], nowMs: number): Session[] {
 }
 
 // Gives every finished sleep its wake date and its label. Sessions arrive
-// oldest first, so a tie for the longest goes to the earlier one.
+// oldest first, so a tie for the longest goes to the earlier one. The longest
+// is the night only if it is long enough to be one; otherwise the date has none.
 function label(sessions: Session[]): void {
   const byDay: Record<string, Session[]> = {};
   for (const ss of sessions) {
@@ -175,7 +191,8 @@ function label(sessions: Session[]): void {
   for (const k of Object.keys(byDay)) {
     let best = byDay[k][0];
     for (const ss of byDay[k]) if (ss.asleep > best.asleep) best = ss;
-    for (const ss of byDay[k]) ss.kind = ss === best ? "night" : "nap";
+    const hasNight = best.asleep >= CFG.minNightMs;
+    for (const ss of byDay[k]) ss.kind = hasNight && ss === best ? "night" : "nap";
   }
 }
 
@@ -321,8 +338,10 @@ export function computeDays(sleeps: ReportSleep[], nowMs: number): Day[] {
 /* ---------- averages ---------- */
 
 export interface Summary {
-  // Complete days (today excluded, days with no sleep skipped) and how many
-  // of them have a night.
+  // The days every average is made from: complete (today excluded) and with a
+  // night, so a day with no night, whose total is missing it, is left out
+  // (JOS-90). `nights` is the same count; it stays for the callers that ask
+  // for nights.
   days: number;
   nights: number;
   avgTotalMs: number | null;
@@ -340,8 +359,10 @@ export interface Summary {
 }
 
 export function summarise(days: Day[]): Summary {
-  const done = days.filter((d) => !d.partial && d.totalMs > 0);
-  const nights = done.filter((d) => d.hasNight);
+  // A complete day with a night. (A night always has time asleep, so the total
+  // is above 0 as well.)
+  const done = days.filter((d) => !d.partial && d.hasNight);
+  const nights = done;
   const napCount = sumBy(done, (d) => d.napCount);
   const napMs = sumBy(done, (d) => d.napMs);
   let windows: number[] = [];

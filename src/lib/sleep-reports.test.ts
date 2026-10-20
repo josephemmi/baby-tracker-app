@@ -57,6 +57,29 @@ const TUE_NIGHT = sleep("tueN", [[L(10, 13, 19, 45), L(10, 14, 6, 50)]]); // 665
 const WN1 = sleep("wn1", [[L(10, 14, 9, 30), L(10, 14, 10, 40)]]); // 70
 const WEEK = [SUN_NIGHT, MN1, MN2, MON_NIGHT, TN1, TN2, TUE_NIGHT, WN1];
 
+// Joseph's first logged week, rounded (JOS-90). Sat 17 Oct is the first day of
+// logging, so it has daytime sleeps but no night: Friday night was never logged
+// and Saturday night ends on Sunday. The rule as first shipped, with no minimum
+// for a night, named the 3 h 50 m daytime sleep Saturday's night and averaged
+// the bedtime to 1:13 am and the wake-up to 10:33 am.
+const FW_A = sleep("fwA", [[L(10, 17, 10, 15), L(10, 17, 11, 5)]]); // 50
+const FW_B = sleep("fwB", [[L(10, 17, 11, 10), L(10, 17, 15, 0)]]); // 230
+const FW_C = sleep("fwC", [[L(10, 17, 18, 40), L(10, 17, 19, 40)]]); // 60
+const FW_N1 = sleep("fwN1", [
+  [L(10, 17, 21, 0), L(10, 18, 2, 10)], // 310
+  [L(10, 18, 2, 45), L(10, 18, 8, 30)], // 345, after 35 min awake
+]); // 655, wakes Sun 18
+const FW_NAP1 = sleep("fwNap1", [[L(10, 18, 12, 40), L(10, 18, 13, 10)]]); // 30
+const FW_N2 = sleep("fwN2", [
+  [L(10, 18, 19, 30), L(10, 18, 19, 55)], // 25
+  [L(10, 18, 20, 15), L(10, 19, 0, 0)], // 225, after 20 min awake
+  [L(10, 19, 0, 25), L(10, 19, 2, 15)], // 110, after 25 min awake
+  [L(10, 19, 3, 55), L(10, 19, 8, 10)], // 255, after 100 min awake
+]); // 615, wakes Mon 19
+const FW_NAP2 = sleep("fwNap2", [[L(10, 19, 14, 20), L(10, 19, 16, 30)]]); // 130
+const FW_N3 = sleep("fwN3", [[L(10, 19, 19, 20), L(10, 20, 10, 15)]]); // 895, wakes Tue 20 (today)
+const FIRST_WEEK = [FW_A, FW_B, FW_C, FW_N1, FW_NAP1, FW_N2, FW_NAP2, FW_N3];
+
 it("TZ is Europe/London (run with TZ=Europe/London)", () => {
   expect(new Date(2026, 6, 1).getTimezoneOffset()).toBe(-60);
 });
@@ -103,14 +126,50 @@ describe("the model", () => {
   it("a tie for longest goes to the earlier sleep", () => {
     const d = S.computeDays(
       [
-        sleep("a", [[L(10, 16, 1, 0), L(10, 16, 3, 0)]]),
-        sleep("b", [[L(10, 16, 13, 0), L(10, 16, 15, 0)]]),
+        sleep("a", [[L(10, 16, 0, 0), L(10, 16, 6, 0)]]),
+        sleep("b", [[L(10, 16, 12, 0), L(10, 16, 18, 0)]]),
       ],
       NOW,
     )[0];
     expect(d.sleeps.map((x) => [x.id, x.kind])).toStrictEqual([
       ["a", "night"],
       ["b", "nap"],
+    ]);
+  });
+
+  it("a night needs 5 h asleep: exactly 5 h is one, a second less is a nap (JOS-90)", () => {
+    const wokeAt = (end: number) => S.computeDays([sleep("a", [[L(10, 16, 0, 0), end]])], NOW)[0];
+    expect(S.CFG.minNightMs).toBe(5 * HOUR);
+    expect(wokeAt(L(10, 16, 5, 0)).hasNight).toBe(true);
+    const short = wokeAt(L(10, 16, 5, 0) - 1000);
+    expect(short.hasNight).toBe(false);
+    expect(short.sleeps.map((x) => x.kind)).toStrictEqual(["nap"]);
+  });
+
+  it("the minimum counts time asleep, not the span: 10 pm to 5 am with 2 h paused is 5 h (JOS-90)", () => {
+    const stretches = (end: number): Array<[number, number]> => [
+      [L(10, 15, 22, 0), L(10, 16, 1, 0)], // 3 h
+      [L(10, 16, 3, 0), end], // 2 h
+    ];
+    expect(S.computeDays([sleep("a", stretches(L(10, 16, 5, 0)))], NOW)[0].hasNight).toBe(true);
+    expect(S.computeDays([sleep("a", stretches(L(10, 16, 5, 0) - 1000))], NOW)[0].hasNight).toBe(false);
+  });
+
+  it("a date whose longest sleep is under 5 h has no night: all naps, and the total is still right (JOS-90)", () => {
+    const sat = byKey(S.computeDays(FIRST_WEEK, NOW), "2026-10-17");
+    expect(sat.hasNight).toBe(false);
+    expect(sat.nightMs).toBe(0);
+    expect(sat.bedtime).toBeNull();
+    expect(sat.wakeUp).toBeNull();
+    expect(sat.nightWakes).toBe(0);
+    expect(sat.longestNightStretchMs).toBe(0);
+    expect(sat.napCount).toBe(3);
+    expect(sat.napMs).toBe(mins(50 + 230 + 60));
+    expect(sat.totalMs).toBe(mins(340)); // 5 h 40 m: nothing is lost, it is just not a night
+    expect(sat.sleeps.map((x) => [x.id, x.kind])).toStrictEqual([
+      ["fwA", "nap"],
+      ["fwB", "nap"],
+      ["fwC", "nap"],
     ]);
   });
 
@@ -293,12 +352,21 @@ describe("open sleeps", () => {
   });
 
   it("deleting a sleep changes the night: the shorter sleep becomes the night", () => {
-    const long = sleep("long", [[L(10, 16, 1, 0), L(10, 16, 6, 0)]]);
-    const short = sleep("short", [[L(10, 16, 13, 0), L(10, 16, 14, 0)]]);
-    expect(S.computeDays([long, short], NOW)[0].nightMs).toBe(5 * HOUR);
+    const long = sleep("long", [[L(10, 16, 0, 0), L(10, 16, 9, 0)]]);
+    const short = sleep("short", [[L(10, 16, 13, 0), L(10, 16, 19, 0)]]); // 6 h: long enough
+    expect(S.computeDays([long, short], NOW)[0].nightMs).toBe(9 * HOUR);
     const d = S.computeDays([{ ...long, deletedAt: 1 }, short], NOW)[0];
-    expect(d.nightMs).toBe(1 * HOUR);
+    expect(d.nightMs).toBe(6 * HOUR);
     expect(d.napCount).toBe(0);
+  });
+
+  it("deleting the long sleep can leave a date with no night: the short one is a nap (JOS-90)", () => {
+    const long = sleep("long", [[L(10, 16, 0, 0), L(10, 16, 9, 0)]]);
+    const short = sleep("short", [[L(10, 16, 13, 0), L(10, 16, 14, 0)]]);
+    const d = S.computeDays([{ ...long, deletedAt: 1 }, short], NOW)[0];
+    expect(d.hasNight).toBe(false);
+    expect(d.napMs).toBe(1 * HOUR);
+    expect(d.napCount).toBe(1);
   });
 });
 
@@ -376,6 +444,43 @@ describe("summary", () => {
     // wake windows: Thu 7:00→10:00 is 3 h on Wed; Wed's 11:00 nap end → Wed 9 pm night is 10 h (skipped);
     // Thu: 6:00→9:00 (3 h), 10:30→14:00 (3.5 h), 14:30→7 pm (4.5 h). Fri: nothing follows.
     expect(sum.avgWakeWindowMs).toBe(3.5 * HOUR); // (3 + 3 + 3.5 + 4.5) / 4
+  });
+
+  it("summary: a day with no night is charted and listed but left out of every average (JOS-90, Joseph's first week)", () => {
+    const days = S.computeDays(FIRST_WEEK, NOW);
+    expect(days.map((d) => [d.key, d.hasNight, d.partial])).toStrictEqual([
+      ["2026-10-17", false, false], // Sat: the first day of logging, daytime sleeps only
+      ["2026-10-18", true, false], // Sun: the night from Sat 9 pm
+      ["2026-10-19", true, false], // Mon: the night from Sun 7:30 pm
+      ["2026-10-20", true, true], // Tue: today, still going
+    ]);
+    const sum = S.summarise(days);
+    expect(sum.days).toBe(2); // Sun 18 and Mon 19
+    expect(sum.nights).toBe(2);
+    expect(sum.avgTotalMs).toBe(mins(715)); // (685 + 745) / 2: Sat's 5 h 40 m is not in it
+    expect(sum.avgNightMs).toBe(mins(635)); // (655 + 615) / 2
+    expect(sum.avgNapTimeMs).toBe(mins(80)); // (30 + 130) / 2
+    expect(sum.avgNaps).toBe(1);
+    expect(sum.avgNapMs).toBe(mins(80)); // 160 min of naps over 2 naps: Sat's three are not in it
+    expect(sum.bestStretchMs).toBe(mins(345));
+    expect(sum.avgLongestStretchMs).toBe(mins(300)); // (345 + 255) / 2
+    expect(sum.avgNightWakes).toBe(2); // (1 + 3) / 2
+    expect(sum.avgBedtimeMin).toBe(20 * 60 + 15); // (9:00 pm + 7:30 pm) / 2, not 1:13 am
+    expect(sum.avgWakeUpMin).toBe(8 * 60 + 20); // (8:30 am + 8:10 am) / 2, not 10:33 am
+    // wake windows: Sun 8:30 am to 12:40 pm is 4 h 10 m, Mon 4:30 pm to 7:20 pm is 2 h 50 m; the 6 h 20 m and
+    // 6 h 10 m gaps are over the 6 h limit, and Sat's three windows are on the day that is left out
+    expect(sum.avgWakeWindowMs).toBe(mins(210));
+  });
+
+  it("summary: with no day that has a night there is nothing to average (JOS-90)", () => {
+    const days = S.computeDays([FW_A, FW_B, FW_C], NOW);
+    expect(byKey(days, "2026-10-17").totalMs).toBe(mins(340));
+    const sum = S.summarise(days);
+    expect(sum.days).toBe(0);
+    expect(sum.avgTotalMs).toBeNull();
+    expect(sum.avgNaps).toBeNull();
+    expect(sum.avgBedtimeMin).toBeNull();
+    expect(sum.avgWakeUpMin).toBeNull();
   });
 
   it("summary: today is charted but never averaged", () => {
@@ -458,13 +563,18 @@ describe("clock changes", () => {
       const first = days[0].key;
       const dropped = sl.filter((s) => wake(lastEnd(s)) < first).reduce((a, s) => a + length(s), 0);
       expect(counted + dropped).toBe(asleep);
-      // every sleep sits on the date he woke, with exactly one night per date that has any sleep
+      // every sleep sits on the date he woke; a date has one night exactly when its longest sleep is long
+      // enough to be one, and that sleep is the night
       sl.forEach((s) => {
         const d = days.find((x) => x.key === wake(lastEnd(s)));
         if (d) expect(d.sleeps.some((x) => x.id === s.id)).toBe(true);
       });
       days.forEach((d) => {
-        if (d.sleeps.length) expect(d.sleeps.filter((x) => x.kind === "night").length).toBe(1);
+        const longest = Math.max(0, ...d.sleeps.map((x) => x.ms));
+        const nights = d.sleeps.filter((x) => x.kind === "night");
+        expect(nights.length).toBe(longest >= S.CFG.minNightMs ? 1 : 0);
+        expect(d.hasNight).toBe(nights.length === 1);
+        if (nights.length) expect(nights[0].ms).toBe(longest);
         expect(d.nightMs + d.napMs).toBe(d.totalMs);
       });
       // segments cover every minute asleep exactly once (minus the start of the first night, on the dropped first date)

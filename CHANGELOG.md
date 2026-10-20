@@ -9,6 +9,24 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+### Changed
+- Clearer names on the Sleep averages (JOS-90): "Average time asleep per day"
+  (was "Average sleep per day"), "Average length of night sleep" (was "Average
+  night sleep") and "Average wake-up time". Bedtime and wake-up now say they are
+  when the night sleep starts and ends, and a line under the cards says what a
+  night is.
+
+### Fixed
+- The Sleep averages no longer count a daytime sleep as a night (JOS-90). A
+  night is now a sleep of at least 5 hours, so a day with no night in it, such as
+  the first day of logging, has none, and its sleeps are naps. That day is also
+  left out of every average and the note under Averages names it, so Average
+  bedtime, Average wake-up time, Average length of night sleep, Average wakes
+  per night and Average time asleep per day are made only from days that have a
+  night. Before, a 3 h 50 m daytime sleep on the first day became that day's
+  night and pulled the average bedtime to 1:13 am and the average wake-up to
+  10:34 am.
+
 ## [1.14.0] - 2026-10-20
 
 ### Added

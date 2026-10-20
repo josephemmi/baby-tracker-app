@@ -1,6 +1,6 @@
 import { EYEBROW } from "@/components/reports/sleep-report-parts";
 import type { Day, Summary } from "@/lib/sleep-reports";
-import { averageCards, averagesNote, type StatCardModel } from "@/lib/sleep-report-view";
+import { averageCards, averagesNote, nightNote, type StatCardModel } from "@/lib/sleep-report-view";
 
 function Label({ card }: { card: StatCardModel }) {
   if (!card.keepTogether) return <>{card.label}</>;
@@ -49,7 +49,7 @@ export function SleepStatCards({ days, summary }: { days: Day[]; summary: Summar
           </div>
         ))}
       </div>
-      <p className="text-xs text-ink-soft">A night counts on the day he woke.</p>
+      <p className="text-xs text-ink-soft">{nightNote()}</p>
     </section>
   );
 }
