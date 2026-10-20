@@ -75,8 +75,9 @@ under the `postgres` user's home), socket in `…/sock`, port 54329. `pg-up.sh` 
 | `reports-flows.mjs` | Reports > Sleep: the ranges, empty and loading states. Route `sleep-reports`. | Needs `mock.mjs`. Checks written against the v1.14.0 wording: expect label changes from JOS-90 and JOS-91. |
 | `compare.mjs` | The spec's check: the prototype's numbers against the app's, for the same generated sleeps, in every range. | Needs `mock.mjs` and the prototype HTML at `$HARNESS_OUT/drive-proto/prototype.html` (Drive, the v1.14 folder attached to JOS-83). Re-run it when the reference engine in Drive is updated for JOS-90. |
 | `mock.mjs` | The prototype's mock-data generator. | Needs the reference engine `sleep-stats.js` (Drive, v1.14 folder): set `REF_ENGINE`. |
-| `gshots.mjs` | The user-guide screenshots (390 px at 2x; numbered badges and rings drawn into the page). Read its `scene()` calls for the routes and options it expects. | Shows the v1.14.0 screens: reshoot the changed ones (JOS-98). |
+| `gshots.mjs` | The user-guide screenshots (390 px at 2x; numbered badges and rings drawn into the page). Read its `scene()` calls for the routes and options it expects. | Current as of JOS-98: scenes 06 and 23 (21-delete-confirm) now click/ring the × (`aria-label="Delete this sleep"`), not the `[data-delete-sleep]` button JOS-92 removed; scene 30 crops `[data-card="table"]`, not the `aria-label="Sleep summary by day"` region, since JOS-91 moved the "Sleep summary" title outside it. Shows the v1.15.0 screens now; reshoot whatever a later ticket changes. |
 | `rnshots.mjs` | Release-note screenshots: tight, element-scoped, no annotations. | Written for v1.14.0. |
+| `rnshots-v1.15.0.mjs` | Release-note screenshots for JOS-90/91/92: the Sleep tab's bold titles and two new notes, the Averages card's renamed labels, a finished sleep card's tick box in Edit, and the bulk-delete confirm box. Route `sleep-log` / `sleep-reports`. | Current. |
 | `log-shots.mjs`, `reports-shot.mjs`, `avg-shots.mjs`, `sections.mjs` | One-off screenshot helpers (`sections.mjs`: the Sleep sections at five widths, route `sleep-sections`, no database). | Examples. |
 | `tiles.mjs`, `tiles2.mjs`, `page-test.mjs`, `shot-page.mjs`, `build_tiles_page2.py`, `routes/tiles.tsx.txt` | JOS-87: the Log tile layout options, each a CSS variant injected into the real tiles and measured; the Artifact page built from the screenshots (https://claude.ai/artifact/Fw6CtTGTwFmZ1Yxru5Yvsh). | Reusable for the JOS-87 build. |
 
@@ -95,6 +96,12 @@ Routes: `routes/sleep-log.tsx.txt` (the real `LogMatrix`; `?as=joseph|jen&w=<px>
 * Hide `nextjs-portal` (the dev overlay) before screenshots and hit-tests; give the preview wrapper a fixed `width`.
 * In SQL scenarios, run `discard plans;` before a check that must prove a member's first run works.
 * Real household data: an export of the live `sleeps` table is useful for a layout check, but it is never committed.
+* A screenshot script's selector or crop target can silently go stale when a later ticket changes the DOM it
+  targets (JOS-98: `gshots.mjs` still clicked the `[data-delete-sleep]` button JOS-92 removed, a 30 s Playwright
+  timeout each time; its table crop still targeted the region JOS-91 moved the title out of, so the title was
+  missing from the shot with no error). Nothing currently flags a harness script when the component it drives
+  changes. When a PR removes or moves a DOM hook a harness script depends on, grep the harness for it
+  (`grep -rn '<the old selector>' scripts/harness/`) and fix the script in the same PR, or mark it Stale above.
 
 ## Not done (stays on JOS-57)
 

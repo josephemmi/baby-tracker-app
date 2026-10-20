@@ -210,6 +210,14 @@
   to be raised. **Before sending, check what he'll see**: `pdfimages -list
   -f 1 -l 1 <pdf>` must list the images, and view page one (`pdftoppm -r
   70 -f 1 -l 1`).
+- **A release bundling several tickets' CHANGELOG entries can fill the page
+  before any screenshot is even added** (JOS-98 cut, v1.15.0: three
+  tickets' entries at normal house-style length left no room — even one
+  tight crop pushed to page two, caught by the `pdfimages` check above).
+  Build the PDF with no screenshot args first; if it's not comfortably
+  under a page on its own, trim the CHANGELOG bullets tighter (same
+  house style, just fewer words) before adding images, rather than
+  cropping images smaller and smaller to compensate.
 - **Release notes keep one structure, release after release** (v1.12.0
   cut: a first version with a "What it looks like" grid up front,
   captions, sub-bullets and three pages was sent back with "use the
@@ -612,6 +620,20 @@ time.
   `parentId` and pass `excludeContentSnippets: true`. A "failed to connect"
   line for Google Drive at the start of a session did not mean the Drive tools
   were down; `search_files` and `read_file_content` worked.
+- **Revising a Drive spec/prototype/engine for a rule change, without overwriting
+  the original (JOS-98, for JOS-90).** `update_file` only changes a Drive
+  file's metadata (title, parent, starred), not its content, so "save as a
+  new version next to the original" means a new file in the same folder:
+  download the original with `download_file_content` (base64; decode and
+  diff against your edited copy to confirm nothing else drifted, especially
+  for a large prototype HTML file retyped by hand into `create_file`'s
+  `textContent`), then `create_file` the edited copy as
+  `<original-name>-JOS-nn.<ext>` (`disableConversionToGoogleType: true` so
+  a `.html`/`.js`/`.md` stays plain text, not a Google Doc). For a markdown
+  spec, append a dated `## Addendum: JOS-nn` section rather than editing the
+  agreed decisions in place — same pattern the plan doc already uses for a
+  reversed decision (see "Checked against earlier decisions" in the v1.14
+  spec: "the old lines are not edited").
 - **Comparing layout options on the real component (JOS-83 tiles, JOS-87).**
   The scripts that did it (`tiles.mjs` and `tiles2.mjs`: each option is CSS
   injected after load and measured per width and state; `build_tiles_page2.py`:

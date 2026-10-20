@@ -69,8 +69,9 @@ def screenshot_block(shots, content_width):
     # undoing an override made beforehand.
     ratios = [img.imageWidth / img.imageHeight for img in images]
     if len(images) == 1:
-        images[0].drawWidth = content_width
-        images[0].drawHeight = content_width / ratios[0]
+        height = min(3.0 * inch, content_width / ratios[0])
+        images[0].drawHeight = height
+        images[0].drawWidth = height * ratios[0]
         return [Spacer(1, 14), images[0]]
     gap = 10
     height = min(3.0 * inch, (content_width - gap * (len(images) - 1)) / sum(ratios))
