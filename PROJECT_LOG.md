@@ -69,14 +69,44 @@ picks this up next.
   changes the agreed model, so the v1.14 spec, prototype and reference engine in
   Drive need the same two changes. With the fix the live week reads bedtime
   8:16 pm, wake-up 8:23 am, night 10h 42m, day 11h 59m.
+- Joseph's next review round on that PR ([PR #45](https://github.com/josephemmi/baby-tracker-app/pull/45)):
+  he agrees a day with no logged night stays out of the averages and wants it
+  said where the numbers are read; the Sleep tab's section titles bigger; the
+  Delete sleep button gone (the × does the same, and the button is "too prone to
+  confusion or error"); and sleep cards in Edit mode's bulk delete. The session's
+  branch is fixed, so all of it rides on PR #45 (one preview, one review), each
+  as its own commit and ticket.
+  [JOS-91](https://linear.app/josephemmi/issue/JOS-91) (Polish): one title style
+  (`SECTION_TITLE`, 17 px bold, an `h2`) for the five Sleep sections, 24 px
+  between them, the table's title above the part that scrolls, and a line under
+  24-hour pattern and under Averages saying only logged sleeps are counted.
+  [JOS-92](https://linear.app/josephemmi/issue/JOS-92) (Polish): the Delete sleep
+  button is removed and the Sleep tile's notice on a finished card points to the
+  ×; in Edit a sleep card shows the same tick box as a moment (`sleepSelectKey`
+  keeps the two apart in one set), Delete (n) counts both and the box says so
+  ("Delete 3 logged moments and 1 sleep?", plus "A sleep that is still going will
+  be stopped." when one is), the sleeps go one at a time on the version he saw, a
+  sleep the other parent changed first stays and a toast names it (a count first
+  when it is more than one), and a dropped connection stops the rest. No
+  migration. Checked on the scratch-Postgres harness with two phones (69 checks:
+  the mix of moments and sleeps, a running sleep, Cancel, a conflict, two
+  conflicts, a dropped connection, a tick on a sleep the other parent deleted,
+  the stacked cards at 768 and 1024 px, the header at 320 to 1024 px).
+- He also confirmed the sleep paused at 7:05 and resumed at 7:43 (ended 10:16) is
+  one valid night, so nothing changes there. A morning reminder when last night
+  is not logged, and a tenth KPI to even the Averages grid, were asked about as
+  opinions only: nothing built (see the reply).
 
 **In flight / open:**
-- JOS-90 is a PR waiting for Joseph's review (the preview shares the live
-  database, so it shows his real week). The Reports averages screenshot in the
-  Sleep tracker guide shows the old labels: reshoot it at the release cut, which
-  would be v1.14.1 (confirm the level). Last night's sleep (Mon 7:20 pm to Tue
-  10:16 am) is not in the averages yet because it counts as today; it joins
-  tomorrow. Counting a finished night at once would be a separate change.
+- JOS-90, JOS-91 and JOS-92 are one PR waiting for Joseph's review (the preview
+  shares the live database, so it shows his real week). At the release cut
+  (confirm the level: a patch for JOS-90 alone, a minor is arguable with JOS-92)
+  reshoot the Sleep tracker guide images that show the old Reports averages
+  labels and section titles and the Delete sleep button (pages for finished
+  cards and the confirm box), and rebuild the notes. Last night's sleep (Mon
+  7:20 pm to Tue 10:16 am) is not in the averages yet because it counts as today;
+  it joins tomorrow. Counting a finished night at once would be a separate
+  change.
 - JOS-87 waits for Joseph's pick (a tablet letter and a phone letter); my
   recommendation is H and P1, P2 if he wants more room. Build it on the assigned
   branch (restarted from the production tip) with JOS-87 in the PR title. The
