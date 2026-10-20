@@ -19,6 +19,82 @@ picks this up next.
 
 ---
 
+## 2026-10-20, evening (PR #45 merged; handover to one conversation per ticket)
+
+**Done:**
+- Joseph approved and said to merge: [PR #45](https://github.com/josephemmi/baby-tracker-app/pull/45)
+  is **merged** (merge commit `b84747b`; the production deployment is READY).
+  It holds JOS-90 (a night needs 5 h asleep, a day with no night is left out of
+  the averages, clearer labels), JOS-91 (bigger Sleep section titles and the
+  "only logged sleeps count" notes) and JOS-92 (the Delete sleep button is gone;
+  sleeps join Edit mode's bulk delete). Linear moved the three to Done by itself;
+  JOS-89 (the retro notes, named only as a link) was moved by hand. The release
+  was **not** cut: it was merged first on his go-ahead, so the release is a small
+  release PR later (as v1.13.1 was), not a commit on PR #45. `[Unreleased]` holds
+  four entries and `package.json` is still 1.14.0.
+- His answers: a **banner, not a pop-up**, for a missed night, with a way to add
+  it, and the add-a-past-sleep form is built first. The time is still to discuss;
+  he leans to 9:00 (people reach work around then, which could help or hurt) and
+  says the app's job is to **flag** a missed night, not to make sure it gets
+  done. The sleep paused at 7:05, resumed at 7:43 and ended at 10:16 is one valid
+  night. A tenth average and the other open questions were asked as opinions
+  only; nothing built.
+- Filed, all with the whole discussion in the ticket:
+  [JOS-93](https://linear.app/josephemmi/issue/JOS-93) add a past sleep (Feature,
+  Needs Scoping);
+  [JOS-94](https://linear.app/josephemmi/issue/JOS-94) the morning banner (Feature,
+  Needs Scoping, blocked by JOS-93);
+  [JOS-95](https://linear.app/josephemmi/issue/JOS-95) count a finished night in
+  the averages the same morning (Polish, Needs Scoping, Low);
+  [JOS-97](https://linear.app/josephemmi/issue/JOS-97) Average time awake at night
+  (Feature, Needs Scoping, Low; cancel it if he would not use it);
+  [JOS-98](https://linear.app/josephemmi/issue/JOS-98) the release for PR #45
+  (Process, Todo); [JOS-96](https://linear.app/josephemmi/issue/JOS-96) save the
+  testing harness in the repo (Process).
+- **The harness is saved**: `scripts/harness/` (JOS-96, the first cut of JOS-57)
+  has the scratch-Postgres and Playwright scripts, the flow and screenshot
+  scripts and the dev-preview route templates, with a README (quick start, what
+  each script is for, which are stale). A new conversation starts with an empty
+  scratchpad, so without this each ticket below would have rebuilt it. That PR is
+  tooling only: **it has to be merged before the next conversations start**, or
+  they will not see it.
+
+**Next conversations (Joseph plans one per ticket, 3 to 5), in the order I would
+take them:**
+1. [JOS-98](https://linear.app/josephemmi/issue/JOS-98): the release for PR #45.
+   Decide the level (1.14.1, or 1.15.0 which is my lean) and whether to cut one
+   release together with JOS-87; then the notes PDF, the guide reshoot and the
+   Drive spec update.
+2. [JOS-87](https://linear.app/josephemmi/issue/JOS-87): the Log tile layout.
+   He picks first (tablet H, S or N; phone P1 to P4; my recommendation is H and
+   P1, or P2 for more room); the options page is
+   https://claude.ai/artifact/Fw6CtTGTwFmZ1Yxru5Yvsh. Build it on a container
+   query on the tile (CLAUDE.md has the detail).
+3. [JOS-93](https://linear.app/josephemmi/issue/JOS-93) then
+   [JOS-94](https://linear.app/josephemmi/issue/JOS-94): scoping (his handoff
+   process: a spec and a prototype in Drive), then two builds, the form first. The
+   form needs a migration, so DDL on the live database is his call.
+4. [JOS-88](https://linear.app/josephemmi/issue/JOS-88): which day a night counts
+   on (my recommendation: keep the wake date, label a night by both days).
+5. Only if he wants them: JOS-97 and JOS-95. Also on the board: JOS-58
+   (notifications; the banner may be built on it), JOS-66 (the type scale would
+   replace `SECTION_TITLE`; the Feeds tab still has small-capital chart titles,
+   so ask whether they should match), JOS-57 (tidying the harness).
+
+**In flight / open:**
+- Nothing is half-built and the working tree is clean. Device checks from the
+  earlier releases (Jen's iPad home-screen app, an Android phone with a running
+  sleep, realtime on two devices) are still outstanding, and realtime delivery
+  has never been exercised, only the poll.
+
+**Worth knowing:**
+- In the harness, every card holds a checkbox per tile: count tick boxes by
+  `aria-label`, never `input[type="checkbox"]` (the README has the list of traps).
+- A ticket for work on a merged PR stays Done: JOS-90, JOS-91 and JOS-92 closed on
+  the merge, so the leftovers (release, Drive spec) are their own ticket, JOS-98.
+
+---
+
 ## 2026-10-20, later (JOS-83 merged; tile and night-label follow-ups)
 
 **Done:**
@@ -98,8 +174,8 @@ picks this up next.
   opinions only: nothing built (see the reply).
 
 **In flight / open:**
-- JOS-90, JOS-91 and JOS-92 are one PR waiting for Joseph's review (the preview
-  shares the live database, so it shows his real week). At the release cut
+- JOS-90, JOS-91 and JOS-92 were one PR (#45), now merged: see the entry above;
+  the release is JOS-98. At the release cut
   (confirm the level: a patch for JOS-90 alone, a minor is arguable with JOS-92)
   reshoot the Sleep tracker guide images that show the old Reports averages
   labels and section titles and the Delete sleep button (pages for finished
