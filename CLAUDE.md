@@ -114,6 +114,25 @@
   fixes, minor for new features, major for breaking/major redesigns).
 - Confirm the version bump with the user rather than assuming which level
   (patch/minor/major) applies.
+- **Cut the release after Joseph approves the PR, not when it is opened
+  (JOS-83 session).** He tests the preview first, and a change he asks for
+  would mean redoing the screenshots, the release notes and the guide (the
+  last three releases built them with the PR, and he asked for that to stop).
+  So a PR carries the code, the tests and the `[Unreleased]` CHANGELOG entry
+  and nothing else of the release: no version bump, no dated CHANGELOG
+  section, no release-notes PDF, no guide refresh. When he says the PR is
+  approved and ready to merge, cut the release in one go: move `[Unreleased]`
+  into the dated section, bump `package.json` and the lock file (confirm the
+  level unless the brief named the version), build the release notes and the
+  guide as described below, push that as one more commit on the same PR
+  branch (a small release PR instead if the feature PR has already merged, as
+  v1.13.1 did), attach and send the PDFs, and tell him it is ready to merge.
+  Merging stays his call. If he asks for a change after the cut, make it,
+  re-shoot only the images it touches, regenerate and resend both PDFs and
+  swap the Linear attachments (`mcp__Linear__delete_attachment`, then upload
+  again). The `PROJECT_LOG.md` entry is written when the PR opens and
+  updated at the cut. The bullets below describe how to build the notes and
+  the guide, at that point.
 - Every release gets a standalone `NestlogReleaseNotesv{version}.pdf`
   (no hyphens — e.g. `NestlogReleaseNotesv1.11.2.pdf`) scoped to just
   that version's CHANGELOG section (not a cumulative
@@ -198,11 +217,14 @@
   a fix-only patch) also gets a short, visual user guide for it,
   generated automatically as part of cutting the release — no need to
   ask each time, same as the release notes.
-  - **What it is:** a few A4 pages, one task per page, phone-first. Big
+  - **What it is:** A4 pages, one task per page, phone-first. Big
     annotated screenshots, one short sentence per step, plain words
     ("tap", never "interact with"), written for Joseph and Jen rather
-    than engineers. Aim for six pages or fewer; if it won't fit, cut
-    words, not screenshots.
+    than engineers. As many pages as the content needs and no more (the
+    v1.14.0 guide is eight because Reports needs two; Joseph's word: length
+    is fine when every page is clear and concise). Cut only because the words
+    are too long, too verbose or hard to follow, never to save a page; if a
+    page won't fit, cut words, not screenshots.
   - **Where it lives:** `docs/user-guides/<feature>/` holds `guide.json`
     (all the words, so a change is a reviewable diff) and `img/` (the
     screenshots). `python3 scripts/generate-user-guide.py <guide.json>
@@ -212,14 +234,15 @@
     the PDF is a build output and isn't committed.
   - **Screenshots:** the real app, via the same dev-preview + Playwright
     workflow below, at phone width (390 px, 2x), as a realistic story
-    (a sleep with a pause in it, not an empty screen). Capture only after
-    the feature's last UI change has merged, so the guide shows what
-    shipped. Use fixture names only (Joseph, Jen, no surnames, no real
-    baby data). Draw the numbered badges (dark circle, amber ring) and
-    highlight rings *into the page* just before each shot so every PNG
-    is self-contained. Before shooting, inject CSS to hide the Next.js dev
-    overlay (`nextjs-portal { display: none }`) and freeze animation
-    (`animation: none`) so the pulsing dot isn't caught mid-fade.
+    (a sleep with a pause in it, not an empty screen). Capture only once
+    Joseph has approved the PR (see "Cut the release after Joseph approves
+    the PR"), so the guide shows what shipped. Use fixture names only
+    (Joseph, Jen, no surnames, no real baby data). Draw the numbered badges
+    (dark circle, amber ring) and highlight rings *into the page* just
+    before each shot so every PNG is self-contained. Before shooting,
+    inject CSS to hide the Next.js dev overlay (`nextjs-portal { display:
+    none }`) and freeze animation (`animation: none`) so the pulsing dot
+    isn't caught mid-fade.
   - **Keeping it current:** a later release that changes a screen or a
     step a guide shows (a fix or a polish counts) refreshes that guide's
     screenshots and `guide.json` in the same release and ships the new
@@ -520,6 +543,20 @@ time.
   file (each file runs in its own process; `src/lib/sleep-reports.test.ts` does
   it, as the reference engine's tests are run), so a timezone-sensitive test
   needs no config change. It is also the cheap fix for JOS-79.
+- **A "new message" that repeats the session's first prompt after a worker
+  restart is a replay, not a new request (JOS-83 session).** Twice,
+  "This session's worker process was restarted" was followed about 12 seconds
+  later by "The user sent a new message while you were working" carrying the
+  original handoff word for word. The transcript shows what it is: a
+  `queued_command` whose `source_uuid` is the first message's own id, with a
+  new `delivery_id`, so the harness delivered that message again; Joseph did
+  not send it (why the worker restarts is not known). Nothing was lost
+  (everything was committed and pushed, the scratchpad survived) and nothing
+  should be redone: compare the text with the first message, then check
+  `git log`, the open PR and the Linear ticket, and carry on from where the
+  work stands. The risk is duplicate side effects (a second PR, comment,
+  attachment or ticket); a dev server or scratch Postgres left running may be
+  gone (see the restart note above). Say so in one line in the wrap-up.
 - **"App not loading" diagnostic playbook (2026-08-27 incident).** Joseph
   reported `baby-tracker-app-bay.vercel.app` unreachable from every real
   device (phone on WiFi and cellular, iPad), while every server-side

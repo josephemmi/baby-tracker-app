@@ -58,6 +58,13 @@ picks this up next.
   Comments on JOS-57, JOS-66, JOS-69 and JOS-79.
   [JOS-85](https://linear.app/josephemmi/issue/JOS-85) (Polish, Backlog): the
   app header is 4 px wider than a 320 px screen (found here, not new).
+- Joseph's answers after the PR opened (20 Oct), written up as
+  [JOS-86](https://linear.app/josephemmi/issue/JOS-86) (Process, In Review,
+  another docs commit on PR #44): **the release notes, guide and version bump
+  are built after he says the PR is approved, not with the PR** (CLAUDE.md,
+  Release process); the guide takes the pages it needs and is cut only for
+  wordiness (the six-page aim is gone); and a page of real screenshots for the
+  Log tile layout choice, published as an Artifact (below).
 
 **In flight / open:**
 - PR #44 needs Joseph's review. The preview shares the live database, which
@@ -66,8 +73,21 @@ picks this up next.
   an Android phone with a running sleep (the pill ticking, the tile's "ago"
   moving); two devices for realtime (a delete on one should clear the other in
   a couple of seconds). Realtime delivery was not exercised, only the poll.
-- The guide is **eight pages** where CLAUDE.md says to aim for six (Reports
-  needs two); flagged on the PR, cut it back if he prefers.
+- **Waiting on Joseph:** he is testing the preview and will say when to merge.
+  PR #44 was built before the new release rule, so it still carries the release
+  commit (version bump, CHANGELOG section, eight-page guide, notes PDF). If his
+  testing changes the UI, redo what it touches: the affected guide images, the
+  notes screenshots, both PDFs and the Linear attachments.
+- **Log tile layout is his call** (he wants to see it): two by two from 640 px
+  (in the PR), four across, three across with Last sleep full width below, or
+  two by two then four across from 1024 px. Real screenshots of each at 640, 768
+  and 1024 px, in three tile states, are on an Artifact page
+  (https://claude.ai/artifact/Fw6CtTGTwFmZ1Yxru5Yvsh). Four across wraps the
+  pill to two or three lines and wraps text in the older tiles; two by two costs
+  about 110 px of height (142 px on iPad landscape). If he picks another one it
+  is the grid classes in `glance-cards.tsx` (`sm:grid-cols-2`, plus a
+  `col-span` for the full-width tile); the phone images in the guide and notes
+  do not change.
 - [JOS-66](https://linear.app/josephemmi/issue/JOS-66) is still In Progress
   (the three-tier structure, type/radius/motion tokens). The sleep contrast pairs
   live in `src/lib/sleep-contrast.test.ts` until
@@ -92,8 +112,12 @@ picks this up next.
 - A randomized comparison against a reference engine misses boundary mutants
   unless its inputs sit on a coarse grid (5 minutes here); the explicit
   boundary tests are what kill them.
-- The handoff message was delivered again after the worker restarted twice
-  mid-session; check `git log` and the PR first, the work was already done.
+- The worker restarted twice mid-session (06:04 and 06:38 UTC) and each time the
+  harness delivered the first prompt again, word for word: the transcript entry
+  is a `queued_command` with the first message's `source_uuid` and a new
+  `delivery_id`. It is a replay, not Joseph writing again; nothing was lost or
+  duplicated (one PR, one comment per ticket). Check `git log`, the PR and the
+  ticket before acting on a repeat (CLAUDE.md has the note).
 
 ---
 
