@@ -9,6 +9,26 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+## [1.14.0] - 2026-10-20
+
+### Added
+- Sleep reports, a Last sleep tile and Delete sleep (JOS-83). Reports has a new
+  Sleep tab beside Feeds and nappies: a Today card (awake or asleep and for how
+  long, today's naps added up, last night and each nap), then, for the last 7 or
+  30 days, a month, a year or all time, a 24-hour pattern, nine averages, two
+  charts and a table of every day. A sleep counts on the day baby woke and is
+  never cut at midnight; one still going is in no total, and averages skip today
+  and days with no sleep. Log has a fourth tile, Last sleep, with a Sleeping now
+  or Paused pill while a sleep is open. A finished sleep card has a Delete sleep
+  button, and restoring a sleep checks for overlaps again. Needs no database
+  changes.
+
+### Changed
+- Sleep is now one blue everywhere (JOS-83): the tile, the card, the pill and
+  every Reports chart share one deep indigo and one pale tint, where there used
+  to be three. It stays clearly apart from Pump's violet and Breast's teal, and
+  the text on it meets the WCAG AA contrast levels.
+
 ## [1.13.1] - 2026-10-19
 
 ### Changed

@@ -2,11 +2,15 @@ import { redirect } from "next/navigation";
 import { getCurrentUserAndProfile } from "@/lib/supabase/queries";
 import { createClient } from "@/lib/supabase/server";
 import { AppHeader } from "@/components/layout/app-header";
-import { ReportsView } from "@/components/reports/reports-view";
+import { ReportsShell } from "@/components/reports/reports-shell";
 import { colorIndexFor } from "@/lib/person-colors";
 import { fetchAllEntries } from "@/lib/entries";
 
-export default async function ReportsPage() {
+export default async function ReportsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
   const { user, profile, household } = await getCurrentUserAndProfile();
 
   if (!user) redirect("/login");
@@ -30,6 +34,7 @@ export default async function ReportsPage() {
   const baby = babies?.[0] ?? null;
 
   const entries = baby ? await fetchAllEntries(supabase, baby.id) : [];
+  const { tab } = await searchParams;
 
   return (
     <div className="min-h-screen bg-paper p-4 sm:p-8">
@@ -47,7 +52,11 @@ export default async function ReportsPage() {
             Add your baby from the Log tab first.
           </p>
         ) : (
-          <ReportsView entries={entries} babyId={baby.id} />
+          <ReportsShell
+            entries={entries}
+            babyId={baby.id}
+            initialTab={tab === "sleep" ? "sleep" : "feeds"}
+          />
         )}
       </div>
     </div>

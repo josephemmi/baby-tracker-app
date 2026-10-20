@@ -20,10 +20,17 @@
   --color-rose-dark: #8b4a63;
   --color-plum: #7c6a9e;
   --color-plum-soft: #eae4f2;
-  /* Sleep (JOS-56): the one colour the sleep tile, status and timer well add. */
-  --color-night: #3d4d85;
-  --color-night-soft: #e2e6f3;
-  --color-night-deep: #2a3563;
+  /* Sleep (JOS-56, JOS-83): one indigo and one pale tint, used by everything
+     that is sleep (the tile, the card, the Last sleep pill, every Reports
+     chart). They used to be three values; the old "deep" ink is now the solid.
+       night:      solid, text, borders, bars; white on it 11.75:1, on paper 10.97:1
+       night-soft: tint, 9.27:1 with night on it; deliberately bluer than Pump's
+                   violet (hue about 218 against 257 to 266) so the two never
+                   read as one. Secondary grey text (ink-soft) is 4.29:1 on it,
+                   so use ink there.
+     Sleep never takes Pump's violet or Breast's teal. */
+  --color-night: #2a3563;
+  --color-night-soft: #dde5f3;
 
   /* Category colours (JOS-66, D9). Each colour follows what it stands for:
      Pee yellow, Poo brown, Bottle blue, Breast teal, Pump violet; Sleep is
@@ -101,6 +108,43 @@ body {
   .sleep-dot-live {
     animation: none;
   }
+}
+
+/* ---------- Sleep reports (JOS-83) ---------- */
+
+/* Naps are told from the night by PATTERN, not only by shade: a hatch in the
+   two sleep colours. Also the legend swatch. */
+.sleep-hatch {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--color-night) 0 2px,
+    var(--color-night-soft) 2px 6px
+  );
+  box-shadow: inset 0 0 0 1px var(--color-night);
+}
+
+/* A stretch that is still running on the 24-hour pattern and the day strip. */
+.sleep-run-hatch {
+  background: repeating-linear-gradient(
+    90deg,
+    var(--color-night) 0 4px,
+    var(--color-night-soft) 4px 8px
+  );
+}
+
+/* A bar for a day still in progress is lighter and dashed ("so far"); the bar
+   pinned for the readout above the chart gets an ink outline. The dashes are
+   drawn just outside the bar: inside, they vanish against the solid night. */
+.sleep-bar-partial {
+  opacity: 0.6;
+  outline: 1.5px dashed var(--color-night);
+  outline-offset: 0;
+}
+
+.sleep-bar-selected {
+  opacity: 1;
+  outline: 2px solid var(--color-ink);
+  outline-offset: 1px;
 }
 
 /* "Pick a time": a real <input type="time"> laid invisibly over the whole row,

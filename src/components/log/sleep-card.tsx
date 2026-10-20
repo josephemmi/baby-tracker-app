@@ -175,8 +175,8 @@ function PauseToggle({
 
 // What the summary box does when there are pauses to show: it is tappable all
 // over, and shows the keyboard focus of the button inside it. (The running box
-// has no hover tint: its secondary text is 4.4:1 on the night tint already,
-// and a darker one would take it lower.)
+// has no hover tint: a darker one would take its text lower than the 9:1 or so
+// it has on the sleep tint.)
 const WELL_TAPPABLE =
   "cursor-pointer has-[[data-pause-toggle]:focus-visible]:outline-[3px] has-[[data-pause-toggle]:focus-visible]:outline-offset-[3px] has-[[data-pause-toggle]:focus-visible]:outline-night";
 
@@ -306,7 +306,7 @@ function Timer({
   } font-extrabold tracking-[-0.02em]`;
   const unit = "text-[clamp(16px,5.4vw,22px)] font-bold";
   const numberTone =
-    tone === "live" ? "text-night-deep" : tone === "paused" ? "text-ink-soft" : "text-ink";
+    tone === "live" ? "text-night" : tone === "paused" ? "text-ink-soft" : "text-ink";
   const unitTone = tone === "live" ? "text-night" : "text-ink-soft";
 
   return (
@@ -510,7 +510,7 @@ export function SleepCard({
           style={SLEEP_STYLE}
           checked
           onChange={() =>
-            onNotice(live ? "Use Pause Sleep or Stop Sleep below." : "Use × to delete this sleep.")
+            onNotice(live ? "Use Pause Sleep or Stop Sleep below." : "Use Delete sleep below to delete this sleep.")
           }
         />
       </div>
@@ -525,7 +525,8 @@ export function SleepCard({
             Sleeping
           </StatusLabel>
           <Timer ms={asleep} tone="live" size="big" />
-          <div className="flex flex-col items-center text-ink-soft">
+          {/* ink, not ink-soft: grey is 4.29:1 on the sleep tint, under AA. */}
+          <div className="flex flex-col items-center text-ink">
             <div className="mt-0.5 text-[14px]">
               Started <b className="text-[15px] tabular-nums text-ink">{zone.fmtTime(started)}</b>
             </div>
@@ -644,66 +645,78 @@ export function SleepCard({
         />
       )}
 
-      {(live || reopenable) && (
-        <div className="mb-2.5 flex flex-col gap-2">
-          {state === "asleep" && (
-            <>
-              <button
-                type="button"
-                onClick={onPause}
-                disabled={busy}
-                className={`${BUTTON} border-night bg-paper-raised text-night-deep`}
-              >
-                Pause Sleep
-              </button>
-              <button
-                type="button"
-                onClick={onStop}
-                disabled={busy}
-                className={`${BUTTON} ${STOP_BUTTON}`}
-              >
-                Stop Sleep
-              </button>
-            </>
-          )}
-          {state === "paused" && (
-            <>
-              <button
-                type="button"
-                onClick={onResume}
-                disabled={busy}
-                className={`${BUTTON} border-night bg-night text-white`}
-              >
-                Resume Sleep
-              </button>
-              <button
-                type="button"
-                onClick={onStop}
-                disabled={busy}
-                className={`${BUTTON} ${STOP_BUTTON}`}
-              >
-                Stop Sleep
-              </button>
-            </>
-          )}
-          {reopenable && (
+      <div className="mb-2.5 flex flex-col gap-2">
+        {state === "asleep" && (
+          <>
             <button
               type="button"
-              onClick={onReopen}
+              onClick={onPause}
               disabled={busy}
-              className={`${BUTTON} border-line-strong bg-transparent text-ink`}
+              className={`${BUTTON} border-night bg-paper-raised text-night`}
             >
-              Reopen sleep
+              Pause Sleep
             </button>
-          )}
-        </div>
-      )}
-
-      {noReopenHint && (
-        <p className="mb-2.5 text-center text-[12px] text-ink-soft" data-reopen-hint>
-          {noReopenHint}
-        </p>
-      )}
+            <button
+              type="button"
+              onClick={onStop}
+              disabled={busy}
+              className={`${BUTTON} ${STOP_BUTTON}`}
+            >
+              Stop Sleep
+            </button>
+          </>
+        )}
+        {state === "paused" && (
+          <>
+            <button
+              type="button"
+              onClick={onResume}
+              disabled={busy}
+              className={`${BUTTON} border-night bg-night text-white`}
+            >
+              Resume Sleep
+            </button>
+            <button
+              type="button"
+              onClick={onStop}
+              disabled={busy}
+              className={`${BUTTON} ${STOP_BUTTON}`}
+            >
+              Stop Sleep
+            </button>
+          </>
+        )}
+        {reopenable && (
+          <button
+            type="button"
+            onClick={onReopen}
+            disabled={busy}
+            className={`${BUTTON} border-line-strong bg-transparent text-ink`}
+          >
+            Reopen sleep
+          </button>
+        )}
+        {noReopenHint && (
+          <p className="text-center text-[12px] text-ink-soft" data-reopen-hint>
+            {noReopenHint}
+          </p>
+        )}
+        {/* Delete sleep (JOS-83): a finished sleep started by mistake can go.
+            It removes the sleep, it does not edit it, so the card stays
+            read-only otherwise. Below Reopen, which it makes possible again
+            for the sleep before this one. */}
+        {!live && (
+          <button
+            type="button"
+            data-delete-sleep
+            onClick={onDelete}
+            disabled={busy}
+            className={`${BUTTON} min-h-[44px] border-danger bg-transparent text-danger hover:bg-paper`}
+          >
+            Delete sleep
+          </button>
+        )}
+      </div>
 
       <ConfirmDeleteModal
         open={removing !== null && removingRow !== undefined}

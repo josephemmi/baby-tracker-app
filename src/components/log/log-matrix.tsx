@@ -30,7 +30,7 @@ import {
   type SleepField,
 } from "@/lib/sleep";
 import type { SleepRow, SleepTimeInput } from "@/lib/sleep-api";
-import { deviceZone } from "@/lib/sleep-format";
+import { deleteSleepPrompt, deviceZone, type SleepPrompt } from "@/lib/sleep-format";
 import { useIsClient } from "@/lib/use-is-client";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { LiveSleepCard } from "@/components/log/sleep-card";
@@ -162,9 +162,12 @@ export function LogMatrix({
   const sleepList = isClient ? sleepCtl.sleeps : NO_SLEEPS;
   const [sleepFlashId, setSleepFlashId] = useState<string | null>(null);
   const [shortDialog, setShortDialog] = useState<{ id: string; rev: number } | null>(null);
+  // The sleep as it was on screen when Delete was tapped, with the words for
+  // the box worked out then too: the box keeps saying what it said, and the
+  // delete goes to the server with the rev the user was looking at.
   const [pendingSleepDelete, setPendingSleepDelete] = useState<{
-    id: string;
-    rev: number;
+    sleep: Sleep;
+    prompt: SleepPrompt;
   } | null>(null);
 
   // The log the day sections are cut from: moments and sleeps together,
@@ -1021,14 +1024,20 @@ export function LogMatrix({
     void sleepCtl.setNotes(sleep, notes);
   }
 
+  // Either route in: the × on any card, or Delete sleep on a finished one.
+  function requestSleepDelete(sleep: Sleep) {
+    setPendingSleepDelete({ sleep, prompt: deleteSleepPrompt(sleep, serverNow(), deviceZone()) });
+  }
+
   async function confirmSleepDelete() {
     const pending = pendingSleepDelete;
     setPendingSleepDelete(null);
-    const sleep = pending && sleepList.find((s) => s.id === pending.id);
-    if (!pending || !sleep) return;
-    // The rev the user was looking at when they tapped ×, not the latest: if
-    // the other parent changed the sleep since, the delete loses.
-    await runSleep(sleepCtl.remove({ ...sleep, rev: pending.rev }));
+    if (!pending) return;
+    // The version the user was looking at, not the latest: if the other parent
+    // changed or deleted the sleep since, the delete loses and says who got
+    // there first ("Jen already deleted this sleep (6:08 pm)"), even when their
+    // delete has already taken the card off this screen.
+    await runSleep(sleepCtl.remove(pending.sleep));
   }
 
   // The under-a-minute dialog closes itself if the sleep changes under it
@@ -1088,7 +1097,7 @@ export function LogMatrix({
         onResume={() => void runSleep(sleepCtl.resume(sleep))}
         onStop={() => handleStopSleep(sleep)}
         onReopen={() => void reopenSleep(sleep)}
-        onDelete={() => setPendingSleepDelete({ id: sleep.id, rev: sleep.rev })}
+        onDelete={() => requestSleepDelete(sleep)}
         onSetTime={(field, input) => handleSleepSetTime(sleep, field, input)}
         onRemovePause={(index) => handleSleepRemovePause(sleep, index)}
         onLoggedByCycle={() => handleSleepLoggedByCycle(sleep)}
@@ -1188,7 +1197,7 @@ export function LogMatrix({
 
   return (
     <div className="flex flex-col gap-4">
-      <GlanceCards entries={entries} />
+      <GlanceCards entries={entries} sleeps={sleepCtl.sleeps} />
 
       <div className="flex items-center justify-between gap-4">
         {/* JOS-41: shrink-0 keeps the button's own size fixed regardless of
@@ -1280,8 +1289,9 @@ export function LogMatrix({
 
       <ConfirmDeleteModal
         open={pendingSleepDelete !== null}
-        title="Delete this sleep?"
-        body="You can restore it from Recently Deleted in Timeline for 7 days."
+        title={pendingSleepDelete?.prompt.title ?? ""}
+        body={pendingSleepDelete?.prompt.body ?? ""}
+        confirmLabel={pendingSleepDelete?.prompt.confirmLabel}
         onConfirm={confirmSleepDelete}
         onCancel={() => setPendingSleepDelete(null)}
       />

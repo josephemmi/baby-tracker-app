@@ -115,6 +115,21 @@ export function conflictError(reason: "stale" | "autoclosed", sleep: Sleep): Sle
   });
 }
 
+// Who deleted a sleep and when: the part a "gone" answer leaves out.
+export interface Deletion {
+  by: string | null;
+  at: number;
+}
+
+// What to say about a sleep that has gone. When we know who deleted it, the
+// same sentence as for every other first-write-wins loss ("Jen already deleted
+// this sleep (6:08 pm)."); when we don't, the plain one.
+export function goneError(deletion: Deletion | null): SleepError {
+  return deletion
+    ? new SleepError("stale", { by: deletion.by, action: "delete", at: deletion.at })
+    : new SleepError("gone");
+}
+
 export function parseReply(json: unknown): SleepReply {
   const raw = (json ?? {}) as RawReply;
   const now = Date.parse(raw.now ?? "");
@@ -203,6 +218,18 @@ export function sleepApi(supabase: SupabaseClient<Database>) {
       action(() =>
         supabase.rpc("remove_sleep_pause", { p_id: s.id, p_rev: s.rev, p_index: index }),
       ),
+    // The sleep functions answer "gone" without saying why. The row does: a
+    // household member may read its deleted sleeps (that is what Recently
+    // Deleted does), so ask it who deleted this one and when. Null when it is
+    // not deleted, was never there, or can't be read.
+    async deletion(id: string): Promise<Deletion | null> {
+      const { data } = await supabase
+        .from("sleeps")
+        .select("deleted_at, deleted_by")
+        .eq("id", id)
+        .maybeSingle();
+      return data?.deleted_at ? { by: data.deleted_by, at: Date.parse(data.deleted_at) } : null;
+    },
     // Home's read: the server's clock and every sleep still of interest.
     async fetch(babyId: string, sinceISO: string): Promise<{ now: number; sleeps: Sleep[] }> {
       const data = (await timed(() =>

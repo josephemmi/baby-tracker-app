@@ -58,7 +58,7 @@ function RowValue({ set, children }: { set: boolean; children: React.ReactNode }
   return (
     <span
       className={`min-w-0 flex-1 text-right text-[14px] tabular-nums ${
-        set ? "font-bold text-night-deep" : "text-ink-soft"
+        set ? "font-bold text-night" : "text-ink-soft"
       }`}
     >
       {children}
@@ -141,7 +141,7 @@ function Wheel({
                 else scrollRef.current?.scrollTo({ top: i * WHEEL_ROW_PX, behavior: "smooth" });
               }}
               className={`sleep-wheel-item h-[34px] cursor-pointer text-center leading-[34px] tabular-nums select-none ${
-                isSelected ? "text-[16px] font-bold text-night-deep" : "text-[15px] text-ink-soft"
+                isSelected ? "text-[16px] font-bold text-night" : "text-[15px] text-ink-soft"
               } ${isOutOfRange(minutes) ? "opacity-35" : ""}`}
             >
               {agoLabel(minutes)}
