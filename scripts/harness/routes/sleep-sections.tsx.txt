@@ -1,0 +1,56 @@
+// Copy to src/app/dev-preview/sleep-sections/page.tsx while testing. DELETE BEFORE COMMITTING (CLAUDE.md: never leave dev-preview routes in the tree).
+// The five Reports > Sleep sections from fixture sleeps, no database at all (a layout check: titles, notes, widths).
+// ?w=<px>  ?set=week|full. "week" is where to paste a real export of the household's sleeps (never commit it);
+// "full" is a made-up fortnight with one night missing. Run the dev server with TZ=Europe/London.
+import { AppHeader } from "@/components/layout/app-header";
+import { SleepLongestChart, SleepPerDayChart } from "@/components/reports/sleep-bar-charts";
+import { SleepPatternCard } from "@/components/reports/sleep-pattern-card";
+import { SleepStatCards } from "@/components/reports/sleep-stat-cards";
+import { SleepTable } from "@/components/reports/sleep-table";
+import { computeDays, summarise, type ReportSleep } from "@/lib/sleep-reports";
+
+type Row = { id: string; segments: { start: string; end: string }[]; closed_at: string | null };
+const LIVE: Row[] = []; // [{ id, segments: [{ start: "2026-10-17T09:15:00.000Z", end: "..." }], closed_at: "..." }, ...]
+
+const toReport = (r: Row): ReportSleep => ({
+  id: r.id,
+  stretches: r.segments.map((g) => ({ start: Date.parse(g.start), end: Date.parse(g.end) })),
+  closedAt: r.closed_at ? Date.parse(r.closed_at) : null,
+  deletedAt: null,
+});
+
+function fortnight(): Row[] {
+  const out: Row[] = [];
+  for (let i = 0; i < 14; i++) {
+    const day = new Date(Date.UTC(2026, 9, 6 + i)); // 6 Oct .. 19 Oct
+    const at = (h: number, m: number, plus = 0) => new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate() + plus, h, m)).toISOString();
+    if (i !== 5) out.push({ id: "n" + i, segments: [{ start: at(18, 40 + (i % 3) * 10), end: at(23, 50, 0) }, { start: at(0, 20, 1), end: at(6, 50 + (i % 4) * 8, 1) }], closed_at: at(6, 50 + (i % 4) * 8, 1) });
+    out.push({ id: "a" + i, segments: [{ start: at(9, 30), end: at(10, 20 + (i % 5) * 5) }], closed_at: at(10, 20 + (i % 5) * 5) });
+    out.push({ id: "b" + i, segments: [{ start: at(12, 40), end: at(14, 5 + (i % 3) * 10) }], closed_at: at(14, 5 + (i % 3) * 10) });
+  }
+  return out;
+}
+
+export default async function Page({ searchParams }: { searchParams: Promise<{ w?: string; set?: string }> }) {
+  const { w = "390", set = "week" } = await searchParams;
+  const now = Date.parse("2026-10-20T11:30:00.000Z");
+  const rows = set === "full" ? fortnight() : LIVE;
+  const days = computeDays(rows.map(toReport), now);
+  const summary = summarise(days);
+  return (
+    <div style={{ width: Number(w) }}>
+      <div className="min-h-screen bg-paper p-4 sm:p-8">
+        <div className="mx-auto flex max-w-4xl flex-col gap-6">
+          <AppHeader householdName="Our household" inviteCode="ABC123" profileName="Joseph" profileColorIndex={0} active="reports" />
+          <div className="flex flex-col gap-6" data-sections>
+            <SleepPatternCard days={days} />
+            <SleepStatCards days={days} summary={summary} />
+            <SleepPerDayChart days={days} />
+            <SleepLongestChart days={days} />
+            <SleepTable days={days} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

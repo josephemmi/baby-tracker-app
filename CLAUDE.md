@@ -483,8 +483,10 @@ time.
   run works. More generally: a test suite that runs everything in one
   session can hide privilege bugs; mutation-check new SQL tests by breaking
   the rule in a copy of the migration and confirming the test goes red.
-- **Verifying a DB-backed feature end to end from a web session (JOS-56;
-  JOS-57 tracks committing this as tooling).** The mock-data dev-preview
+- **Verifying a DB-backed feature end to end from a web session (JOS-56).
+  The scripts are saved in `scripts/harness/` (JOS-96; its README has the quick
+  start, what each script is for and which are stale; JOS-57 tracks tidying
+  them): start there instead of rebuilding it.** The mock-data dev-preview
   route above can't catch bugs in SQL, RLS or grants, and the live project is
   unreachable from here. What works: a scratch Postgres 16 (binaries in
   `/usr/lib/postgresql/16/bin`) with every migration applied, the real
@@ -592,8 +594,8 @@ time.
 - **Comparing layout options on the real component (JOS-83 tiles, JOS-87).**
   The scripts that did it (`tiles.mjs` and `tiles2.mjs`: each option is CSS
   injected after load and measured per width and state; `build_tiles_page2.py`:
-  the Artifact page; `page-test.mjs`: every control and combination) live only
-  in a session scratchpad, like the harness (JOS-57). Two things cost time: a
+  the Artifact page; `page-test.mjs`: every control and combination) are saved
+  in `scripts/harness/` with the rest of the harness (JOS-96). Two things cost time: a
   container query can only restyle *descendants* of its container, so a tile
   that picks its own layout needs the query on the tile and the moving part
   (the pill) positioned absolutely inside it, which also keeps the tile the

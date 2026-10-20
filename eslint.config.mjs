@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Testing scripts that run under plain node, not part of the app (JOS-96).
+    "scripts/harness/**",
   ]),
 ]);
 
