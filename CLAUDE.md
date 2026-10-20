@@ -65,12 +65,14 @@
   `gh api repos/josephemmi/baby-tracker-app/pulls --method POST --input
   pr.json` (a JSON file with `title`, `head`, `base`, `body`), and
   `gh api .../pulls/N/merge --method PUT -f merge_method=merge` to merge
-  (the repo uses merge commits). Right after a push, `mergeable_state` reads
-  `unknown`, then `unstable` while the preview builds, then `clean`; poll it
-  rather than merging blind. If production moved while the PR waited (another
-  session released), merge production into the branch rather than
-  rebasing; the conflict is almost always the top of `CHANGELOG.md`
-  under `[Unreleased]`, where you keep both entries.
+  (the repo uses merge commits). The GitHub MCP tools work as well:
+  `mcp__github__create_pull_request` opened PR #44 on its first call, with no
+  `pr.json` (JOS-83 session), so use whichever the session offers. Right after
+  a push, `mergeable_state` reads `unknown`, then `unstable` while the preview
+  builds, then `clean`; poll it rather than merging blind. If production moved
+  while the PR waited (another session released), merge production into the
+  branch rather than rebasing; the conflict is almost always the top of
+  `CHANGELOG.md` under `[Unreleased]`, where you keep both entries.
 - **Linear closes a ticket when any linked PR merges, even a partial one**
   (JOS-66 session: a ticket meant for two PRs went to Done when the first
   merged). The link comes from the ticket id in the branch name, PR title or
@@ -495,6 +497,29 @@ time.
   (a long paste got cut off once). `read_file_content` gives text for .md and
   .sql, with markdown escapes (`\-`, `\_`) to undo. Take the part you need
   (the CSS and markup of a prototype, not its script).
+- **Taking the guide and release-note screenshots from the harness (JOS-83:
+  about 25 shots, and most retries were these traps).** Phone 390 px wide at 2x
+  (`isMobile`, `deviceScaleFactor: 2`, the preview wrapper `width: 390`); crop a
+  card as its own element (`[data-sleep-card]`) plus 10 px a side, which gives
+  the 378 px wide images the guide already has. (1) `window.scrollTo` stops at
+  the page's own height, so give `body` a big `paddingBottom` before scrolling
+  a card high in the viewport; a dialog is centred in the viewport, so where
+  the card sits decides what shows behind it. (2) `fullPage: true` grows the
+  viewport and so moves `position: fixed` things (dialogs, the toast): take a
+  viewport `clip` for those. (3) The Log has the desktop table and the phone
+  cards both in the DOM, the table first and hidden, so a bare
+  `locator(...).first()` finds the invisible copy: scope to the card. (4) Draw
+  a ring on the rendered tile (`label > span`), not on the square `label`.
+  (5) The harness's `entries` endpoint returns no rows unless it is given some,
+  so the Last feed / poo / pee tiles read "Not logged yet". (6) A row of
+  release-note shots shares one height, so one wide strip (the Last sleep tile
+  alone) shrinks the whole row: crop shots of a similar shape, as v1.14.0 does
+  (Reports card, the four tiles stacked, the delete box over its card).
+- **Pinning a timezone in one Vitest file (JOS-83).** `process.env.TZ =
+  "Europe/London"` as the first statement of a test file takes effect for that
+  file (each file runs in its own process; `src/lib/sleep-reports.test.ts` does
+  it, as the reference engine's tests are run), so a timezone-sensitive test
+  needs no config change. It is also the cheap fix for JOS-79.
 - **"App not loading" diagnostic playbook (2026-08-27 incident).** Joseph
   reported `baby-tracker-app-bay.vercel.app` unreachable from every real
   device (phone on WiFi and cellular, iPad), while every server-side

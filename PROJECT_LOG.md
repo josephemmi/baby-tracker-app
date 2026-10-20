@@ -19,6 +19,84 @@ picks this up next.
 
 ---
 
+## 2026-10-20 (JOS-83, v1.14.0)
+
+**Done:**
+- [JOS-83](https://linear.app/josephemmi/issue/JOS-83) (Feature, In Review):
+  [PR #44](https://github.com/josephemmi/baby-tracker-app/pull/44) is open, not
+  merged. Reports gets a **Sleep tab** (`/reports?tab=sleep`): a Today card, a
+  24-hour pattern, nine averages, two charts and a daily table, with the same
+  range pills as Feeds. Log gets a fourth tile, **Last sleep** (two by two from
+  640 px), with a Sleeping now / Paused pill while a sleep is open. A finished
+  card gets **Delete sleep** (the box names the sleep; deleting the newest
+  gives the one before it its Reopen back; a lost race names who got there
+  first; a refused restore says which sleep is in the way). Sleep is **one
+  indigo**: `night` #2a3563 and `night-soft` #dde5f3, `night-deep` gone.
+- **No migration.** Discard already calls `delete_sleep` for any state and
+  `restore_sleep` already re-runs the overlap check; "Jen already deleted this
+  sleep" is read client-side from the deleted row (members may read it).
+- The reference engine is ported to `src/lib/sleep-reports.ts` (all 52 tests
+  plus 7: the auto-close adapter, the 5 min / 6 h / 12 h boundaries, a
+  `canReopen` cross-check); the strings and rows the screens show are pure
+  view models in `sleep-report-view.ts`, pinned to the spec. 379 unit tests
+  under `TZ=UTC`; `supabase/tests/sleeps.sql` has scenarios 18 and 19.
+- Checked on the scratch-Postgres harness with two simulated phones (Delete
+  sleep both orders, restore refusals, the Reports ranges and states, layout at
+  five widths), by feeding the same generated sleeps to the prototype and to the
+  app (420 comparisons, 0 differences), and by mutation (32 of 33 TS mutants
+  killed, the survivor equivalent; the two new SQL scenarios checked against a
+  broken copy of the migration).
+- **v1.14.0 cut in the same PR** (version given in the brief): CHANGELOG, bump,
+  `NestlogReleaseNotesv1.14.0.pdf` (one page, three shots) and the Sleep tracker
+  guide refreshed to eight pages (the 14 shots that show the old blue reshot;
+  new: the tile, Delete sleep and its box, a refused restore, two Reports
+  pages). Both sent in chat and attached to JOS-83 with the notes as a comment.
+  **Merging PR #44 is the release.**
+- `retro`: [JOS-84](https://linear.app/josephemmi/issue/JOS-84) (Process, In
+  Review): CLAUDE.md notes on screenshot traps on the harness, a per-file `TZ`
+  in Vitest, and the GitHub MCP route for PRs (a separate commit on PR #44).
+  Comments on JOS-57, JOS-66, JOS-69 and JOS-79.
+  [JOS-85](https://linear.app/josephemmi/issue/JOS-85) (Polish, Backlog): the
+  app header is 4 px wider than a 320 px screen (found here, not new).
+
+**In flight / open:**
+- PR #44 needs Joseph's review. The preview shares the live database, which
+  already has every function this uses, so Delete sleep and restore work there.
+- Device checks (not possible from Claude Code): Jen's iPad home-screen app;
+  an Android phone with a running sleep (the pill ticking, the tile's "ago"
+  moving); two devices for realtime (a delete on one should clear the other in
+  a couple of seconds). Realtime delivery was not exercised, only the poll.
+- The guide is **eight pages** where CLAUDE.md says to aim for six (Reports
+  needs two); flagged on the PR, cut it back if he prefers.
+- [JOS-66](https://linear.app/josephemmi/issue/JOS-66) is still In Progress
+  (the three-tier structure, type/radius/motion tokens). The sleep contrast pairs
+  live in `src/lib/sleep-contrast.test.ts` until
+  [JOS-69](https://linear.app/josephemmi/issue/JOS-69) lands. Night mode
+  (JOS-77) needs dark values for `night`, `night-soft`, `danger`, `stop`.
+- [JOS-57](https://linear.app/josephemmi/issue/JOS-57): the harness was rebuilt
+  a third time (now also the guide and release-note shots); its scripts still
+  live only in a session scratchpad.
+
+**Worth knowing:**
+- Judgement calls flagged on the PR: the Log tiles go two by two from 640 px
+  because four across leave the pill too narrow; the running card's "Started"
+  line is ink, not grey (grey on the tint is 4.29:1); the tile reads the same
+  72 h window as its siblings; the engine's `reopen` and the app's `canReopen`
+  differ by 1 ms at the 3 h edge and the app's wins.
+- The Today card recomputes every second while a sleep is open, so it is given
+  only the last 14 days plus the sleep before them (`recentForToday`, with an
+  equivalence test against the full history).
+- `useServerNow` now also redraws the moment the server's clock turns out to
+  differ from the device's by a second or more (it used to wait for the next
+  tick, up to 30 s on an idle screen).
+- A randomized comparison against a reference engine misses boundary mutants
+  unless its inputs sit on a coarse grid (5 minutes here); the explicit
+  boundary tests are what kill them.
+- The handoff message was delivered again after the worker restarted twice
+  mid-session; check `git log` and the PR first, the work was already done.
+
+---
+
 ## 2026-10-19, later (v1.13.1 release)
 
 **Done:**
