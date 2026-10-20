@@ -19,6 +19,67 @@ picks this up next.
 
 ---
 
+## 2026-10-20, later (JOS-83 merged; tile and night-label follow-ups)
+
+**Done:**
+- Joseph said to merge: [PR #44](https://github.com/josephemmi/baby-tracker-app/pull/44)
+  is **merged** (merge commit `c2c481f`), which is the v1.14.0 release.
+  Production deployed READY, with no runtime errors in the two hours after.
+  [JOS-83](https://linear.app/josephemmi/issue/JOS-83) went to Done by itself;
+  JOS-84 and JOS-86 (the docs commits that rode on it, named only as links in
+  the PR body) stayed In Review and were moved by hand. This entry replaces the
+  "open, not merged" wording in the one below.
+- Log tile layout, round 2. Joseph likes two by two on a tablet but not the
+  empty space inside Last pee: the pill makes Last sleep 48 px taller, so Last
+  pee is stretched to match, and everything below the tiles jumps 48 px when a
+  sleep starts. The options were drawn as CSS variants injected into the real
+  component and measured (Artifact page, version 3). Tablet: **H** pill beside
+  the label in a smaller size (all four tiles 83 px, the block 177 px in every
+  state), **S** pill as a bar under the grid, **N** tiles not stretched. Phone:
+  **P1** is H (366 px in every state, 414 today while sleeping), **P2** tighter
+  (298 px), **P3** two by two with clock times (181 / 225 px), **P4** one list
+  (189 / 233 px). Option D was a rule (A below 1024 px, B from 1024 px up) and
+  is dropped. His principle: one responsive component with multiple sizes,
+  never one per screen size (CLAUDE.md, Design approach).
+- He asked why a night from Monday 7 pm to Tuesday 8:30 am counts on Tuesday.
+  That is the spec's rule (a sleep belongs to the date baby woke); answered with
+  the engine's numbers. Nothing changed.
+- Filed: [JOS-87](https://linear.app/josephemmi/issue/JOS-87) (Polish, Needs
+  Scoping, Backlog): the tile and pill layout;
+  [JOS-88](https://linear.app/josephemmi/issue/JOS-88) (Polish, Needs Scoping,
+  Low): which day a night counts on and how it is labelled;
+  [JOS-89](https://linear.app/josephemmi/issue/JOS-89) (Process, In Progress):
+  this retro (a Design approach section, two gotchas and a sentence on ticket
+  closing in CLAUDE.md, and this entry), a docs commit on the JOS-87 branch.
+
+**In flight / open:**
+- JOS-87 waits for Joseph's pick (a tablet letter and a phone letter); my
+  recommendation is H and P1, P2 if he wants more room. Build it on the assigned
+  branch (restarted from the production tip) with JOS-87 in the PR title. The
+  Sleep tracker guide and the v1.14.0 release notes show the old tile (pill under
+  the value), so reshoot those images and resend both PDFs once he approves that
+  PR.
+- JOS-88 waits for his choice: keep the wake-date rule and label a night by both
+  days (my recommendation, label only), or switch to the start date (a spec
+  change first: the prototype, engine and spec in Drive, then the port and its
+  52 tests).
+- The device checks from the entry below still stand (Jen's iPad, Android with a
+  running sleep, realtime on two devices); realtime delivery has not been
+  exercised.
+
+**Worth knowing:**
+- The comparison scripts (`tiles.mjs`, `tiles2.mjs`, `build_tiles_page2.py`,
+  `page-test.mjs`) live only in a session scratchpad (JOS-57); the temporary
+  `src/app/dev-preview/tiles` route is deleted and not in the tree.
+- A container query can only restyle descendants of its container: for H the
+  query sits on the tile and the pill is absolutely placed, so the tile height
+  never changes (CLAUDE.md has the detail).
+- Drive: each feature folder is attached to its Linear ticket. A `fullText`
+  search returned snippets of Joseph's personal notes, so search by title and
+  parent, without snippets.
+
+---
+
 ## 2026-10-20 (JOS-83, v1.14.0)
 
 **Done:**
