@@ -148,6 +148,10 @@ export function LogMatrix({
   // empty bar on the way.
   const [toast, setToast] = useState({ text: "", visible: false });
   const toastTimer = useRef<number | null>(null);
+  // Inserts that have been sent but not answered (JOS-100). A second tap on
+  // the same box while the first insert is in flight would add a second row
+  // with the same baby, user, type and timestamp.
+  const insertsInFlight = useRef(new Set<string>());
   const showToast = useCallback((text: string) => {
     setToast({ text, visible: true });
     if (toastTimer.current !== null) window.clearTimeout(toastTimer.current);
@@ -455,9 +459,17 @@ export function LogMatrix({
   ) {
     setError(null);
     const supabase = createClient();
+    let guardKey: string | null = null;
 
     try {
       if (checked) {
+        guardKey = `${moment.loggedBy}|${moment.timestamp}|${type}`;
+        if (insertsInFlight.current.has(guardKey)) {
+          guardKey = null;
+          return;
+        }
+        insertsInFlight.current.add(guardKey);
+
         const { data, error } = await supabase
           .from("entries")
           .insert({
@@ -515,6 +527,8 @@ export function LogMatrix({
       }
     } catch (err) {
       logMutationFailure("handleToggleType", err);
+    } finally {
+      if (guardKey) insertsInFlight.current.delete(guardKey);
     }
   }
 
@@ -555,10 +569,19 @@ export function LogMatrix({
           }
         : {};
 
+    let guardKey: string | null = null;
+
     try {
       if (!moment.feed) {
         // No feed row on this moment yet — checking Bottle or Breast creates one.
         if (!checked) return;
+
+        guardKey = `${moment.loggedBy}|${moment.timestamp}|feed`;
+        if (insertsInFlight.current.has(guardKey)) {
+          guardKey = null;
+          return;
+        }
+        insertsInFlight.current.add(guardKey);
 
         const { data, error } = await supabase
           .from("entries")
@@ -650,6 +673,8 @@ export function LogMatrix({
       );
     } catch (err) {
       logMutationFailure("handleToggleFeedFlag", err);
+    } finally {
+      if (guardKey) insertsInFlight.current.delete(guardKey);
     }
   }
 
