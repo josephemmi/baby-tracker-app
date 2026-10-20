@@ -19,6 +19,121 @@ picks this up next.
 
 ---
 
+## 2026-10-20, later (JOS-83 merged; tile and night-label follow-ups)
+
+**Done:**
+- Joseph said to merge: [PR #44](https://github.com/josephemmi/baby-tracker-app/pull/44)
+  is **merged** (merge commit `c2c481f`), which is the v1.14.0 release.
+  Production deployed READY, with no runtime errors in the two hours after.
+  [JOS-83](https://linear.app/josephemmi/issue/JOS-83) went to Done by itself;
+  JOS-84 and JOS-86 (the docs commits that rode on it, named only as links in
+  the PR body) stayed In Review and were moved by hand. This entry replaces the
+  "open, not merged" wording in the one below.
+- Log tile layout, round 2. Joseph likes two by two on a tablet but not the
+  empty space inside Last pee: the pill makes Last sleep 48 px taller, so Last
+  pee is stretched to match, and everything below the tiles jumps 48 px when a
+  sleep starts. The options were drawn as CSS variants injected into the real
+  component and measured (Artifact page, version 3). Tablet: **H** pill beside
+  the label in a smaller size (all four tiles 83 px, the block 177 px in every
+  state), **S** pill as a bar under the grid, **N** tiles not stretched. Phone:
+  **P1** is H (366 px in every state, 414 today while sleeping), **P2** tighter
+  (298 px), **P3** two by two with clock times (181 / 225 px), **P4** one list
+  (189 / 233 px). Option D was a rule (A below 1024 px, B from 1024 px up) and
+  is dropped. His principle: one responsive component with multiple sizes,
+  never one per screen size (CLAUDE.md, Design approach).
+- He asked why a night from Monday 7 pm to Tuesday 8:30 am counts on Tuesday.
+  That is the spec's rule (a sleep belongs to the date baby woke); answered with
+  the engine's numbers. Nothing changed.
+- Filed: [JOS-87](https://linear.app/josephemmi/issue/JOS-87) (Polish, Needs
+  Scoping, Backlog): the tile and pill layout;
+  [JOS-88](https://linear.app/josephemmi/issue/JOS-88) (Polish, Needs Scoping,
+  Low): which day a night counts on and how it is labelled;
+  [JOS-89](https://linear.app/josephemmi/issue/JOS-89) (Process, In Progress):
+  this retro (a Design approach section, two gotchas and a sentence on ticket
+  closing in CLAUDE.md, and this entry), a docs commit on the JOS-87 branch.
+
+- Joseph then looked at the Sleep averages on production and found Average
+  bedtime 1:13 am and Average wake-up 10:34 am (the baby goes to bed around
+  7:30 pm and wakes around 8 am) and a Saturday row of 3h 50m, bedtime 11:07 am,
+  up 2:57 pm, and asked whether Saturday was made up. It was not: the live
+  `sleeps` table has nine real sleeps logged by Joseph and Jen, and an independent
+  recomputation and the app's own engine both reproduce every number he saw.
+  The arithmetic was right and the classification wrong: Saturday 17 Oct is the
+  first day of logging, with no night in the record (Saturday night ends on
+  Sunday), and the rule named the longest sleep that ended on a date the night
+  with no minimum, so the 11:07 am to 2:57 pm sleep became Saturday's night. Fix
+  on [JOS-90](https://linear.app/josephemmi/issue/JOS-90) (Bug, In Progress): a
+  night needs 5 h asleep (`CFG.minNightMs`), a day with no night is left out of
+  every average and named under the Averages heading, and clearer labels (Average
+  time asleep per day, Average length of night sleep, Average wake-up time). It
+  changes the agreed model, so the v1.14 spec, prototype and reference engine in
+  Drive need the same two changes. With the fix the live week reads bedtime
+  8:16 pm, wake-up 8:23 am, night 10h 42m, day 11h 59m.
+- Joseph's next review round on that PR ([PR #45](https://github.com/josephemmi/baby-tracker-app/pull/45)):
+  he agrees a day with no logged night stays out of the averages and wants it
+  said where the numbers are read; the Sleep tab's section titles bigger; the
+  Delete sleep button gone (the × does the same, and the button is "too prone to
+  confusion or error"); and sleep cards in Edit mode's bulk delete. The session's
+  branch is fixed, so all of it rides on PR #45 (one preview, one review), each
+  as its own commit and ticket.
+  [JOS-91](https://linear.app/josephemmi/issue/JOS-91) (Polish): one title style
+  (`SECTION_TITLE`, 17 px bold, an `h2`) for the five Sleep sections, 24 px
+  between them, the table's title above the part that scrolls, and a line under
+  24-hour pattern and under Averages saying only logged sleeps are counted.
+  [JOS-92](https://linear.app/josephemmi/issue/JOS-92) (Polish): the Delete sleep
+  button is removed and the Sleep tile's notice on a finished card points to the
+  ×; in Edit a sleep card shows the same tick box as a moment (`sleepSelectKey`
+  keeps the two apart in one set), Delete (n) counts both and the box says so
+  ("Delete 3 logged moments and 1 sleep?", plus "A sleep that is still going will
+  be stopped." when one is), the sleeps go one at a time on the version he saw, a
+  sleep the other parent changed first stays and a toast names it (a count first
+  when it is more than one), and a dropped connection stops the rest. No
+  migration. Checked on the scratch-Postgres harness with two phones (69 checks:
+  the mix of moments and sleeps, a running sleep, Cancel, a conflict, two
+  conflicts, a dropped connection, a tick on a sleep the other parent deleted,
+  the stacked cards at 768 and 1024 px, the header at 320 to 1024 px).
+- He also confirmed the sleep paused at 7:05 and resumed at 7:43 (ended 10:16) is
+  one valid night, so nothing changes there. A morning reminder when last night
+  is not logged, and a tenth KPI to even the Averages grid, were asked about as
+  opinions only: nothing built (see the reply).
+
+**In flight / open:**
+- JOS-90, JOS-91 and JOS-92 are one PR waiting for Joseph's review (the preview
+  shares the live database, so it shows his real week). At the release cut
+  (confirm the level: a patch for JOS-90 alone, a minor is arguable with JOS-92)
+  reshoot the Sleep tracker guide images that show the old Reports averages
+  labels and section titles and the Delete sleep button (pages for finished
+  cards and the confirm box), and rebuild the notes. Last night's sleep (Mon
+  7:20 pm to Tue 10:16 am) is not in the averages yet because it counts as today;
+  it joins tomorrow. Counting a finished night at once would be a separate
+  change.
+- JOS-87 waits for Joseph's pick (a tablet letter and a phone letter); my
+  recommendation is H and P1, P2 if he wants more room. Build it on the assigned
+  branch (restarted from the production tip) with JOS-87 in the PR title. The
+  Sleep tracker guide and the v1.14.0 release notes show the old tile (pill under
+  the value), so reshoot those images and resend both PDFs once he approves that
+  PR.
+- JOS-88 waits for his choice: keep the wake-date rule and label a night by both
+  days (my recommendation, label only), or switch to the start date (a spec
+  change first: the prototype, engine and spec in Drive, then the port and its
+  52 tests).
+- The device checks from the entry below still stand (Jen's iPad, Android with a
+  running sleep, realtime on two devices); realtime delivery has not been
+  exercised.
+
+**Worth knowing:**
+- The comparison scripts (`tiles.mjs`, `tiles2.mjs`, `build_tiles_page2.py`,
+  `page-test.mjs`) live only in a session scratchpad (JOS-57); the temporary
+  `src/app/dev-preview/tiles` route is deleted and not in the tree.
+- A container query can only restyle descendants of its container: for H the
+  query sits on the tile and the pill is absolutely placed, so the tile height
+  never changes (CLAUDE.md has the detail).
+- Drive: each feature folder is attached to its Linear ticket. A `fullText`
+  search returned snippets of Joseph's personal notes, so search by title and
+  parent, without snippets.
+
+---
+
 ## 2026-10-20 (JOS-83, v1.14.0)
 
 **Done:**

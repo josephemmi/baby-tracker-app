@@ -25,12 +25,20 @@ import { serverNow } from "@/lib/server-clock";
 import {
   filedAt,
   firstStart,
+  stateOf,
   underMinute,
   type Sleep,
   type SleepField,
 } from "@/lib/sleep";
 import type { SleepRow, SleepTimeInput } from "@/lib/sleep-api";
-import { deleteSleepPrompt, deviceZone, type SleepPrompt } from "@/lib/sleep-format";
+import {
+  bulkDeletePrompt,
+  bulkSleepFailure,
+  deleteSleepPrompt,
+  deviceZone,
+  sleepSelectKey,
+  type SleepPrompt,
+} from "@/lib/sleep-format";
 import { useIsClient } from "@/lib/use-is-client";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { LiveSleepCard } from "@/components/log/sleep-card";
@@ -100,13 +108,19 @@ export function LogMatrix({
   const [error, setError] = useState<string | null>(null);
   const [flashKey, setFlashKey] = useState<string | null>(null);
   const [selectMode, setSelectMode] = useState(false);
+  // Edit mode's ticks: moment keys, and sleeps by sleepSelectKey (JOS-92).
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [pendingDelete, setPendingDelete] = useState<{
     moments: Moment[];
+    // The sleeps as they were when Delete (n) was tapped, each deleted on that
+    // version (see confirmSleepDelete).
+    sleeps: Sleep[];
     title: string;
     body: string;
     clearSelection: boolean;
   } | null>(null);
+  // A bulk delete is running: Delete (n) waits until it has finished.
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   // Whether there's anything beyond the currently-loaded fetch window
   // (JOS-21: the safety cap was hit, or real history exists older than the
   // window) — one of several inputs into whether Home's day-aware view
@@ -1024,7 +1038,8 @@ export function LogMatrix({
     void sleepCtl.setNotes(sleep, notes);
   }
 
-  // Either route in: the × on any card, or Delete sleep on a finished one.
+  // The × on a sleep card (JOS-92 took the Delete sleep button off it): one
+  // sleep, with its own box. Several at once go through Edit and Delete (n).
   function requestSleepDelete(sleep: Sleep) {
     setPendingSleepDelete({ sleep, prompt: deleteSleepPrompt(sleep, serverNow(), deviceZone()) });
   }
@@ -1098,6 +1113,9 @@ export function LogMatrix({
         onStop={() => handleStopSleep(sleep)}
         onReopen={() => void reopenSleep(sleep)}
         onDelete={() => requestSleepDelete(sleep)}
+        selectMode={selectMode}
+        selected={selectedKeys.has(sleepSelectKey(sleep.id))}
+        onToggleSelect={() => toggleSelected(sleepSelectKey(sleep.id))}
         onSetTime={(field, input) => handleSleepSetTime(sleep, field, input)}
         onRemovePause={(index) => handleSleepRemovePause(sleep, index)}
         onLoggedByCycle={() => handleSleepLoggedByCycle(sleep)}
@@ -1106,6 +1124,17 @@ export function LogMatrix({
       />
     );
   };
+
+  // What is ticked and still on the Log: a moment or sleep the other parent
+  // deleted since is no longer counted or asked about.
+  const selection = useMemo(
+    () => ({
+      moments: moments.filter((moment) => selectedKeys.has(moment.key)),
+      sleeps: sleepList.filter((sleep) => selectedKeys.has(sleepSelectKey(sleep.id))),
+    }),
+    [moments, sleepList, selectedKeys],
+  );
+  const selectedCount = selection.moments.length + selection.sleeps.length;
 
   function toggleSelectMode() {
     setSelectMode((prev) => !prev);
@@ -1159,17 +1188,40 @@ export function LogMatrix({
     }
   }
 
-  function handleDeleteSelected() {
-    if (selectedKeys.size === 0) return;
+  // The ticked sleeps, one after the other (JOS-92). Each is its own
+  // conditional write on the version the user saw, like the × on a card, so one
+  // the other parent changed first stays (and says so) while the rest still go.
+  async function deleteSleeps(sleepsToDelete: Sleep[]) {
+    let notDeleted = 0;
+    let message: string | null = null;
+    for (let i = 0; i < sleepsToDelete.length; i++) {
+      const outcome = await sleepCtl.remove(sleepsToDelete[i]);
+      // Already deleted by the other parent: what was asked for is done.
+      if (outcome.ok || outcome.status === "gone") continue;
+      notDeleted += 1;
+      if (message === null) message = outcome.message;
+      // The network is down: the rest would only wait to fail the same way.
+      if (outcome.status === "offline") {
+        notDeleted += sleepsToDelete.length - i - 1;
+        break;
+      }
+    }
+    if (notDeleted > 0) showToast(bulkSleepFailure(notDeleted, message));
+  }
 
-    const count = selectedKeys.size;
-    const selectedMoments = moments.filter((moment) =>
-      selectedKeys.has(moment.key),
-    );
+  function handleDeleteSelected() {
+    if (selectedCount === 0) return;
+
+    const { title, body } = bulkDeletePrompt({
+      moments: selection.moments.length,
+      sleeps: selection.sleeps.length,
+      going: selection.sleeps.filter((sleep) => stateOf(sleep, serverNow()) !== "finished").length,
+    });
     setPendingDelete({
-      moments: selectedMoments,
-      title: `Delete ${count} logged moment${count > 1 ? "s" : ""}?`,
-      body: `You can restore ${count > 1 ? "them" : "it"} from Recently Deleted in Timeline for 7 days.`,
+      moments: selection.moments,
+      sleeps: selection.sleeps,
+      title,
+      body,
       clearSelection: true,
     });
   }
@@ -1179,6 +1231,7 @@ export function LogMatrix({
   function handleDeleteMoment(moment: Moment) {
     setPendingDelete({
       moments: [moment],
+      sleeps: [],
       title: "Delete this moment?",
       body: "You can restore it from Recently Deleted in Timeline for 7 days.",
       clearSelection: false,
@@ -1186,13 +1239,22 @@ export function LogMatrix({
   }
 
   async function confirmPendingDelete() {
-    if (!pendingDelete) return;
-    await deleteMoments(pendingDelete.moments);
-    if (pendingDelete.clearSelection) {
+    const pending = pendingDelete;
+    if (!pending) return;
+    // The box closes first: the deletes below take a moment, and a second tap
+    // on Delete must not send them twice.
+    setPendingDelete(null);
+    setBulkDeleting(true);
+    try {
+      await deleteMoments(pending.moments);
+      await deleteSleeps(pending.sleeps);
+    } finally {
+      setBulkDeleting(false);
+    }
+    if (pending.clearSelection) {
       setSelectedKeys(new Set());
       setSelectMode(false);
     }
-    setPendingDelete(null);
   }
 
   return (
@@ -1213,10 +1275,10 @@ export function LogMatrix({
               <button
                 type="button"
                 onClick={handleDeleteSelected}
-                disabled={selectedKeys.size === 0}
+                disabled={selectedCount === 0 || bulkDeleting}
                 className="rounded-full border border-terracotta/40 px-3 py-1.5 text-sm font-bold text-terracotta transition-colors hover:bg-terracotta-soft disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Delete{selectedKeys.size > 0 ? ` (${selectedKeys.size})` : ""}
+                Delete{selectedCount > 0 ? ` (${selectedCount})` : ""}
               </button>
               <button
                 type="button"

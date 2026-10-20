@@ -4,6 +4,8 @@ import {
   WHEEL_MINUTES,
   agoLabel,
   agoOutOfRange,
+  bulkDeletePrompt,
+  bulkSleepFailure,
   durationLabel,
   clockLabel,
   createZone,
@@ -20,6 +22,7 @@ import {
   removePauseBody,
   removePauseLabel,
   reopenHint,
+  sleepSelectKey,
   timerDigits,
   timerSpoken,
   type Pick,
@@ -488,6 +491,75 @@ describe("deleteSleepPrompt: the confirm box for Delete sleep", () => {
       body: "You can restore it from Recently Deleted in Timeline for 7 days.",
       confirmLabel: "Delete",
     });
+  });
+});
+
+describe("bulkDeletePrompt: the confirm box for Delete (n) in Edit mode (JOS-92)", () => {
+  it("reads as it always did for moments alone", () => {
+    expect(bulkDeletePrompt({ moments: 1, sleeps: 0, going: 0 })).toEqual({
+      title: "Delete 1 logged moment?",
+      body: "You can restore it from Recently Deleted in Timeline for 7 days.",
+    });
+    expect(bulkDeletePrompt({ moments: 3, sleeps: 0, going: 0 })).toEqual({
+      title: "Delete 3 logged moments?",
+      body: "You can restore them from Recently Deleted in Timeline for 7 days.",
+    });
+  });
+
+  it("counts sleeps the same way", () => {
+    expect(bulkDeletePrompt({ moments: 0, sleeps: 1, going: 0 })).toEqual({
+      title: "Delete 1 sleep?",
+      body: "You can restore it from Recently Deleted in Timeline for 7 days.",
+    });
+    expect(bulkDeletePrompt({ moments: 0, sleeps: 2, going: 0 })).toEqual({
+      title: "Delete 2 sleeps?",
+      body: "You can restore them from Recently Deleted in Timeline for 7 days.",
+    });
+  });
+
+  it("names both when moments and sleeps are ticked together, and says 'them' for any two", () => {
+    expect(bulkDeletePrompt({ moments: 3, sleeps: 1, going: 0 })).toEqual({
+      title: "Delete 3 logged moments and 1 sleep?",
+      body: "You can restore them from Recently Deleted in Timeline for 7 days.",
+    });
+    expect(bulkDeletePrompt({ moments: 1, sleeps: 1, going: 0 }).title).toBe(
+      "Delete 1 logged moment and 1 sleep?",
+    );
+  });
+
+  it("says a sleep that is still going will be stopped", () => {
+    expect(bulkDeletePrompt({ moments: 0, sleeps: 1, going: 1 }).body).toBe(
+      "You can restore it from Recently Deleted in Timeline for 7 days. A sleep that is still going will be stopped.",
+    );
+    expect(bulkDeletePrompt({ moments: 2, sleeps: 2, going: 1 }).body).toBe(
+      "You can restore them from Recently Deleted in Timeline for 7 days. A sleep that is still going will be stopped.",
+    );
+  });
+});
+
+describe("bulkSleepFailure: what is said when some ticked sleeps did not go (JOS-92)", () => {
+  it("gives the answer's own words for one", () => {
+    expect(bulkSleepFailure(1, "Jen already paused this sleep (6:08 pm).")).toBe(
+      "Jen already paused this sleep (6:08 pm).",
+    );
+  });
+
+  it("leads with a count for more than one, then the first answer's words", () => {
+    expect(bulkSleepFailure(2, "Couldn't reach the server. Try again.")).toBe(
+      "2 sleeps weren't deleted. Couldn't reach the server. Try again.",
+    );
+  });
+
+  it("has words of its own when the answer had none", () => {
+    expect(bulkSleepFailure(1, null)).toBe("Couldn't delete that sleep.");
+    expect(bulkSleepFailure(3, null)).toBe("3 sleeps weren't deleted. Couldn't delete that sleep.");
+  });
+});
+
+describe("sleepSelectKey: a sleep in Edit mode's selection (JOS-92)", () => {
+  it("is prefixed, so a sleep can never be mistaken for a moment", () => {
+    expect(sleepSelectKey("0b1f")).toBe("sleep:0b1f");
+    expect(sleepSelectKey("a")).not.toBe(sleepSelectKey("b"));
   });
 });
 

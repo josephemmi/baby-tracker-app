@@ -13,6 +13,22 @@
   creating or updating issues for work here, use this team/project rather
   than asking which one to use.
 
+## Design approach
+
+- **One responsive component with multiple sizes, not a component per
+  screen (Joseph, JOS-83 session).** Build each piece of UI once and let it
+  adapt: breakpoints for the page layout, a container query where the piece
+  should follow its own width rather than the screen's. Phone and tablet
+  sizes are values of the same spacing and type tokens (JOS-66), never a
+  second implementation. Split into separate components only when one truly
+  cannot do both, and say so before building it.
+- **Layout options for Joseph are drawn on the real component** (a
+  temporary dev-preview route, each option injected as CSS, heights and empty
+  space measured from the render), then published as a page with a screen
+  width and tile state toggle. Say first which screen widths the choice
+  covers: the first tile page left him unsure whether the options were for
+  the iPad or the iPhone, which cost a round (JOS-83 session).
+
 ## Git & deploy workflow
 
 - This repo has no staging environment — Vercel auto-deploys straight to
@@ -80,7 +96,15 @@
   ticket per PR first, or, right after merging the first, check the ticket
   and move it back to In Progress with a note of what is left. This also
   applies to a docs-only follow-up PR: name its branch for its own ticket,
-  not the one it follows.
+  not the one it follows. A ticket named only as a link in the PR body is
+  not linked and not closed (JOS-84 and JOS-86, the docs commits that rode
+  on PR #44, stayed In Review after it merged), so move those to Done by
+  hand. Follow-up work in the same session, after the PR has merged, goes on
+  the assigned branch restarted from the production tip (`git fetch origin
+  <production> && git checkout -B <branch> origin/<production>`; the old
+  head is an ancestor, so the push is a fast-forward), and since that branch
+  cannot be renamed, the new PR's title carries its own new ticket id, never
+  the merged one (JOS-87 after PR #44).
 - Every piece of work gets a Linear ticket in the JOS team / Momentini
   project — including process or tooling fixes noticed along the way
   (like this section, or JOS-43), not just product features and bugs.
@@ -557,6 +581,25 @@ time.
   work stands. The risk is duplicate side effects (a second PR, comment,
   attachment or ticket); a dev server or scratch Postgres left running may be
   gone (see the restart note above). Say so in one line in the wrap-up.
+- **Finding a spec, prototype or engine in Drive (JOS-83 session).** Each
+  feature's Drive folder is attached to its Linear ticket (JOS-83 has
+  `Docs/v1.14`); open it from there. Do not search Drive with `fullText`: it
+  covers Joseph's whole Drive, not this project, and returns snippets of his
+  personal notes. When a search is needed, use `title contains` with a
+  `parentId` and pass `excludeContentSnippets: true`. A "failed to connect"
+  line for Google Drive at the start of a session did not mean the Drive tools
+  were down; `search_files` and `read_file_content` worked.
+- **Comparing layout options on the real component (JOS-83 tiles, JOS-87).**
+  The scripts that did it (`tiles.mjs` and `tiles2.mjs`: each option is CSS
+  injected after load and measured per width and state; `build_tiles_page2.py`:
+  the Artifact page; `page-test.mjs`: every control and combination) live only
+  in a session scratchpad, like the harness (JOS-57). Two things cost time: a
+  container query can only restyle *descendants* of its container, so a tile
+  that picks its own layout needs the query on the tile and the moving part
+  (the pill) positioned absolutely inside it, which also keeps the tile the
+  same height with or without the pill; and a grid track of `minmax(0, 1fr)
+  auto` squeezes the first column first (the label "LAST SLEEP" wrapped to two
+  lines at 640 px), so test the narrow end.
 - **"App not loading" diagnostic playbook (2026-08-27 incident).** Joseph
   reported `baby-tracker-app-bay.vercel.app` unreachable from every real
   device (phone on WiFi and cellular, iPad), while every server-side

@@ -1,6 +1,6 @@
-import { EYEBROW } from "@/components/reports/sleep-report-parts";
+import { EYEBROW, SECTION_TITLE } from "@/components/reports/sleep-report-parts";
 import type { Day, Summary } from "@/lib/sleep-reports";
-import { averageCards, averagesNote, type StatCardModel } from "@/lib/sleep-report-view";
+import { averageCards, averagesNote, loggedNote, nightNote, type StatCardModel } from "@/lib/sleep-report-view";
 
 function Label({ card }: { card: StatCardModel }) {
   if (!card.keepTogether) return <>{card.label}</>;
@@ -15,18 +15,22 @@ function Label({ card }: { card: StatCardModel }) {
   );
 }
 
-// The averages (JOS-83): a heading that names the complete days they cover,
-// then nine cards. Each is an average over those days, said on the card, except
-// the one maximum, "Longest unbroken sleep". The night is shown as part of the
-// daily total, never beside it as if it were another period.
+// The averages (JOS-83): a heading that says only logged sleeps are counted and
+// names the complete days they cover, then nine cards. Each is an average over
+// those days, said on the card, except the one maximum, "Longest unbroken
+// sleep". The night is shown as part of the daily total, never beside it as if
+// it were another period.
 export function SleepStatCards({ days, summary }: { days: Day[]; summary: Summary }) {
   const cards = averageCards(summary);
   return (
     <section aria-labelledby="sleep-averages-h" className="flex flex-col gap-4" data-card="averages">
-      <div className="-mb-1 flex flex-col gap-0.5">
-        <h3 id="sleep-averages-h" className={EYEBROW}>
+      <div className="-mb-1 flex flex-col gap-1">
+        <h2 id="sleep-averages-h" className={SECTION_TITLE}>
           Averages
-        </h3>
+        </h2>
+        <p className="text-xs text-ink-soft" data-avg-logged>
+          {loggedNote()}
+        </p>
         <p className="text-xs text-ink-soft" data-avg-period>
           {averagesNote(days, summary)}
         </p>
@@ -49,7 +53,7 @@ export function SleepStatCards({ days, summary }: { days: Day[]; summary: Summar
           </div>
         ))}
       </div>
-      <p className="text-xs text-ink-soft">A night counts on the day he woke.</p>
+      <p className="text-xs text-ink-soft">{nightNote()}</p>
     </section>
   );
 }

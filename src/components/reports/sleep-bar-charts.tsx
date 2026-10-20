@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { CARD, EYEBROW, Legend, LegendItem, Readout } from "@/components/reports/sleep-report-parts";
+import { CARD, Legend, LegendItem, Readout, SECTION_TITLE } from "@/components/reports/sleep-report-parts";
 import type { Day } from "@/lib/sleep-reports";
 import {
   defaultDayKey,
@@ -112,9 +112,9 @@ export function SleepPerDayChart({ days }: { days: Day[] }) {
   return (
     <section aria-labelledby="sleep-per-day-h" className={CARD} data-card="stacked">
       <div className="flex items-baseline justify-between gap-2">
-        <h3 id="sleep-per-day-h" className={EYEBROW}>
+        <h2 id="sleep-per-day-h" className={SECTION_TITLE}>
           Sleep per day
-        </h3>
+        </h2>
         <span className="text-xs tabular-nums text-ink-soft">{dur(chart.maxMs)}</span>
       </div>
       <Legend>
@@ -164,9 +164,9 @@ export function SleepLongestChart({ days }: { days: Day[] }) {
   return (
     <section aria-labelledby="sleep-longest-h" className={CARD} data-card="longest">
       <div className="flex items-baseline justify-between gap-2">
-        <h3 id="sleep-longest-h" className={EYEBROW}>
+        <h2 id="sleep-longest-h" className={SECTION_TITLE}>
           Longest stretch &amp; night wakes
-        </h3>
+        </h2>
         <span className="text-xs tabular-nums text-ink-soft">{dur(chart.maxMs)}</span>
       </div>
       <Legend>

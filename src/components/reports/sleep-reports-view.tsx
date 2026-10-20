@@ -149,7 +149,7 @@ export function SleepReportsView({ babyId }: { babyId: string }) {
         </div>
       ) : ready ? (
         <Fragment key={rangeId}>
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-6">
             <SleepPatternCard days={days} />
             <SleepStatCards days={days} summary={summary} />
             <SleepPerDayChart days={days} />

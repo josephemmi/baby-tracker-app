@@ -79,9 +79,8 @@ const PAIRS: Pair[] = [
   { fg: "ink", bg: "sage-soft", min: 4.5, use: "'Awake' pill" },
   { fg: "ink-soft", bg: "paper", min: 4.5, use: "'No sleeps logged yet' pill; the line under the Today number" },
   { fg: "ink-soft", bg: "paper-raised", min: 4.5, use: "captions and axis labels on a card" },
-  // Delete sleep
-  { fg: "danger", bg: "paper-raised", min: 4.5, use: "Delete sleep button label on a card" },
-  { fg: "danger", bg: "paper", min: 4.5, use: "Delete sleep button label while hovered (the button takes the page colour)" },
+  // Deleting a sleep (JOS-92 took the button off the card): the confirm box's red button
+  { fg: "paper", bg: "danger", min: 4.5, use: "the confirm box's Delete button: Delete sleep, and Delete (n) with sleeps ticked" },
 ];
 
 describe("the sleep colours", () => {

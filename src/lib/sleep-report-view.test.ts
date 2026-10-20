@@ -176,15 +176,98 @@ describe("averages", () => {
     );
   });
 
+  describe("days with no night (JOS-90)", () => {
+    // Mon 12 has only daytime sleeps (the first day of logging); Tue 13 and Wed 14 have a night.
+    const mixed = days(
+      [
+        sleep("m1", [[L(10, 12, 10, 0), L(10, 12, 12, 0)]]),
+        sleep("m2", [[L(10, 12, 14, 0), L(10, 12, 15, 0)]]),
+        sleep("n13", [[L(10, 12, 19, 30), L(10, 13, 6, 30)]]),
+        sleep("n14", [[L(10, 13, 19, 30), L(10, 14, 6, 30)]]),
+      ],
+      L(10, 15, 12, 0),
+    );
+
+    it("counts only the days that have a night, and names the ones left out", () => {
+      const m = S.summarise(mixed);
+      expect(m.days).toBe(2);
+      expect(V.periodText(mixed)).toBe("Tue 13 – Wed 14 Oct");
+      expect(V.averagesNote(mixed, m)).toBe(
+        "Tue 13 – Wed 14 Oct · 2 complete days. Not included: today so far, and Mon 12 (no night sleep logged).",
+      );
+    });
+
+    it("lists two or three days, and counts past three", () => {
+      const day = (d: number) => sleep("s" + d, [[L(10, d, 10, 0), L(10, d, 11, 0)]]);
+      const night = sleep("n", [[L(10, 20, 19, 0), L(10, 21, 6, 0)]]);
+      const note = (nap: number[]) => V.averagesNote(days([...nap.map(day), night], L(10, 25, 12, 0)), S.summarise(days([...nap.map(day), night], L(10, 25, 12, 0))));
+      expect(note([12, 13])).toContain("Mon 12 and Tue 13 (no night sleep logged)");
+      expect(note([12, 13, 14])).toContain("Mon 12, Tue 13 and Wed 14 (no night sleep logged)");
+      expect(note([12, 13, 14, 15])).toContain("4 days (no night sleep logged)");
+    });
+
+    it("explains when every complete day lacks a night", () => {
+      const onlyNaps = days([sleep("m1", [[L(10, 12, 10, 0), L(10, 12, 12, 0)]])], L(10, 14, 12, 0));
+      expect(V.averagesNote(onlyNaps, S.summarise(onlyNaps))).toBe(
+        "No complete days with a night in this range yet. Today so far, and Mon 12 (no night sleep logged), are charted but not included.",
+      );
+    });
+
+    it("keeps the old wording when no complete day has any sleep to leave out", () => {
+      const justToday = days([sleep("a", [[L(10, 16, 23, 0), L(10, 17, 6, 0)]])], L(10, 17, 8, 0));
+      expect(V.averagesNote(justToday, S.summarise(justToday))).toBe(
+        "No complete days in this range yet. Today so far is charted but not included.",
+      );
+    });
+
+    it("says what a night is under the cards", () => {
+      expect(V.nightNote()).toBe("A night is a sleep of 5 hours or more. It counts on the day he woke.");
+    });
+
+    it("says under the title that only logged sleeps are counted and a night not added leaves the day out", () => {
+      expect(V.loggedNote()).toBe(
+        "Only sleeps that were logged are counted. If a night wasn't added, that day is left out of the averages.",
+      );
+      // the line after it still says which days that was this time
+      expect(V.averagesNote(mixed, S.summarise(mixed))).toContain("Mon 12 (no night sleep logged)");
+    });
+
+    it("shows Joseph's first week as it should read: Sat has no night, the averages are Sun and Mon only", () => {
+      // the same rounded week as the engine tests: Sat 17 daytime sleeps only, then two nights
+      const week = [
+        sleep("a", [[L(10, 17, 10, 15), L(10, 17, 11, 5)]]),
+        sleep("b", [[L(10, 17, 11, 10), L(10, 17, 15, 0)]]),
+        sleep("c", [[L(10, 17, 18, 40), L(10, 17, 19, 40)]]),
+        sleep("n1", [
+          [L(10, 17, 21, 0), L(10, 18, 2, 10)],
+          [L(10, 18, 2, 45), L(10, 18, 8, 30)],
+        ]),
+        sleep("nap1", [[L(10, 18, 12, 40), L(10, 18, 13, 10)]]),
+        sleep("n2", [[L(10, 18, 19, 30), L(10, 19, 8, 10)]]),
+        sleep("nap2", [[L(10, 19, 14, 20), L(10, 19, 16, 30)]]),
+        sleep("n3", [[L(10, 19, 19, 20), L(10, 20, 10, 15)]]),
+      ];
+      const w = days(week, L(10, 20, 12, 0));
+      const ws = S.summarise(w);
+      expect(V.averagesNote(w, ws)).toBe(
+        "Sun 18 – Mon 19 Oct · 2 complete days. Not included: today so far, and Sat 17 (no night sleep logged).",
+      );
+      const v = Object.fromEntries(V.averageCards(ws).map((c) => [c.label, c.value]));
+      expect(v["Average bedtime"]).toBe("8:15 pm"); // (9:00 pm + 7:30 pm) / 2; the first version said 1:13 am
+      expect(v["Average wake-up time"]).toBe("8:20 am"); // (8:30 am + 8:10 am) / 2; the first version said 10:33 am
+      expect(v["Average length of night sleep"]).toBe("11h 48m"); // (10h 55m + 12h 40m) / 2 = 11h 47.5m
+    });
+  });
+
   it("has the nine cards, in this order, every one an average but the best night", () => {
     const cards = V.averageCards(sum);
     expect(cards.map((c) => c.label)).toEqual([
-      "Average sleep per day",
-      "Average night sleep",
+      "Average time asleep per day",
+      "Average length of night sleep",
       "Average naps per day",
       "Average nap length",
       "Average bedtime",
-      "Average wake-up",
+      "Average wake-up time",
       "Longest unbroken sleep",
       "Average wakes per night",
       "Average time awake between sleeps",
@@ -201,11 +284,17 @@ describe("averages", () => {
     expect(best.sub).toBe("Best night in this period");
   });
 
+  it("says which end of the night bedtime and wake-up are (JOS-90)", () => {
+    const [, , , , bedtime, wake] = V.averageCards(sum);
+    expect(bedtime.sub).toBe("When the night sleep starts");
+    expect(wake.sub).toBe("When the night sleep ends");
+  });
+
   it("never abbreviates or uses a slash in a label, and keeps 'wake-up' on one line", () => {
     for (const c of V.averageCards(sum)) {
       expect(c.label).not.toMatch(/\/|\bavg\b|\bAvg\b|\./);
     }
-    const wake = V.averageCards(sum).find((c) => c.label === "Average wake-up");
+    const wake = V.averageCards(sum).find((c) => c.label === "Average wake-up time");
     expect(wake?.keepTogether).toBe("wake-up");
     expect(V.averageCards(sum).find((c) => c.wide)?.label).toBe("Average time awake between sleeps");
   });
@@ -220,7 +309,7 @@ describe("averages", () => {
     // bedtimes 7:20, 7:30, then 7:45 four times: (20 + 30 + 4 x 45) / 6 = 38.3 min past 7 pm
     expect(v["Average bedtime"]).toBe("7:38 pm");
     // wake-ups 6:55, 7:35, then 6:50 four times: (415 + 455 + 4 x 410) / 6 = 418.3 min = 6:58 am
-    expect(v["Average wake-up"]).toBe("6:58 am");
+    expect(v["Average wake-up time"]).toBe("6:58 am");
     expect(v["Longest unbroken sleep"]).toBe("12h 5m");
   });
 
@@ -276,8 +365,9 @@ describe("charts", () => {
     expect(mon?.readout).toBe("Mon 12 Oct · 13h 45m asleep · night 12h 5m · naps 1h 40m");
     const sat = chart.bars[chart.bars.length - 1];
     expect(sat.partial).toBe(true);
-    expect(sat.label).toBe("Sat 17 Oct so far: 40m asleep, night 40m, naps 0m");
-    expect(sat.readout).toBe("Sat 17 Oct (so far) · 40m asleep · night 40m · naps 0m");
+    // a lone 40 min sleep is a nap: a night needs 5 h (JOS-90)
+    expect(sat.label).toBe("Sat 17 Oct so far: 40m asleep, night 0m, naps 40m");
+    expect(sat.readout).toBe("Sat 17 Oct (so far) · 40m asleep · night 0m · naps 40m");
     // night + naps is the whole bar
     for (const b of chart.bars) {
       const day = d.find((x) => x.key === b.key) as S.Day;
@@ -347,6 +437,12 @@ describe("the 24-hour pattern", () => {
   it("says 'so far' for today and leaves the night out when there is none", () => {
     const d = days([sleep("nap", [[L(10, 17, 9, 0), L(10, 17, 9, 40)]])], L(10, 17, 10, 0));
     expect(V.patternText(d[0])).toContain("Sat 17 Oct so far · 40m asleep");
+  });
+
+  it("says under the title how to read a row, and that a night nobody added leaves a gap", () => {
+    expect(V.patternNote()).toBe(
+      "One row per calendar day. A night shows on two rows but counts on the day he woke. Only sleeps that were logged are drawn, so a night nobody added leaves a gap.",
+    );
   });
 
   it("is the latest 14 days, newest first", () => {
@@ -516,15 +612,22 @@ describe("the daily table", () => {
     });
   });
 
-  it("uses a dash where there is no night", () => {
+  it("uses a dash where there is no night: a date whose longest sleep is under 5 h (JOS-90)", () => {
+    // a lone 40 min sleep is a nap, not a night
     const d = days([sleep("nap", [[L(10, 17, 9, 0), L(10, 17, 9, 40)]])], L(10, 17, 10, 0));
-    // a lone sleep that day is that day's night; make a nap-only day by adding a longer one first
+    expect(V.tableRows(d)[0].cells).toEqual(["40m", "—", "40m", "1", "—", "—", "—", "—"]);
+    // 4 h and 40 min: still no night, both are naps
     const twoOnOneDay = days(
       [sleep("long", [[L(10, 17, 1, 0), L(10, 17, 5, 0)]]), sleep("short", [[L(10, 17, 9, 0), L(10, 17, 9, 40)]])],
       L(10, 17, 10, 0),
     );
-    expect(V.tableRows(d)[0].cells[1]).toBe("40m");
-    expect(V.tableRows(twoOnOneDay)[0].cells.slice(0, 5)).toEqual(["4h 40m", "4h", "40m", "1", "4h"]);
+    expect(V.tableRows(twoOnOneDay)[0].cells.slice(0, 5)).toEqual(["4h 40m", "—", "4h 40m", "2", "—"]);
+    // the same day with a 5 h sleep has a night: 5 h, and the 40 min is the nap
+    const withNight = days(
+      [sleep("long", [[L(10, 17, 0, 0), L(10, 17, 5, 0)]]), sleep("short", [[L(10, 17, 9, 0), L(10, 17, 9, 40)]])],
+      L(10, 17, 10, 0),
+    );
+    expect(V.tableRows(withNight)[0].cells.slice(0, 5)).toEqual(["5h 40m", "5h", "40m", "1", "5h"]);
   });
 });
 

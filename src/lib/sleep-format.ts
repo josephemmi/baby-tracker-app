@@ -279,6 +279,42 @@ export function deleteSleepPrompt(s: Sleep, now: number, zone: Zone): SleepPromp
   };
 }
 
+/* ---------- deleting several at once (Edit mode) ---------- */
+
+// Edit mode keeps what is ticked in one set: moment keys, and sleeps by this
+// key so the two can never be mistaken for each other (JOS-92).
+export const sleepSelectKey = (id: string): string => `sleep:${id}`;
+
+const countOf = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
+
+// The confirm box for Delete (n) in Edit mode: what is going, counted in the
+// words of the moments' own box ("Delete 3 logged moments?") with sleeps beside
+// them ("Delete 3 logged moments and 1 sleep?"), and a line when one of the
+// sleeps is still going, since deleting it stops it too. Moments alone read
+// exactly as they did before sleeps could be ticked.
+export function bulkDeletePrompt(count: { moments: number; sleeps: number; going: number }): {
+  title: string;
+  body: string;
+} {
+  const parts: string[] = [];
+  if (count.moments > 0) parts.push(countOf(count.moments, "logged moment", "logged moments"));
+  if (count.sleeps > 0) parts.push(countOf(count.sleeps, "sleep", "sleeps"));
+  const total = count.moments + count.sleeps;
+  const restore = `You can restore ${total === 1 ? "it" : "them"} from Recently Deleted in Timeline for 7 days.`;
+  return {
+    title: `Delete ${parts.join(" and ")}?`,
+    body: count.going > 0 ? `${restore} A sleep that is still going will be stopped.` : restore,
+  };
+}
+
+// What to tell the user when some of the sleeps in a bulk delete did not go
+// (someone else changed one first, a rule said no, the network dropped): the
+// first answer's own words, led by a count when more than one stayed.
+export function bulkSleepFailure(notDeleted: number, message: string | null): string {
+  const first = message ?? "Couldn't delete that sleep.";
+  return notDeleted === 1 ? first : `${notDeleted} sleeps weren't deleted. ${first}`;
+}
+
 // Why a restore from Recently Deleted was refused, in the restore's own words
 // ("That overlaps ..." reads as if the user had picked a time). A restored
 // sleep is always a finished one, so the only rule that can say no is the

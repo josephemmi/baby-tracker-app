@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CARD, EYEBROW, Legend, LegendItem, Readout, TimeAxis } from "@/components/reports/sleep-report-parts";
+import { CARD, Legend, LegendItem, Readout, SECTION_TITLE, TimeAxis } from "@/components/reports/sleep-report-parts";
 import type { Day } from "@/lib/sleep-reports";
-import { defaultDayKey, patternRows } from "@/lib/sleep-report-view";
+import { defaultDayKey, patternNote, patternRows } from "@/lib/sleep-report-view";
 
 // The 24-hour pattern (JOS-83): one row per calendar day, the latest 14, newest
 // first, 12 am to 12 am. A night is drawn on two rows (the evening on one, the
@@ -18,14 +18,14 @@ export function SleepPatternCard({ days }: { days: Day[] }) {
 
   return (
     <section aria-labelledby="sleep-pattern-h" className={CARD} data-card="pattern">
-      <h3 id="sleep-pattern-h" className={EYEBROW}>
+      <h2 id="sleep-pattern-h" className={SECTION_TITLE}>
         24-hour pattern
-      </h3>
+      </h2>
       <Legend>
         <LegendItem swatch="bg-night">Asleep</LegendItem>
       </Legend>
-      <p className="mb-0.5 text-xs text-ink-soft">
-        One row per calendar day. A night shows on two rows but counts on the day he woke.
+      <p className="mb-0.5 text-xs text-ink-soft" data-pattern-note>
+        {patternNote()}
       </p>
       <Readout text={pinned?.readout ?? ""} />
       <TimeAxis className="ml-[52px]" />

@@ -68,6 +68,11 @@ export interface SleepCardProps {
   onStop: () => void;
   onReopen: () => void;
   onDelete: () => void;
+  // The Log's Edit button (JOS-92): a tick box before the time, like the one on
+  // a moment's card, so a sleep can be deleted with the others ticked.
+  selectMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
   // Resolves to a message when the server refused the time, null when saved.
   onSetTime: (field: SleepField, input: SleepTimeInput) => Promise<string | null>;
   // Resolves to a message when the server refused (the pause is gone, it would
@@ -341,6 +346,9 @@ export function SleepCard({
   onStop,
   onReopen,
   onDelete,
+  selectMode = false,
+  selected = false,
+  onToggleSelect,
   onSetTime,
   onRemovePause,
   onLoggedByCycle,
@@ -458,22 +466,33 @@ export function SleepCard({
       </button>
 
       <div className="mb-2.5 flex items-center justify-between gap-2 pr-7">
-        <div className="flex items-baseline gap-1.5">
-          {dayPrefix && <span className="text-[12.5px] text-ink-soft">{dayPrefix}</span>}
-          {live ? (
-            <button
-              type="button"
-              onClick={() => openPicker("start")}
-              className="-mx-1 rounded-md px-1 text-[15px] font-bold whitespace-nowrap tabular-nums text-ink hover:bg-paper"
-            >
-              {zone.fmtTime(started)}
-            </button>
-          ) : (
-            // A finished sleep is read-only: Reopen sleep is the way in.
-            <span className="text-[15px] font-bold whitespace-nowrap tabular-nums text-ink">
-              {zone.fmtTime(started)}
-            </span>
+        <div className="flex items-center gap-2">
+          {selectMode && (
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={() => onToggleSelect?.()}
+              aria-label="Select sleep"
+              className="h-4 w-4 flex-none accent-sage"
+            />
           )}
+          <div className="flex items-baseline gap-1.5">
+            {dayPrefix && <span className="text-[12.5px] text-ink-soft">{dayPrefix}</span>}
+            {live ? (
+              <button
+                type="button"
+                onClick={() => openPicker("start")}
+                className="-mx-1 rounded-md px-1 text-[15px] font-bold whitespace-nowrap tabular-nums text-ink hover:bg-paper"
+              >
+                {zone.fmtTime(started)}
+              </button>
+            ) : (
+              // A finished sleep is read-only: Reopen sleep is the way in.
+              <span className="text-[15px] font-bold whitespace-nowrap tabular-nums text-ink">
+                {zone.fmtTime(started)}
+              </span>
+            )}
+          </div>
         </div>
 
         <button
@@ -510,7 +529,9 @@ export function SleepCard({
           style={SLEEP_STYLE}
           checked
           onChange={() =>
-            onNotice(live ? "Use Pause Sleep or Stop Sleep below." : "Use Delete sleep below to delete this sleep.")
+            onNotice(
+              live ? "Use Pause Sleep or Stop Sleep below." : "To delete this sleep, tap the × at the top of the card.",
+            )
           }
         />
       </div>
@@ -700,21 +721,6 @@ export function SleepCard({
           <p className="text-center text-[12px] text-ink-soft" data-reopen-hint>
             {noReopenHint}
           </p>
-        )}
-        {/* Delete sleep (JOS-83): a finished sleep started by mistake can go.
-            It removes the sleep, it does not edit it, so the card stays
-            read-only otherwise. Below Reopen, which it makes possible again
-            for the sleep before this one. */}
-        {!live && (
-          <button
-            type="button"
-            data-delete-sleep
-            onClick={onDelete}
-            disabled={busy}
-            className={`${BUTTON} min-h-[44px] border-danger bg-transparent text-danger hover:bg-paper`}
-          >
-            Delete sleep
-          </button>
         )}
       </div>
 
