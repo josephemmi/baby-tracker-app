@@ -35,13 +35,15 @@ printf 'NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321\nNEXT_PUBLIC_SUPABASE_AN
 mkdir -p src/app/dev-preview/sleep-log
 cp scripts/harness/routes/sleep-log.tsx.txt src/app/dev-preview/sleep-log/page.tsx
 
-TZ=Europe/London npx next dev -p 3100 &        # note its PID; never `pkill -f "next dev"` (it matches your own shell)
+TZ=Europe/London npx next dev -p 3100 &        # `$!` is only the npx wrapper; see below for stopping it
 TZ=Europe/London node scripts/harness/bulk-select.mjs
 ```
 
-**Clean up before committing:** kill the dev server by PID, then `rm -rf src/app/dev-preview .env.local .next` (only
-with the server stopped: deleting `.next` under a live Turbopack server corrupts its cache), and check `git status`.
-Never commit a dev-preview route.
+**Clean up before committing:** stop the dev server by PID. `$!` is only the `npx` wrapper; the server is a small tree
+(`npx`, `sh`, `node`, `next-server` and a child), so list it with `ps -eo pid,ppid,cmd | grep -E 'next|\.next' | grep -v
+grep` and kill those numbers (never `pkill -f "next dev"`: it matches your own shell). Then
+`rm -rf src/app/dev-preview .env.local .next` (only with the server stopped: deleting `.next` under a live Turbopack
+server corrupts its cache), and check `git status`. Never commit a dev-preview route.
 
 The cluster lives under `/var/lib/postgresql/jos83` (Postgres refuses to run as root, and its data directory must be
 under the `postgres` user's home), socket in `…/sock`, port 54329. `pg-up.sh` is safe to run again.
