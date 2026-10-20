@@ -13,7 +13,9 @@ feature, and PATCH is a fix with no new functionality.
 - Double tap on a Log box no longer adds a second row (JOS-100). Ticking a type
   (Pump, Pee, Poo, Bottle or Breast) on a moment now ignores another tap on the
   same box until the first one has been saved, so one tap pair makes one row.
-  Rows already doubled in the past are not touched.
+  The database now refuses a second identical row too, and the 17 doubled rows
+  and 17 empty Pump ticks already in it were cleared (they sit in Recently
+  Deleted for 7 days).
 
 ## [1.15.0] - 2026-10-20
 
