@@ -27,6 +27,63 @@ conversation knows where to start without reading the rest.
 
 ---
 
+## 2026-10-20, night (JOS-98: v1.15.0 cut)
+
+**Done:**
+- [JOS-98](https://linear.app/josephemmi/issue/JOS-98): the release for merged
+  [PR #45](https://github.com/josephemmi/baby-tracker-app/pull/45) is cut.
+  [PR #47](https://github.com/josephemmi/baby-tracker-app/pull/47) (not merged;
+  Joseph's call) holds `[Unreleased]` moved into a dated `1.15.0` section
+  (minor, confirmed — JOS-92 adds bulk-deleting sleeps), the `package.json`/lock
+  bump, and the Sleep tracker guide refresh: every image was checked against
+  JOS-90/91/92 (CLAUDE.md's rule after JOS-78), and the ones showing the old
+  Reports labels, the old small-capital titles or the removed Delete sleep
+  button were reshot (06, 21, 24, 26–29) on the scratch-Postgres harness.
+  `NestlogReleaseNotesv1.15.0.pdf` and `NestlogSleepTrackerUserGuidev1.15.0.pdf`
+  are built, attached to JOS-90/91/92 with the notes as a comment on each, and
+  sent in chat.
+- The v1.14 spec, prototype and reference engine in Drive now carry JOS-90's
+  two rule changes (a night needs 5 h asleep; a day with no night is left out
+  of every average), as new files next to the v1.14.0 originals — Drive's
+  `update_file` only changes metadata, so "new version, don't overwrite" means
+  a sibling file (`<name>-JOS-nn.<ext>`) plus, for the markdown spec, an
+  appended `## Addendum` rather than editing the agreed decisions in place.
+- `retro`: [JOS-101](https://linear.app/josephemmi/issue/JOS-101) (Process, In
+  Review, a second commit on PR #47). `gshots.mjs` had two stale spots from
+  JOS-91/92's own DOM changes (a selector for the removed Delete sleep button,
+  30 s Playwright timeouts twice; a table crop that missed the title JOS-91
+  moved outside it) — fixed, and the harness README now says to grep the
+  harness for a removed/moved DOM hook whenever a PR changes one, since
+  nothing currently prompts that. `generate-release-notes.py`'s single-image
+  path had no height cap (only the multi-image row path did) — fixed. The
+  Drive-versioning convention above is now written down in CLAUDE.md.
+
+**In flight / open:**
+- PR #47 needs Joseph's review before merge (docs/script/image only — no app
+  code changed, so no preview link). JOS-90, JOS-91 and JOS-92 stay Done
+  (already closed on PR #45's merge); this PR carries no ticket id that would
+  re-close them, only JOS-98 and JOS-101.
+- Device checks from earlier releases are still outstanding: Jen's iPad
+  home-screen app, an Android phone with a running sleep, realtime on two
+  devices.
+- [JOS-87](https://linear.app/josephemmi/issue/JOS-87) (Log tile layout) still
+  waits on Joseph's pick (tablet H, S or N; phone P1–P4); it gets its own
+  release once built, per his instruction this session to cut JOS-98 on its
+  own rather than wait for it.
+
+**Worth knowing:**
+- `rnshots-v1.15.0.mjs` (new, saved in `scripts/harness/`) is the model for a
+  release whose CHANGELOG spans several tickets: even tight crops didn't fit
+  page one until the CHANGELOG bullets themselves were trimmed tighter (same
+  house style, fewer words) — build the no-image PDF first and check its page
+  count before adding screenshots, not after.
+- A worker restart landed mid-session, between a Linear PDF upload's PUT and
+  its `create_attachment_from_upload` finalize call; the uploaded bytes were
+  already safe (the 60 s window is only for the PUT), so the finalize just ran
+  once the session resumed.
+
+---
+
 ## 2026-10-20, evening (PR #45 merged; handover to one conversation per ticket)
 
 **Done:**
@@ -459,162 +516,6 @@ take them:**
 
 ---
 
-## 2026-10-17, later (JOS-56 review round and merge, JOS-58, JOS-59)
-
-**Done:**
-- [JOS-56](https://linear.app/josephemmi/issue/JOS-56) (Done): Joseph
-  used the Sleep tracker on his phone and sent a round of feedback, each
-  point agreed against an interactive prototype (a private artifact)
-  before any code. Built in commit `93fc274`: the status label is 15 px
-  (matching the card's own time) with an 11 px dot, the *word* centred on
-  the card's centre line and the dot hanging left; start time centred
-  under the timer with "Started earlier?" on its own line; Stop Sleep in
-  the app's dark rose; the picker has no Save step (the wheel's **Set**,
-  or tapping the highlighted row, saves and closes; Pick a time saves
-  0.4 s after the phone's picker returns; only a time over 3 h ago asks
-  "Save anyway"; the other row tucks away while the wheel is open); a
-  running or reopened sleep is no longer pinned to the top (`filedAt` in
-  `sleep.ts`: filed under Today, ordered by its start), so Reopen leaves
-  the card where it was; a finished card with no Reopen button says why
-  ("This sleep can't be reopened: …"). 51 new browser checks on the
-  scratch-Postgres harness plus the older suites updated where the design
-  changed on purpose; 194 unit tests. [PR #37](https://github.com/josephemmi/baby-tracker-app/pull/37)
-  was merged with Joseph's go-ahead (merge commit `6ad4436`); production
-  deployed READY. Linear moved JOS-56 to Done by itself on merge, ahead of
-  the release steps.
-- [JOS-58](https://linear.app/josephemmi/issue/JOS-58) (Feature, Needs
-  Scoping, High, Backlog): a standard notification system to replace the
-  ad-hoc bottom toast. Joseph's notes: the states should be fairly
-  consistent, maybe identical, and he'd rather have a centred pop-up like
-  the Discard-sleep dialog than a pill. His next backlog item after
-  JOS-56.
-- [JOS-59](https://linear.app/josephemmi/issue/JOS-59) (Process, In
-  Review): every feature release now gets a short visual user guide.
-  `scripts/generate-user-guide.py` + `docs/user-guides/<feature>/`
-  (`guide.json` and annotated screenshots); the first one, the Sleep
-  tracker (6 pages, A4), was sent to Joseph in chat.
-  [PR #38](https://github.com/josephemmi/baby-tracker-app/pull/38) is
-  open, not merged; it also carries the CLAUDE.md "User guides" rule and
-  this retro's notes.
-- **v1.12.0 cut** (minor, confirmed by Joseph): `[Unreleased]` moved into
-  a dated `1.12.0` section (the Sleep tracker, plus the iPad numeric-keypad
-  fix from JOS-54, which had been waiting in `[Unreleased]`),
-  `package.json`/`package-lock.json` bumped, and
-  `NestlogReleaseNotesv1.12.0.pdf` and
-  `NestlogSleepTrackerUserGuidev1.12.0.pdf` sent to
-  Joseph in chat and attached to JOS-56 and JOS-54 (release notes as a
-  comment on each). Because the harness confines this session to one
-  branch, the release rides on PR #38 with the user guide; **merging
-  PR #38 is the release**.
-- **Release notes redone twice after Joseph's feedback.** First round:
-  "no screenshots" (they were buried on page two). Second round: "check
-  the last three releases and use the structure that has been used
-  before". I had built a three-page PDF with a "What it looks like" grid
-  up front, captions and a seven-bullet Sleep entry; the earlier ones
-  (v1.11.0 to v1.11.2, read from the Drive "Release Notes" folder) are one
-  Letter page with one plain paragraph per CHANGELOG entry and the
-  screenshots after the bullets. So the 1.12.0 CHANGELOG entries were
-  condensed to that form (the detail that was cut lives in PR #37, this
-  log and the user guide), the generator puts screenshots after the
-  bullets again (one row of three, no heading or captions), and CLAUDE.md
-  now says to read the previous releases' PDFs before cutting one. The
-  PDF is one page with the three screenshots on it.
-
-**In flight / open:**
-- PR #38 needs Joseph's review (docs, tooling and the release bookkeeping;
-  no app code, so no preview). Merging it deploys nothing new: the Sleep
-  tracker code has been live since PR #37.
-- Device checks still outstanding: on Jen's iPad, whether Pick a time
-  saves mid-scroll (iOS may report every step; the fallback is a Save
-  button on that route only); on his phone, Set / tap-to-set and Pick a
-  time; two devices and realtime.
-- [JOS-58](https://linear.app/josephemmi/issue/JOS-58) is next in the
-  backlog.
-
-**Worth knowing:**
-- Joseph's choice of wording for the "can't be reopened" line named only
-  the 3-hour case; the other two reasons (a new sleep has started; closed
-  itself after 3 hours paused) use the same pattern by my reading.
-- The user-guide screenshots come from a scripted story, but the capture
-  script and the harness still live only in a session scratchpad
-  ([JOS-57](https://linear.app/josephemmi/issue/JOS-57) now covers
-  committing both, with a one-command start). The scratch Postgres is not
-  running after a session resumes; CLAUDE.md has the restart recipe.
-- The Next.js dev overlay badge ("1 Issue") shows under the fake clock and
-  intercepts hit-tests near the bottom-left of the viewport; hide
-  `nextjs-portal` before shooting or hit-testing.
-- The preview alias for a branch isn't in `list_deployments`; use
-  `list_deployment_aliases` (CLAUDE.md updated).
-
----
-
-## 2026-10-17 (JOS-56/JOS-57)
-
-**Done:**
-- [JOS-56](https://linear.app/josephemmi/issue/JOS-56) (In Review): the
-  Sleep tracker — the headline feature of v1.12. Sleep is the fifth tile
-  on the Log screen; ticking it starts a shared, timed sleep card (big
-  `01 h 35 m` timer, Pause / Stop, "Started earlier?" subcard with a
-  how-long-ago wheel and a full-row time input, under-a-minute Stop
-  dialog, read-only finished card with Reopen, soft delete into Recently
-  Deleted). [PR #37](https://github.com/josephemmi/baby-tracker-app/pull/37)
-  is open, not merged. Built from the Drive spec + prototype
-  (Docs → v1.12). Decisions worth knowing: stretches are a **jsonb array**
-  on a new `sleeps` row (one conditional `where rev = …` update = first
-  write wins; one realtime event carries the whole sleep); every write is a
-  security-definer function using the **server clock**, and the client
-  corrects its own clock against it on every reply, so a phone with the
-  wrong time can't skew the timer; members may edit only `notes` and
-  `logged_by` on the table directly (neither bumps `rev`); finished
-  sleeps are filed under the day they **ended**, so an overnight sleep
-  stays on Home; deleting an open sleep closes it as it goes so a
-  restore is always a plain finished sleep. Engine rules ported to
-  `src/lib/sleep.ts` (+ `sleep-format.ts`, `sleep-api.ts`), 190 unit
-  tests; SQL scenarios in `supabase/tests/sleeps.sql`.
-- Migrations `20261017000000_sleeps` and `20261017000001_sleep_helpers_search_path`
-  were **applied to the live Supabase project** this session with Joseph's
-  go-ahead (verified read-only: RLS, policies, realtime publication,
-  grants, advisors).
-- Verified end to end with a scratch Postgres + Playwright answering the
-  app's Supabase calls by running the real SQL functions: 218 browser
-  checks. It found a real bug the SQL tests missed (a plpgsql trigger
-  privilege failure hidden by plan caching) — now a CLAUDE.md gotcha along
-  with the migration-apply workflow and the harness recipe.
-- `retro` filed [JOS-57](https://linear.app/josephemmi/issue/JOS-57)
-  (Process, Backlog): commit that harness as reusable tooling (it only
-  lives in a session scratchpad today). The CLAUDE.md notes ride on PR #37
-  as a docs-only commit because the harness confines the session to one
-  branch.
-
-**In flight / open:**
-- PR #37 needs Joseph's review and real-device checks (can't be done from
-  Claude Code): Android Chrome and Jen's iPad home-screen app (the whole
-  "Pick a time" row opens the picker; wheel feel; the dialog), and two
-  devices (start on one and see it on the other, both tapping Stop at once,
-  a phone locked for a long time) — **especially that realtime delivers
-  within a second or two**; only the poll/refetch path was exercised here.
-- Not released: `CHANGELOG.md` has the entry under `[Unreleased]` and
-  `package.json` is still 1.11.2. Cutting 1.12 (version confirm,
-  release-notes PDF with tight screenshots, attach to JOS-56) is the next
-  release step once Joseph is happy.
-- Sleeps don't appear in Timeline, Reports or day summaries yet (spec open
-  question 3 — needs its own prototype and ticket); Recently Deleted does
-  list and restore them.
-
-**Worth knowing:**
-- The 43 engine checks the spec mentions weren't in the Drive folder (only
-  the spec and the prototype were), so the unit tests were written from the
-  spec's description of them.
-- Judgement calls flagged in the PR for Joseph to overturn if he disagrees:
-  Discard colour follows the prototype's rose-dark, not the spec's hex;
-  the iPad layout (sleep cards stacked above the table, Sleep column) is
-  mine since the prototype is phone-only; the TS write functions in
-  `sleep.ts` mirror the SQL but the screens don't call them, so a rule
-  change touches the TS, the SQL and both test files.
-- The live `entries` count moved while this session ran (2378 → 2379):
-  that was the household logging, not a migration side effect.
-
----
-
-Entries before 2026-10-17 (September 2026: JOS-41 to JOS-55) are in
+Entries before 2026-10-17, later (JOS-56 review round and merge, JOS-58,
+JOS-59 through September 2026, JOS-41 to JOS-55) are in
 `docs/project-log-archive.md`, which is not imported into sessions; grep it for history.

@@ -152,7 +152,8 @@ if (want("06")) {
   const c = card(page);
   await ring(c.locator("button[aria-expanded]").first(), 2);
   await ring(c.getByRole("button", { name: "Reopen sleep" }), 1, 2);
-  await ring(c.locator("[data-delete-sleep]"), 1, 2);
+  // JOS-92 took the Delete sleep button off a finished card: the × at the top deletes it now, like every other card.
+  await ring(c.getByRole("button", { name: "Delete this sleep" }), 1, 2);
   await shootEl(page, "06-finished", c);
   await context.close();
 }
@@ -340,17 +341,18 @@ if (want("19") || want("20") || want("21")) {
 
 // ================================================================ 23 delete a finished sleep: the confirm box
 if (want("23")) {
-  log("23-delete-confirm");
+  log("21-delete-confirm");
   const { context, page } = await scene({ seeds: [FIN_2P], now: L(20, 10) });
   const c = card(page);
   await c.evaluate((el) => window.scrollTo(0, el.getBoundingClientRect().top + scrollY - 183));
   await page.waitForTimeout(150);
-  await c.locator("[data-delete-sleep]").click();
+  // JOS-92: a finished sleep is now deleted through the same × as every other card, not a dedicated button.
+  await c.getByRole("button", { name: "Delete this sleep" }).click();
   const dlg = page.getByRole("alertdialog");
   await dlg.waitFor();
   await page.waitForTimeout(300);
   log(`  ${(await dlg.innerText()).replace(/\s+/g, " ")}`);
-  await shootBox(page, "23-delete-confirm", await dlg.boundingBox(), 28);
+  await shootBox(page, "21-delete-confirm", await dlg.boundingBox(), 28);
   await context.close();
 }
 
@@ -393,7 +395,8 @@ if (want("24") || want("25") || want("26") || want("27") || want("28") || want("
   if (want("27")) await shootEl(page, "27-reports-averages", page.locator('[data-card="averages"]'), { top: 40 });
   if (want("28")) await shootEl(page, "28-reports-per-day", page.locator('[data-card="stacked"]'), { top: 40 });
   if (want("29")) await shootEl(page, "29-reports-longest", page.locator('[data-card="longest"]'), { top: 40 });
-  if (want("30")) await shootEl(page, "30-reports-table", page.locator('[aria-label="Sleep summary by day"]'), { top: 40 });
+  // JOS-91: "Sleep summary" is a bold title above the scrolling region (not inside it), so shoot the whole card.
+  if (want("30")) await shootEl(page, "30-reports-table", page.locator('[data-card="table"]'), { top: 40 });
   await context.close();
 }
 
