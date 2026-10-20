@@ -1,7 +1,7 @@
 {
   "app": "Nestlog",
   "feature": "Sleep tracker",
-  "version": "1.14.0",
+  "version": "1.15.0",
   "pages": [
     {
       "title": "Start a sleep",
@@ -92,7 +92,7 @@
                 "image": "img/06-finished.png",
                 "chip": "Finished",
                 "chip_color": "sage",
-                "caption": "Saved. A finished sleep is read-only. Tap **2 pauses** to see each one. Stopped too soon? Tap **Reopen sleep**. Don't want it? Tap **Delete sleep**."
+                "caption": "Saved. A finished sleep is read-only. Tap **2 pauses** to see each one. Stopped too soon? Tap **Reopen sleep**. Don't want it? Tap **×** to delete it, or tick it in Edit to delete several at once."
               }
             ],
             [
@@ -237,7 +237,7 @@
                 "image": "img/21-delete-confirm.png",
                 "chip": "A finished sleep",
                 "chip_color": "rose",
-                "caption": "It has its own **Delete sleep** button. The box names the sleep, so you know which one is going."
+                "caption": "Tap **×** on a finished sleep too. The box names the sleep, so you know which one is going."
               }
             ]
           ]
@@ -376,7 +376,7 @@
                 "chip": "Averages",
                 "chip_color": "night",
                 "caption": "Nine cards for the period you picked.",
-                "note": "They leave out today and any day with no sleep. **Longest unbroken sleep** is the best night, not an average."
+                "note": "They leave out today and any day with no night logged. **Longest unbroken sleep** is the best night, not an average."
               }
             ],
             [

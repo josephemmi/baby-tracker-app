@@ -9,40 +9,32 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+## [1.15.0] - 2026-10-20
+
 ### Changed
 - Clearer names on the Sleep averages (JOS-90): "Average time asleep per day"
   (was "Average sleep per day"), "Average length of night sleep" (was "Average
-  night sleep") and "Average wake-up time". Bedtime and wake-up now say they are
-  when the night sleep starts and ends, and a line under the cards says what a
-  night is.
-- Bigger section titles on the Sleep tab (JOS-91). 24-hour pattern, Averages,
+  night sleep") and "Average wake-up time". Bedtime and wake-up now say when the
+  night starts and ends, and a line under the cards explains what a night is.
+- Bigger section titles on the Sleep tab (JOS-91): 24-hour pattern, Averages,
   Sleep per day, Longest stretch and night wakes, and Sleep summary are now bold
-  titles instead of small grey capitals, with more space between the sections, so
-  each one starts with a clear break. Under 24-hour pattern and under Averages a
-  line now says that only sleeps that were logged are counted: a night that was
-  not added leaves a gap in the pattern and its day is left out of the averages.
-  The summary table's title also stays in place when the table is scrolled
-  sideways on a phone.
-- Delete sleep moves into Edit (JOS-92). The Delete sleep button under a finished
-  sleep is gone: the cross at the top right of a sleep card deletes it, as on
-  every other card, and the big button was too easy to hit by mistake. In Edit,
-  sleep cards now have a tick box like the other cards, and the sleeps and moments
-  ticked are deleted together with one confirmation that counts both, such as
-  "Delete 3 logged moments and 1 sleep?". A sleep that is still going can be
-  ticked too, and the box says it will be stopped. If the other parent changed one
-  of the sleeps first, that one stays and a message says so while the rest are
-  deleted. Deleted sleeps still go to Recently Deleted for 7 days.
+  instead of small grey capitals, with more space between sections. A new line
+  under 24-hour pattern and under Averages says only logged sleeps are counted,
+  so a missing night leaves a gap in the pattern and its day out of the averages.
+  The summary table's title now stays in place while the table scrolls sideways.
+- Delete sleep moves into Edit (JOS-92). The Delete sleep button is gone: the ×
+  on a finished card deletes it now, like every other card. In Edit, sleep cards
+  get a tick box too, and ticked sleeps and moments are deleted together with one
+  confirmation that counts both, such as "Delete 3 logged moments and 1 sleep?"
+  A sleep still running can be ticked; the box says it will be stopped first.
+  Deleted sleeps still go to Recently Deleted for 7 days.
 
 ### Fixed
 - The Sleep averages no longer count a daytime sleep as a night (JOS-90). A
-  night is now a sleep of at least 5 hours, so a day with no night in it, such as
-  the first day of logging, has none, and its sleeps are naps. That day is also
-  left out of every average and the note under Averages names it, so Average
-  bedtime, Average wake-up time, Average length of night sleep, Average wakes
-  per night and Average time asleep per day are made only from days that have a
-  night. Before, a 3 h 50 m daytime sleep on the first day became that day's
-  night and pulled the average bedtime to 1:13 am and the average wake-up to
-  10:34 am.
+  night now needs at least 5 hours asleep; a day with no night in it, like the
+  first day of logging, has none, and its sleeps are naps. That day is left out
+  of every average. Before, a 3h 50m daytime sleep became the first day's
+  "night" and pulled the average bedtime to 1:13 am.
 
 ## [1.14.0] - 2026-10-20
 
