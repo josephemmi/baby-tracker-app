@@ -1,7 +1,7 @@
 {
   "app": "Nestlog",
   "feature": "Sleep tracker",
-  "version": "1.13.1",
+  "version": "1.14.0",
   "pages": [
     {
       "title": "Start a sleep",
@@ -39,6 +39,13 @@
                 "chip": "Step 3",
                 "chip_color": "sage",
                 "caption": "The timer runs. Lock your phone if you like: it stays right."
+              },
+              {
+                "image": "img/19-tile-sleeping.png",
+                "chip": "Step 4",
+                "chip_color": "sage",
+                "caption": "On Log, the **Last sleep** tile adds a **Sleeping now** pill with the time asleep so far.",
+                "note": "The numbers above the pill stay on the last sleep that finished."
               }
             ]
           ]
@@ -85,7 +92,7 @@
                 "image": "img/06-finished.png",
                 "chip": "Finished",
                 "chip_color": "sage",
-                "caption": "Saved. A finished sleep is read-only. Tap **2 pauses** to see each one. Stopped too soon? Tap **Reopen sleep**."
+                "caption": "Saved. A finished sleep is read-only. Tap **2 pauses** to see each one. Stopped too soon? Tap **Reopen sleep**. Don't want it? Tap **Delete sleep**."
               }
             ],
             [
@@ -97,6 +104,12 @@
                   "Paused for 3 hours? The sleep closes itself at the time baby woke, and can't be reopened.",
                   "Use **Stop** when baby is up for the day or the night. Use **Pause** for a short wake."
                 ]
+              },
+              {
+                "image": "img/20-tile-paused.png",
+                "chip": "On the Last sleep tile",
+                "chip_color": "night",
+                "caption": "While paused, the pill reads **Paused** and keeps the time asleep so far."
               }
             ]
           ]
@@ -170,7 +183,8 @@
                   "Within **3 hours** of waking.",
                   "Only while it's the **latest** sleep. Once a new one starts, the old one is locked.",
                   "Not after it closed itself from 3 hours paused.",
-                  "It goes back to paused, in the same place in your list."
+                  "It goes back to paused, in the same place in your list.",
+                  "Deleted the newest sleep? The one before it can be reopened again, if it's still inside the 3 hours."
                 ]
               }
             ],
@@ -220,10 +234,31 @@
                 "caption": "Tap **×**. You're asked first."
               },
               {
+                "image": "img/21-delete-confirm.png",
+                "chip": "A finished sleep",
+                "chip_color": "rose",
+                "caption": "It has its own **Delete sleep** button. The box names the sleep, so you know which one is going."
+              }
+            ]
+          ]
+        },
+        {
+          "cols": [
+            [
+              {
                 "image": "img/13-recently-deleted.png",
                 "chip": "Changed your mind?",
                 "chip_color": "sage",
                 "caption": "**Timeline**, then **Recently Deleted**, then **Restore**. Kept for 7 days."
+              }
+            ],
+            [
+              {
+                "image": "img/22-restore-refused.png",
+                "chip": "Can't restore?",
+                "chip_color": "amber",
+                "caption": "If another sleep was logged over those times, the message says which one is in the way.",
+                "note": "Fix or delete that sleep, then restore again."
               }
             ]
           ]
@@ -270,9 +305,92 @@
                 "title": "Good to know",
                 "bullets": [
                   "Times follow your phone's clock and time zone. The timer uses the server's clock, so a wrong phone clock can't throw it off.",
-                  "Sleeps don't show in Timeline or Reports yet.",
+                  "Sleeps show in Reports (the Sleep tab), but not in Timeline yet.",
                   "On iPad, sleep cards sit above the table, and Sleep has its own column."
                 ]
+              }
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Sleep in Reports",
+      "lead": "Open **Reports**, then tap **Sleep**. Today first, then the days before.",
+      "rows": [
+        {
+          "cols": [
+            [
+              {
+                "image": "img/23-reports-today.png",
+                "chip": "Today so far",
+                "chip_color": "night",
+                "legend": [
+                  "**Reports**, then the **Sleep** tab.",
+                  "Where baby is now: **Awake** or **Sleeping**, and for how long.",
+                  "Naps so far today, added up.",
+                  "Today from midnight. Dark is asleep; the black line is now."
+                ],
+                "note": "Below: last night and each nap, with times and lengths. A sleep still going isn't added until it's stopped."
+              },
+              {
+                "image": "img/25-reports-ranges.png",
+                "chip": "Pick a range",
+                "chip_color": "sage",
+                "caption": "**Last 7 days**, **Last 30 days**, **Monthly**, **Yearly** or **All time**. Swipe along for the rest.",
+                "note": "Everything below follows the range."
+              }
+            ],
+            [
+              {
+                "image": "img/24-reports-pattern.png",
+                "chip": "24-hour pattern",
+                "chip_color": "night",
+                "legend": [
+                  "Tap a day to see its details here.",
+                  "One row per day, newest first. Dark is asleep.",
+                  "Today is paler: it's still going."
+                ],
+                "note": "A night shows on two rows because it crosses midnight, but it counts on the day baby woke."
+              },
+              {
+                "image": "img/29-reports-table.png",
+                "chip": "Day by day",
+                "chip_color": "night",
+                "caption": "Every day in numbers, newest first. **Night + naps = Total**. Scroll sideways for the rest."
+              }
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Averages and charts",
+      "lead": "These follow the range you picked.",
+      "rows": [
+        {
+          "cols": [
+            [
+              {
+                "image": "img/26-reports-averages.png",
+                "chip": "Averages",
+                "chip_color": "night",
+                "caption": "Nine cards for the period you picked.",
+                "note": "They leave out today and any day with no sleep. **Longest unbroken sleep** is the best night, not an average."
+              }
+            ],
+            [
+              {
+                "image": "img/27-reports-per-day.png",
+                "chip": "Sleep per day",
+                "chip_color": "night",
+                "caption": "Tap a bar for that day. Hatched is naps; dashed is today so far."
+              },
+              {
+                "image": "img/28-reports-longest.png",
+                "chip": "Longest stretch",
+                "chip_color": "night",
+                "caption": "The longest unbroken sleep each night, and how many times baby woke."
               }
             ]
           ]

@@ -52,7 +52,7 @@ SOFT = HexColor("#6b6a63")
 LINE = HexColor("#cfc4a9")
 CHIP_COLORS = {
     "sage": HexColor("#4f7566"),
-    "night": HexColor("#3d4d85"),
+    "night": HexColor("#2a3563"),
     "amber": HexColor("#a9731f"),
     "rose": HexColor("#8b4a63"),
     "ink": INK,
