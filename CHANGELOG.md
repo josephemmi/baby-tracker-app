@@ -23,6 +23,15 @@ feature, and PATCH is a fix with no new functionality.
   not added leaves a gap in the pattern and its day is left out of the averages.
   The summary table's title also stays in place when the table is scrolled
   sideways on a phone.
+- Delete sleep moves into Edit (JOS-92). The Delete sleep button under a finished
+  sleep is gone: the cross at the top right of a sleep card deletes it, as on
+  every other card, and the big button was too easy to hit by mistake. In Edit,
+  sleep cards now have a tick box like the other cards, and the sleeps and moments
+  ticked are deleted together with one confirmation that counts both, such as
+  "Delete 3 logged moments and 1 sleep?". A sleep that is still going can be
+  ticked too, and the box says it will be stopped. If the other parent changed one
+  of the sleeps first, that one stays and a message says so while the rest are
+  deleted. Deleted sleeps still go to Recently Deleted for 7 days.
 
 ### Fixed
 - The Sleep averages no longer count a daytime sleep as a night (JOS-90). A
