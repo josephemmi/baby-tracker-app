@@ -52,7 +52,31 @@ picks this up next.
   this retro (a Design approach section, two gotchas and a sentence on ticket
   closing in CLAUDE.md, and this entry), a docs commit on the JOS-87 branch.
 
+- Joseph then looked at the Sleep averages on production and found Average
+  bedtime 1:13 am and Average wake-up 10:34 am (the baby goes to bed around
+  7:30 pm and wakes around 8 am) and a Saturday row of 3h 50m, bedtime 11:07 am,
+  up 2:57 pm, and asked whether Saturday was made up. It was not: the live
+  `sleeps` table has nine real sleeps logged by Joseph and Jen, and an independent
+  recomputation and the app's own engine both reproduce every number he saw.
+  The arithmetic was right and the classification wrong: Saturday 17 Oct is the
+  first day of logging, with no night in the record (Saturday night ends on
+  Sunday), and the rule named the longest sleep that ended on a date the night
+  with no minimum, so the 11:07 am to 2:57 pm sleep became Saturday's night. Fix
+  on [JOS-90](https://linear.app/josephemmi/issue/JOS-90) (Bug, In Progress): a
+  night needs 5 h asleep (`CFG.minNightMs`), a day with no night is left out of
+  every average and named under the Averages heading, and clearer labels (Average
+  time asleep per day, Average length of night sleep, Average wake-up time). It
+  changes the agreed model, so the v1.14 spec, prototype and reference engine in
+  Drive need the same two changes. With the fix the live week reads bedtime
+  8:16 pm, wake-up 8:23 am, night 10h 42m, day 11h 59m.
+
 **In flight / open:**
+- JOS-90 is a PR waiting for Joseph's review (the preview shares the live
+  database, so it shows his real week). The Reports averages screenshot in the
+  Sleep tracker guide shows the old labels: reshoot it at the release cut, which
+  would be v1.14.1 (confirm the level). Last night's sleep (Mon 7:20 pm to Tue
+  10:16 am) is not in the averages yet because it counts as today; it joins
+  tomorrow. Counting a finished night at once would be a separate change.
 - JOS-87 waits for Joseph's pick (a tablet letter and a phone letter); my
   recommendation is H and P1, P2 if he wants more room. Build it on the assigned
   branch (restarted from the production tip) with JOS-87 in the PR title. The
