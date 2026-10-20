@@ -143,6 +143,13 @@ export function averagesNote(days: Day[], sum: Summary): string {
   return `${count} Not included: today so far, and ${dayList(left)}${noNight}.`;
 }
 
+// Under the "Averages" title, whatever the range: the averages count only the
+// sleeps that were logged, and nothing is estimated (JOS-90). The line after it
+// (averagesNote) says which days that left out this time.
+export function loggedNote(): string {
+  return "Only sleeps that were logged are counted. If a night wasn't added, that day is left out of the averages.";
+}
+
 // The line under the cards: what a night is, and which day it counts on.
 export function nightNote(): string {
   return `A night is a sleep of ${CFG.minNightMs / HOUR} hours or more. It counts on the day he woke.`;
@@ -342,6 +349,12 @@ export function patternRows(days: Day[]): PatternRow[] {
         })),
       };
     });
+}
+
+// Under the pattern's title: how to read a row, and that only logged sleeps are
+// drawn, so a night nobody added leaves a gap rather than a guess (JOS-90).
+export function patternNote(): string {
+  return "One row per calendar day. A night shows on two rows but counts on the day he woke. Only sleeps that were logged are drawn, so a night nobody added leaves a gap.";
 }
 
 /* ---------- the status pill ---------- */

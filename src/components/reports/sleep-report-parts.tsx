@@ -5,6 +5,11 @@ import type { ReactNode } from "react";
 
 export const CARD = "min-w-0 rounded-[10px] border border-line bg-paper-raised p-4 shadow-card";
 export const EYEBROW = "text-[11px] font-bold tracking-[0.05em] text-ink-soft uppercase";
+// The title of a section on the Sleep tab (JOS-91): the screen titles' bold and
+// tracking (the household name, Recently Deleted are 19 px) one step smaller,
+// in ink rather than the grey small capitals of the labels inside a card, so
+// each section starts with a clear break. One place, so the size is one edit.
+export const SECTION_TITLE = "text-[17px] leading-snug font-bold tracking-[-0.01em] text-ink";
 
 // The box above a chart that says what the pinned bar or row is. Polite, so a
 // screen reader reads it when a new bar is chosen.

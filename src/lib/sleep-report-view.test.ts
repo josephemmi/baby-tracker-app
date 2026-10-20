@@ -224,6 +224,14 @@ describe("averages", () => {
       expect(V.nightNote()).toBe("A night is a sleep of 5 hours or more. It counts on the day he woke.");
     });
 
+    it("says under the title that only logged sleeps are counted and a night not added leaves the day out", () => {
+      expect(V.loggedNote()).toBe(
+        "Only sleeps that were logged are counted. If a night wasn't added, that day is left out of the averages.",
+      );
+      // the line after it still says which days that was this time
+      expect(V.averagesNote(mixed, S.summarise(mixed))).toContain("Mon 12 (no night sleep logged)");
+    });
+
     it("shows Joseph's first week as it should read: Sat has no night, the averages are Sun and Mon only", () => {
       // the same rounded week as the engine tests: Sat 17 daytime sleeps only, then two nights
       const week = [
@@ -429,6 +437,12 @@ describe("the 24-hour pattern", () => {
   it("says 'so far' for today and leaves the night out when there is none", () => {
     const d = days([sleep("nap", [[L(10, 17, 9, 0), L(10, 17, 9, 40)]])], L(10, 17, 10, 0));
     expect(V.patternText(d[0])).toContain("Sat 17 Oct so far · 40m asleep");
+  });
+
+  it("says under the title how to read a row, and that a night nobody added leaves a gap", () => {
+    expect(V.patternNote()).toBe(
+      "One row per calendar day. A night shows on two rows but counts on the day he woke. Only sleeps that were logged are drawn, so a night nobody added leaves a gap.",
+    );
   });
 
   it("is the latest 14 days, newest first", () => {

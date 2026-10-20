@@ -15,6 +15,14 @@ feature, and PATCH is a fix with no new functionality.
   night sleep") and "Average wake-up time". Bedtime and wake-up now say they are
   when the night sleep starts and ends, and a line under the cards says what a
   night is.
+- Bigger section titles on the Sleep tab (JOS-91). 24-hour pattern, Averages,
+  Sleep per day, Longest stretch and night wakes, and Sleep summary are now bold
+  titles instead of small grey capitals, with more space between the sections, so
+  each one starts with a clear break. Under 24-hour pattern and under Averages a
+  line now says that only sleeps that were logged are counted: a night that was
+  not added leaves a gap in the pattern and its day is left out of the averages.
+  The summary table's title also stays in place when the table is scrolled
+  sideways on a phone.
 
 ### Fixed
 - The Sleep averages no longer count a daytime sleep as a night (JOS-90). A
