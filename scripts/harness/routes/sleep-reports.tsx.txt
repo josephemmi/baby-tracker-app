@@ -1,0 +1,19 @@
+// Copy to src/app/dev-preview/sleep-reports/page.tsx while testing. DELETE BEFORE COMMITTING (CLAUDE.md: never leave dev-preview routes in the tree).
+// The real Reports > Sleep tab (SleepReportsView); its reads are answered by the harness (get_sleeps).
+// ?w=<phone width in px>. Flows wait for the text "Naps today".
+import { SleepReportsView } from "@/components/reports/sleep-reports-view";
+
+const BABY = "00000000-0000-0000-0000-0000000000d1";
+
+export default async function Page({ searchParams }: { searchParams: Promise<{ w?: string }> }) {
+  const { w = "393" } = await searchParams;
+  return (
+    <div style={{ width: Number(w) }}>
+      <div className="min-h-screen bg-paper p-4 sm:p-8">
+        <div className="mx-auto flex max-w-4xl flex-col gap-6">
+          <SleepReportsView babyId={BABY} />
+        </div>
+      </div>
+    </div>
+  );
+}

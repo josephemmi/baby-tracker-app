@@ -1,0 +1,42 @@
+// Copy to src/app/dev-preview/sleep-log/page.tsx while testing. DELETE BEFORE COMMITTING (CLAUDE.md: never leave dev-preview routes in the tree).
+// The real Log screen (LogMatrix) as one simulated person; the harness (lib.mjs) answers its Supabase calls.
+// ?as=joseph|jen  ?w=<phone width in px>. The entries here must equal ENTRY_ROWS in the flow script (a refetch returns those).
+import { AppHeader } from "@/components/layout/app-header";
+import { LogMatrix } from "@/components/log/log-matrix";
+import type { EntryRow } from "@/lib/entries";
+
+const USERS: Record<string, string> = {
+  joseph: "00000000-0000-0000-0000-0000000000a1",
+  jen: "00000000-0000-0000-0000-0000000000a2",
+};
+const BABY = "00000000-0000-0000-0000-0000000000d1";
+const MEMBERS = [
+  { id: USERS.joseph, name: "Joseph" },
+  { id: USERS.jen, name: "Jen" },
+];
+
+const row = (id: string, type: "feed" | "poop" | "pee", timestamp: string, extra: Partial<EntryRow> = {}): EntryRow => ({
+  id, baby_id: BABY, logged_by: USERS.joseph, type, timestamp, notes: null, amount_ml: null, bottle: false, breast: false,
+  breast_right_seconds: 0, breast_left_seconds: 0, breast_active_side: null, breast_active_started_at: null,
+  breast_session_ended: false, created_at: timestamp, deleted_at: null, deleted_by: null, ...extra,
+});
+// Tue 20 Oct 2026, London (BST): 8:05 am, 11:10 am and 12:20 pm
+const ENTRIES: EntryRow[] = [
+  row("e0000000-0000-0000-0000-000000000003", "poop", "2026-10-20T11:20:00.000Z"),
+  row("e0000000-0000-0000-0000-000000000002", "pee", "2026-10-20T10:10:00.000Z"),
+  row("e0000000-0000-0000-0000-000000000001", "feed", "2026-10-20T07:05:00.000Z", { bottle: true, amount_ml: 120 }),
+];
+
+export default async function Page({ searchParams }: { searchParams: Promise<{ as?: string; w?: string }> }) {
+  const { as = "joseph", w = "393" } = await searchParams;
+  return (
+    <div style={{ width: Number(w) }}>
+      <div className="min-h-screen bg-paper p-4 sm:p-8">
+        <div className="mx-auto flex max-w-4xl flex-col gap-6">
+          <AppHeader householdName="Our household" inviteCode="ABC123" profileName={as === "jen" ? "Jen" : "Joseph"} profileColorIndex={as === "jen" ? 1 : 0} active="log" />
+          <LogMatrix babyId={BABY} currentUserId={USERS[as] ?? USERS.joseph} members={MEMBERS} initialEntries={ENTRIES} />
+        </div>
+      </div>
+    </div>
+  );
+}

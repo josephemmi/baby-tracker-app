@@ -12,6 +12,18 @@
 - All product backlog issues for this repo live in that project. When
   creating or updating issues for work here, use this team/project rather
   than asking which one to use.
+- **One conversation per ticket (Joseph, 20 Oct, after a session of many review
+  rounds).** A long conversation costs context on every turn and after every
+  compaction, so he starts a new one for each ticket. Work to that: stay on the
+  ticket the conversation opened with; an idea or question that grows into its
+  own piece of work gets its own ticket, not a detour, and **everything
+  discussed goes into that ticket** (his decisions and his reasons, my
+  recommendation, the open questions, where in the code) so the next
+  conversation starts from the ticket alone; and when a conversation has been
+  through a few review rounds, offer to wrap up with the handover (the tickets,
+  and the "Next conversations" list in the newest `PROJECT_LOG.md` entry)
+  rather than carrying on. What every session reads is paid for every time:
+  keep `PROJECT_LOG.md` short (its header says when to archive).
 
 ## Design approach
 
@@ -105,6 +117,15 @@
   head is an ancestor, so the push is a fast-forward), and since that branch
   cannot be renamed, the new PR's title carries its own new ticket id, never
   the merged one (JOS-87 after PR #44).
+- **Review feedback on an open PR that is really new work (JOS-91 and JOS-92
+  on PR #45).** The session's branch is fixed, so it rides on the open PR rather
+  than waiting for a second one (one preview, one review for Joseph): its own
+  ticket, its own commit and its own CHANGELOG line, every ticket id in the PR
+  title (that is what links each ticket in Linear and closes it on merge), and the
+  PR body rewritten to say what each one does. Say in the reply that it is one PR.
+  Work that is *not* on the PR keeps its id out of the title. If Joseph then
+  says to merge before the release is cut, merge, and file the release as its
+  own ticket (JOS-98 did): the tickets close on the merge.
 - Every piece of work gets a Linear ticket in the JOS team / Momentini
   project — including process or tooling fixes noticed along the way
   (like this section, or JOS-43), not just product features and bugs.
@@ -483,8 +504,10 @@ time.
   run works. More generally: a test suite that runs everything in one
   session can hide privilege bugs; mutation-check new SQL tests by breaking
   the rule in a copy of the migration and confirming the test goes red.
-- **Verifying a DB-backed feature end to end from a web session (JOS-56;
-  JOS-57 tracks committing this as tooling).** The mock-data dev-preview
+- **Verifying a DB-backed feature end to end from a web session (JOS-56).
+  The scripts are saved in `scripts/harness/` (JOS-96; its README has the quick
+  start, what each script is for and which are stale; JOS-57 tracks tidying
+  them): start there instead of rebuilding it.** The mock-data dev-preview
   route above can't catch bugs in SQL, RLS or grants, and the live project is
   unreachable from here. What works: a scratch Postgres 16 (binaries in
   `/usr/lib/postgresql/16/bin`) with every migration applied, the real
@@ -592,8 +615,8 @@ time.
 - **Comparing layout options on the real component (JOS-83 tiles, JOS-87).**
   The scripts that did it (`tiles.mjs` and `tiles2.mjs`: each option is CSS
   injected after load and measured per width and state; `build_tiles_page2.py`:
-  the Artifact page; `page-test.mjs`: every control and combination) live only
-  in a session scratchpad, like the harness (JOS-57). Two things cost time: a
+  the Artifact page; `page-test.mjs`: every control and combination) are saved
+  in `scripts/harness/` with the rest of the harness (JOS-96). Two things cost time: a
   container query can only restyle *descendants* of its container, so a tile
   that picks its own layout needs the query on the tile and the moving part
   (the pill) positioned absolutely inside it, which also keeps the tile the

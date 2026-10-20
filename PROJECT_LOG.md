@@ -17,6 +17,96 @@ Each entry: the date, what was done (with ticket/PR links), anything
 left in flight or still open, and anything worth flagging for whoever
 picks this up next.
 
+**Keep this file short.** It is imported into every session, so it is paid
+for in every conversation's context, and Joseph now starts one conversation
+per ticket. It was 65 KB (60% of the imported instructions) before the first
+trim. When it passes about 40 KB, move the oldest entries to
+`docs/project-log-archive.md` (not imported) and keep the pointer line at the
+bottom. The newest entry carries a "Next conversations" list, so a new
+conversation knows where to start without reading the rest.
+
+---
+
+## 2026-10-20, evening (PR #45 merged; handover to one conversation per ticket)
+
+**Done:**
+- Joseph approved and said to merge: [PR #45](https://github.com/josephemmi/baby-tracker-app/pull/45)
+  is **merged** (merge commit `b84747b`; the production deployment is READY).
+  It holds JOS-90 (a night needs 5 h asleep, a day with no night is left out of
+  the averages, clearer labels), JOS-91 (bigger Sleep section titles and the
+  "only logged sleeps count" notes) and JOS-92 (the Delete sleep button is gone;
+  sleeps join Edit mode's bulk delete). Linear moved the three to Done by itself;
+  JOS-89 (the retro notes, named only as a link) was moved by hand. The release
+  was **not** cut: it was merged first on his go-ahead, so the release is a small
+  release PR later (as v1.13.1 was), not a commit on PR #45. `[Unreleased]` holds
+  four entries and `package.json` is still 1.14.0.
+- His answers: a **banner, not a pop-up**, for a missed night, with a way to add
+  it, and the add-a-past-sleep form is built first. The time is still to discuss;
+  he leans to 9:00 (people reach work around then, which could help or hurt) and
+  says the app's job is to **flag** a missed night, not to make sure it gets
+  done. The sleep paused at 7:05, resumed at 7:43 and ended at 10:16 is one valid
+  night. A tenth average and the other open questions were asked as opinions
+  only; nothing built.
+- Filed, all with the whole discussion in the ticket:
+  [JOS-93](https://linear.app/josephemmi/issue/JOS-93) add a past sleep (Feature,
+  Needs Scoping);
+  [JOS-94](https://linear.app/josephemmi/issue/JOS-94) the morning banner (Feature,
+  Needs Scoping, blocked by JOS-93);
+  [JOS-95](https://linear.app/josephemmi/issue/JOS-95) count a finished night in
+  the averages the same morning (Polish, Needs Scoping, Low);
+  [JOS-97](https://linear.app/josephemmi/issue/JOS-97) Average time awake at night
+  (Feature, Needs Scoping, Low; cancel it if he would not use it);
+  [JOS-98](https://linear.app/josephemmi/issue/JOS-98) the release for PR #45
+  (Process, Todo); [JOS-96](https://linear.app/josephemmi/issue/JOS-96) save the
+  testing harness in the repo (Process).
+- **The harness is saved**: `scripts/harness/` (JOS-96, the first cut of JOS-57)
+  has the scratch-Postgres and Playwright scripts, the flow and screenshot
+  scripts and the dev-preview route templates, with a README (quick start, what
+  each script is for, which are stale). A new conversation starts with an empty
+  scratchpad, so without this each ticket below would have rebuilt it. That PR is
+  tooling only: **it has to be merged before the next conversations start**, or
+  they will not see it.
+
+**Next conversations (Joseph plans one per ticket, 3 to 5), in the order I would
+take them:**
+1. [JOS-98](https://linear.app/josephemmi/issue/JOS-98): the release for PR #45.
+   Decide the level (1.14.1, or 1.15.0 which is my lean) and whether to cut one
+   release together with JOS-87; then the notes PDF, the guide reshoot and the
+   Drive spec update.
+2. [JOS-87](https://linear.app/josephemmi/issue/JOS-87): the Log tile layout.
+   He picks first (tablet H, S or N; phone P1 to P4; my recommendation is H and
+   P1, or P2 for more room); the options page is
+   https://claude.ai/artifact/Fw6CtTGTwFmZ1Yxru5Yvsh. Build it on a container
+   query on the tile (CLAUDE.md has the detail).
+3. [JOS-93](https://linear.app/josephemmi/issue/JOS-93) then
+   [JOS-94](https://linear.app/josephemmi/issue/JOS-94): scoping (his handoff
+   process: a spec and a prototype in Drive), then two builds, the form first. The
+   form needs a migration, so DDL on the live database is his call.
+4. [JOS-88](https://linear.app/josephemmi/issue/JOS-88): which day a night counts
+   on (my recommendation: keep the wake date, label a night by both days).
+5. Only if he wants them: JOS-97 and JOS-95. Also on the board: JOS-58
+   (notifications; the banner may be built on it), JOS-66 (the type scale would
+   replace `SECTION_TITLE`; the Feeds tab still has small-capital chart titles,
+   so ask whether they should match), JOS-57 (tidying the harness).
+
+**In flight / open:**
+- Nothing is half-built and the working tree is clean. Device checks from the
+  earlier releases (Jen's iPad home-screen app, an Android phone with a running
+  sleep, realtime on two devices) are still outstanding, and realtime delivery
+  has never been exercised, only the poll.
+
+**Worth knowing:**
+- In the harness, every card holds a checkbox per tile: count tick boxes by
+  `aria-label`, never `input[type="checkbox"]` (the README has the list of traps).
+- A ticket for work on a merged PR stays Done: JOS-90, JOS-91 and JOS-92 closed on
+  the merge, so the leftovers (release, Drive spec) are their own ticket, JOS-98.
+- `retro` (docs only, on the harness PR): this log was 65 KB and is imported into
+  every session, so the September entries moved to `docs/project-log-archive.md`
+  (now about 38 KB; the header says when to trim again); CLAUDE.md has two new
+  notes (one conversation per ticket; review feedback that is new work rides on
+  the open PR with every ticket id in the title); the harness README says how to
+  stop the dev server tree.
+
 ---
 
 ## 2026-10-20, later (JOS-83 merged; tile and night-label follow-ups)
@@ -98,8 +188,8 @@ picks this up next.
   opinions only: nothing built (see the reply).
 
 **In flight / open:**
-- JOS-90, JOS-91 and JOS-92 are one PR waiting for Joseph's review (the preview
-  shares the live database, so it shows his real week). At the release cut
+- JOS-90, JOS-91 and JOS-92 were one PR (#45), now merged: see the entry above;
+  the release is JOS-98. At the release cut
   (confirm the level: a patch for JOS-90 alone, a minor is arguable with JOS-92)
   reshoot the Sleep tracker guide images that show the old Reports averages
   labels and section titles and the Delete sleep button (pages for finished
@@ -526,476 +616,5 @@ picks this up next.
 
 ---
 
-## 2026-09-15/16 (JOS-54/JOS-55)
-
-**Done:**
-- [JOS-54](https://linear.app/josephemmi/issue/JOS-54) (Done): JOS-9's
-  numeric-keypad fix (`type="text"` + `inputMode="numeric"` +
-  `pattern="[0-9]*"`) was verified on Android but iPad confirmation had
-  been left outstanding; Joseph then tested it on Jen's iPad specifically
-  as an *installed home-screen PWA* (not just a Safari tab) and found it
-  still brought up the full keyboard for both the Pump mL field and the
-  Bottle mL field when logging a feed. Researched (this environment can't
-  run a real iPad to reproduce) and found `inputMode` is documented as
-  unreliable specifically inside iOS's installed-PWA runtime, which runs
-  on a different WebKit host process than a regular Safari tab.
-  `type="text"` gives WebKit nothing to fall back on when `inputMode` is
-  ignored. Fixed by switching all 4 mL input call sites (bottle/pump ×
-  `EntryCard`/`EntryTableRow`) to `type="tel"`, kept alongside the
-  existing `inputMode="numeric"`/`pattern="[0-9]*"` — `type="tel"` has
-  driven iOS's keyboard selection since long before `inputMode` existed
-  and doesn't depend on the installed-PWA runtime's `inputMode` handling;
-  the tel keypad's extra `*`/`#` keys are stripped by the existing
-  `sanitizeDigits()`. Filed as its own ticket rather than reopening JOS-9
-  (Done, already released in v1.11.2), matching the JOS-44/JOS-45
-  precedent. Joseph explicitly approved merging without a device-verified
-  diff, since this environment has no way to preview on a real iPad; left
-  a comment on the ticket flagging that device confirmation is still
-  outstanding and that a "doesn't work" report should reopen this ticket
-  rather than start a new one. [PR #34](https://github.com/josephemmi/baby-tracker-app/pull/34)
-  merged to production.
-- [JOS-55](https://linear.app/josephemmi/issue/JOS-55) (Process, In
-  Review — retro finding, fixed same session): every web session starts
-  from a fresh container with no `node_modules`, so the first
-  `npm run lint`/`test`/`build` of any session failed immediately
-  (`ERR_MODULE_NOT_FOUND: eslint`) until dependencies were installed —
-  an undocumented step every session would otherwise independently
-  rediscover. The existing `.claude/hooks/session-start.sh` SessionStart
-  hook already ran automatically but only set git identity; added
-  `npm install` to it (still gated behind the existing
-  `CLAUDE_CODE_REMOTE` check), using `install` rather than `ci` so a
-  container with a cached `node_modules` from a prior session can reuse
-  it. Validated by wiping `node_modules` and running the hook directly,
-  then confirming lint/test both worked immediately after with no manual
-  step. [PR #35](https://github.com/josephemmi/baby-tracker-app/pull/35)
-  merged to production — future sessions pick up the updated hook
-  automatically.
-
-**Worth knowing:**
-- JOS-54's fix is unverified on a real device — watch for Joseph's
-  follow-up report on whether the iPad PWA now shows the numeric keypad.
-- This session confirmed a fresh Claude Code web session's container has
-  no pre-installed `node_modules` at all (not just possibly-stale ones)
-  — worth knowing if a future session sees the same
-  `ERR_MODULE_NOT_FOUND` symptom for a different missing package before
-  JOS-55's hook fix has had a chance to run (e.g. a very first session on
-  a container image predating this change, or if the hook itself ever
-  fails partway through).
-
----
-
-## 2026-09-15 (JOS-5/JOS-9/JOS-52/JOS-53)
-
-**Done:**
-- [JOS-5](https://linear.app/josephemmi/issue/JOS-5) (Canceled):
-  investigated the reported X/delete icon on the user chip's avatar —
-  current code has no such icon on either `EntryCard`'s or
-  `EntryTableRow`'s logged-by chip, just an avatar+name button that
-  cycles the logged-by member; the only delete affordance is a separate
-  top-right X on the card itself. Git history doesn't show a commit
-  removing it — the chip code traces back to this repo's earliest
-  (squashed) commit, predating the ticket's own screenshot date, so
-  whatever fixed it happened before this repo's tracked history began.
-  Closed as Canceled (not Done, since no fix was made under this ticket)
-  with the investigation trail as a comment.
-- [JOS-9](https://linear.app/josephemmi/issue/JOS-9) (Done): the
-  bottle/pump mL amount fields (4 call sites: bottle/pump ×
-  `EntryCard`/`EntryTableRow`) used `type="number"` with no `inputMode`,
-  which doesn't reliably force a numeric keypad on mobile. Switched to
-  `type="text"` + `inputMode="numeric"` + `pattern="[0-9]*"`, stripping
-  non-digit characters (including decimal points — this is a whole-mL,
-  no-decimal build) via a new `sanitizeDigits()` helper
-  (`src/lib/numeric-input.ts`). Audited the rest of the app — these 4
-  fields are the only number-only inputs. Verified via a temporary
-  dev-preview + Playwright pass (attributes + sanitization behavior);
-  Joseph confirmed on Android (numeric keypad, no decimals) — iPad still
-  untested but not blocking. [PR #29](https://github.com/josephemmi/baby-tracker-app/pull/29)
-  merged.
-- [JOS-52](https://linear.app/josephemmi/issue/JOS-52) (Done): per
-  Joseph's request, documented in `CLAUDE.md` that PRs handed to him for
-  review should include the actual Vercel preview link — but only when
-  there's an app UI/behavior change to actually look at; a docs-only PR
-  has nothing for him to do with one. First draft of the rule missed
-  that exception and needed a follow-up commit once he pointed it out.
-  [PR #30](https://github.com/josephemmi/baby-tracker-app/pull/30) and
-  the follow-up fix both merged.
-- Cut **v1.11.2** (patch — fix only, confirmed with Joseph): moved
-  `[Unreleased]` into a dated section, bumped `package.json`/
-  `package-lock.json`, generated the release-notes PDF (no screenshot —
-  no visible UI change, just OS keyboard behavior), sent it via chat,
-  attached it to JOS-9 and posted the release notes as a comment there.
-  [PR #31](https://github.com/josephemmi/baby-tracker-app/pull/31)
-  merged.
-- `retro`: two findings, both fixed as `CLAUDE.md` notes plus one
-  directly-requested convention change, all in
-  [JOS-53](https://linear.app/josephemmi/issue/JOS-53) /
-  [PR #32](https://github.com/josephemmi/baby-tracker-app/pull/32):
-  (1) a new standing rule (the JOS-52 preview-link one) shipped without
-  thinking through an obvious edge case first — added a general
-  instruction to consider edge cases before committing a new "always X"
-  rule to this file. (2) the `type="text"` + `inputMode="numeric"` +
-  `pattern="[0-9]*"` pattern for digits-only mobile fields (over
-  `type="number"`, which doesn't reliably force a numeric keypad and
-  still allows `.`/`-`/`+`/`e`) wasn't documented anywhere — added as a
-  gotcha, alongside a note that this environment can't verify the real
-  on-device keypad, only that the attributes are correct. Also renamed
-  the release-notes PDF convention to `NestlogReleaseNotesv{version}.pdf`
-  (no hyphens) and fixed a stale line in
-  `scripts/generate-release-notes.py`'s docstring that contradicted
-  `CLAUDE.md`'s "don't upload to Drive" rule.
-
-**Worth knowing:**
-- JOS-9's iPad/iOS confirmation is still outstanding — not blocking,
-  but worth a quick check next time Joseph has the iPad in hand.
-- The release-notes filename convention changed this session
-  (`NestlogReleaseNotesv{version}.pdf`, no hyphens) — past PDFs
-  referenced elsewhere in this log used the old hyphenated form; that's
-  accurate history, not a mistake to fix retroactively.
-
----
-
-## 2026-09-13 (JOS-41)
-
-**Done:**
-- [JOS-41](https://linear.app/josephemmi/issue/JOS-41) (Done): fixed the
-  "Log a moment" button intermittently resizing — the button and its
-  error `<p>` shared one flex row with no width limit on the error text,
-  so any non-trivial error string forced the row to wrap and squeezed the
-  button. Moved the error text out of that row entirely (own line below,
-  `truncate`d as a second line of defense) and gave the button `shrink-0`
-  so nothing in that row can resize it again. Verified with a temporary
-  dev-preview route + Playwright: button bounding box identical
-  (148.7×37.75px) with a long error shown vs. hidden.
-  Also shipped diagnostics-only logging (explicitly not a fix) to every
-  mutation's catch path in `log-matrix.tsx` and to `refetch()` — which
-  handler failed, `navigator.onLine`, a timestamp — since the ticket's
-  actual root cause (an intermittent `TypeError: Failed to fetch`) is
-  still unconfirmed; `refetch()` was also fixed to actually read the
-  `error` field off both its queries, which it had silently dropped
-  entirely. [PR #26](https://github.com/josephemmi/baby-tracker-app/pull/26)
-  merged to production.
-- Cut **v1.11.1** (patch — fix only, confirmed with Joseph): moved
-  `[Unreleased]` into a dated section, bumped `package.json`/
-  `package-lock.json`, generated `Nestlog-Release-Notes-v1.11.1.pdf`
-  with a tight, element-scoped screenshot matching Home's real
-  container padding, sent it via chat, attached it to JOS-41 and posted
-  the release notes as a comment there (ticket had already
-  auto-transitioned to Done via the Linear↔GitHub merge integration
-  before the comment landed — attach-then-comment-then-Done wasn't
-  achievable in that order this time since Done happened automatically
-  on merge, not manually). [PR #27](https://github.com/josephemmi/baby-tracker-app/pull/27)
-  merged.
-- `retro`: two findings, both fixed as CLAUDE.md notes (docs-only,
-  Joseph approved): (1) a session this run paused before opening PR #26
-  despite `CLAUDE.md` already mandating a PR on every branch, treating a
-  generic "don't create PRs unless asked" default as still blocking —
-  cost a round of clarification. Added an explicit line stating the
-  existing "every branch gets a PR" rule **is** the standing ask, so
-  future sessions don't re-litigate it. (2) building the v1.11.1
-  release screenshot, a dev-preview page crashed with `Event handlers
-  cannot be passed to Client Component props` from a stray no-op
-  `onClick` on a page with no `"use client"` — added a note to the
-  dev-preview gotchas list to just drop unneeded handlers on
-  screenshot-only preview pages.
-
-**Worth knowing:**
-- Confirmed directly via Vercel (`list_deployments`, filtering
-  `target: "production"`) that only pushes/merges into
-  `claude/baby-tracker-nextjs-setup-9gocr2` ever deploy to production —
-  a feature-branch push (this session's `claude/jos-41-...` branch)
-  produces a preview deployment (`target: null`) only. Useful concrete
-  confirmation of the workflow `CLAUDE.md` already describes, for
-  anyone who wants to double-check it themselves.
-- Linear's GitHub integration auto-transitions a linked issue to Done
-  on PR merge — faster than the manual "attach PDF, comment, then move
-  to Done" release-process order `CLAUDE.md` describes. Not a problem
-  so far (comment/attachment still happened, just after the automatic
-  Done rather than before), but worth knowing the automation can
-  outrun the documented manual sequence.
-
----
-
-## 2026-09-08/09 (JOS-48/JOS-49)
-
-**Done:**
-- [JOS-48](https://linear.app/josephemmi/issue/JOS-48) (Done): built the
-  mL explicit Save (checkmark) button — fades in next to the bottle/pump
-  mL fields while editing (replacing the "ml" label), tapping it commits
-  the value via the existing `flush()`/`onBlur` path, blurs the input to
-  close the keyboard, and flashes the row to confirm. Reverted the JOS-47
-  debounce autosave from 3.5s back to 600ms alongside it, since the
-  checkmark is now the real save-and-close action and the debounce lost
-  its only UI-visible role. New `src/lib/save-pulse.ts` factors out the
-  "flip true, auto-reset after N ms" state shared by the four save
-  confirmations. Applied to all four call sites (bottle/pump ×
-  `EntryCard`/`EntryTableRow`). Two device-tested follow-up fixes landed
-  on the same PR after Joseph's screenshots caught real bugs: (1) the
-  checkmark's fade-out relied on CSS `:focus-within` on the row, but
-  tapping the checkmark moves focus onto the button itself inside that
-  same row, keeping `:focus-within` true forever and leaving the
-  checkmark stuck visible — fixed by tracking each field's editing state
-  explicitly via the input's own `onFocus`/`onBlur` instead; (2) the
-  checkmark's wrapper div kept reserving its full 26px/22px width even
-  after fading to invisible (opacity/transform don't remove layout
-  footprint), leaving a dead gap between "ml" and "Saved" — fixed by
-  animating the wrapper's width to 0 alongside the opacity/scale fade.
-  [PR #21](https://github.com/josephemmi/baby-tracker-app/pull/21)
-  merged to production.
-- Cut **v1.11.0** (minor — confirmed with Joseph, new capability not
-  just a fix): moved `[Unreleased]` into a dated section, bumped
-  `package.json`/`package-lock.json`, generated
-  `Nestlog-Release-Notes-v1.11.0.pdf` with a tight, element-scoped
-  screenshot of the checkmark button, sent it via chat, attached it to
-  JOS-48 and posted the release notes as a comment there before moving
-  it to Done. [PR #22](https://github.com/josephemmi/baby-tracker-app/pull/22)
-  merged.
-- Investigated a residual cosmetic nit Joseph found on-device after
-  PR #21: the "Saved" confirmation text sat closer to the field's right
-  edge than "ML" sits to the left. First analysis pass was wrong — I
-  measured the row in a headless Playwright container that was
-  (unnoticed) shrink-wrapping to content instead of holding a fixed
-  width, which makes any edge-padding measurement come back
-  tautologically symmetric regardless of the real code. Called it
-  "perceptual" on that basis, which was a mistake. Went back and
-  pixel-measured Joseph's actual screenshot directly (border-color pixel
-  scanning) and found a real ~3:1 gap ratio. Shipped a `pr-3` fix on the
-  "Saved" span sized to match the row's own edge padding, but Joseph
-  reported no visible change after reloading — unresolved whether that
-  was deploy/cache lag or a genuine miss. Also confirmed, concretely,
-  that a Claude Code cloud session cannot reach either the Supabase Auth
-  REST API or the deployed Vercel app's own domain directly (both
-  `403` at the network-proxy level, org egress policy) — ruling out
-  "just log in with Playwright and check the real page" as an approach
-  from this kind of session, not just from missing RLS/auth as
-  previously documented. Rather than keep burning cycles on a few-pixel
-  cosmetic gap with no way to verify against Joseph's actual device,
-  agreed with him to stop and file it as its own ticket,
-  [JOS-49](https://linear.app/josephemmi/issue/JOS-49) (Polish, Needs
-  Scoping), with the full investigation trail, what's already been
-  tried, and ranked next steps for whoever picks it up next.
-
-**In flight / open:**
-- [JOS-49](https://linear.app/josephemmi/issue/JOS-49) (Backlog, Needs
-  Scoping): the "Saved" text padding asymmetry. Deliberately not
-  actioned further — see the ticket for the full trail before touching
-  it again. Cheapest next step is just asking Joseph to hard-refresh
-  the same preview link and send a fresh screenshot to see if anything
-  actually changed from the `pr-3` fix already shipped.
-
-**Worth knowing:**
-- The "no live Supabase session" limitation in this file's gotchas
-  section is actually a stricter, hard network-level block, not just an
-  RLS/auth issue: this session confirmed via `curl` and the proxy's own
-  diagnostics that outbound requests to both `*.supabase.co` (the
-  specific project's Auth REST API) and the deployed Vercel app's own
-  domain get rejected with 403 at the sandbox's egress proxy. The
-  Supabase MCP connector still works for direct DB access (separate,
-  pre-authorized channel) but cannot be used to establish a browser
-  session against the live site. Don't attempt "create a test user,
-  log in via Playwright against the deployed URL" again expecting a
-  different result.
-- When measuring real layout/padding with a headless Playwright
-  harness, make sure the outer wrapper has a genuinely fixed width
-  (e.g. `style={{ width: 393 }}`), not just a `maxWidth` — a `maxWidth`
-  + `margin: auto` wrapper can still end up shrink-wrapping to its
-  content if something in the ancestor chain doesn't hand it a definite
-  width to fill, which makes any "gap to container edge" measurement
-  meaningless (it'll always look symmetric by construction). Cost real
-  time and one wrong conclusion this session.
-
----
-
-## 2026-09-07 (JOS-47)
-
-**Done:**
-- [JOS-47](https://linear.app/josephemmi/issue/JOS-47) (High, In Progress):
-  investigated and fixed the mobile mL-input focus-loss bug — typing a
-  multi-digit amount (e.g. "150") and pausing partway would silently
-  close the on-screen keyboard on Android/iOS Chrome after "15". Ruled
-  out the leading suspect (`blurActiveElement()`/`visibilitychange` in
-  `log-matrix.tsx`, added for the iOS date-picker bug) by tracing its two
-  actual trigger points, neither of which fires mid-type while
-  foregrounded. Root cause: the bottle/pump mL `<input>`s are
-  uncontrolled and were keyed on `` `${moment.key}-${amount_ml}` `` so an
-  *external* amount change would force a remount and refresh the shown
-  value — but JOS-42's debounced commit (added later) updates that same
-  `amount_ml` ~600ms after the user pauses mid-typing, so the field's own
-  commit remounted itself and stole focus. A regression introduced by
-  JOS-42, latent until now since the old onBlur-only commit never fired
-  while still focused. Reproduced and verified the fix with a Playwright
-  harness against a temporary dev-preview route (mock `EntryCard` +
-  mock commit handler mirroring `handleAmountCommit`'s state-update
-  shape), toggling the change via `git stash` to confirm both the
-  before (`document.activeElement !== input` after the pause, a
-  subsequent keystroke silently lost) and after (focus retained, full
-  value lands) states. Fixed by dropping `amount_ml` from the `key` and
-  syncing external changes imperatively via a ref + effect that skips
-  the write while the field is focused — applied to both mL fields in
-  both `EntryCard` and `EntryTableRow` (four call sites, same flawed
-  pattern in all of them). Posted the full investigation trail as a
-  Linear comment per the ticket's own request. Joseph device-tested the
-  fix directly and iterated on the debounce delay through four rounds
-  (600ms → 2.5s → 3.5s → back to 2.5s → 3.5s again), each round pushed
-  to its own branch and re-tested on his phone; fetched each branch's
-  actual Vercel preview alias via `list_deployments` rather than
-  guessing one. [PR #16](https://github.com/josephemmi/baby-tracker-app/pull/16)
-  (remount fix + settle on 2.5s) and [PR #18](https://github.com/josephemmi/baby-tracker-app/pull/18)
-  (final bump to 3.5s) both merged into the production branch
-  (`claude/baby-tracker-nextjs-setup-9gocr2`); [PR #17](https://github.com/josephemmi/baby-tracker-app/pull/17)
-  was the docs-only project-log update in between — merged separately
-  and immediately rather than batched with the code PRs, on the general
-  principle (asked about explicitly this session, answered inline) that
-  small independent PRs with no CI gate should merge as soon as each is
-  ready, not accumulate. Along the way, investigated Joseph's report
-  that a *second* edit's keyboard window felt shorter than the first:
-  confirmed `blurActiveElement()` (mount + genuine `visibilitychange`
-  only, still the only `.blur()` call besides intentional Enter-to-blur
-  handlers) can't explain it, and no viewport-resize/IME listener exists
-  anywhere in the app — logged as likely Android's own on-screen-keyboard
-  inactivity behavior, consistent with Jen's reports that iOS Safari and
-  the iPad app were never affected. Final device test at 3.5s: "noticed
-  a significant difference." Left the ticket In Progress rather than
-  Done — a strong result but not quite the explicit "yes, fully fixed"
-  JOS-42 got before closing.
-- `retro`: two findings, both fixed as CLAUDE.md gotcha notes (docs-only,
-  Joseph approved both): (1) deleting `.next` while `npm run dev` is
-  still running corrupts Turbopack's persistent cache and crashes the
-  server — cost three kill/restart cycles this session; now flagged
-  alongside the existing dev-preview `.next` gotcha with "stop the
-  server first." (2) the actual JOS-47 root-cause pattern itself
-  (uncontrolled input keyed on a value + any commit path that can fire
-  while focused) is a general trap worth flagging so it isn't rebuilt
-  elsewhere — added as its own gotcha bullet.
-
-**In flight / open:**
-- JOS-47's fix (remount fix + 3.5s debounce) is merged and live; ticket
-  itself needs an explicit final confirmation from Joseph before moving
-  to Done, or a decision to close it as "good enough" given the residual
-  symptom looks OS-level rather than app-level.
-
-**Worth knowing:**
-- If a future uncontrolled input needs to both (a) refresh from external
-  data changes and (b) autosave/debounce-commit while still focused,
-  don't key it on the value — see the new CLAUDE.md gotcha for the
-  ref+effect pattern used here.
-
----
-
-## 2026-09-02 (JOS-44/JOS-45)
-
-**Done:**
-- [JOS-44](https://linear.app/josephemmi/issue/JOS-44) (Medium, Done):
-  replaced the native `window.confirm()` on delete-entry with a custom
-  in-app modal (`src/components/ui/confirm-delete-modal.tsx`) — spec and
-  reference prototype pulled from Drive. Title "Delete this moment?",
-  unchanged body copy, rose (`#B15E7C`) Delete button per the prototype's
-  decided direction over terracotta. Swapped into both the single quick
-  delete and the multi-select bulk delete in `log-matrix.tsx`; left the
-  unrelated breastfeeding-session-clear `confirm()` alone, out of scope.
-  Merged via PR #8, confirmed working on a real device.
-- [JOS-45](https://linear.app/josephemmi/issue/JOS-45) (Low, Done): found
-  during JOS-44's device review — the modal's copy pointed to "Recently
-  Deleted in Timeline," but Timeline's own banner never used that phrase
-  (it said "N deleted entries · tap to restore"; "Recently Deleted" only
-  existed on the destination screen's `<h1>`). Fixed the banner to lead
-  with the section name: "Recently Deleted (N) · Tap to restore" (capital
-  T, caught in the same device review). Filed as its own ticket and
-  branched from production rather than folded into JOS-44's PR, since it
-  touches a different component and was outside that ticket's stated
-  scope. Merged via PR #9.
-- Also merged PR #10 (CHANGELOG entries for both, docs-only).
-- Session flagged one real process gap, documented inline in `CLAUDE.md`'s
-  gotchas section rather than left implicit: a Vercel preview URL was
-  guessed from another branch's alias pattern instead of fetched via
-  `list_deployments`, and the guess was wrong — cost Joseph a 404 and a
-  round trip. Always fetch the actual `branchAlias` before sharing a link.
-  Filed as [JOS-46](https://linear.app/josephemmi/issue/JOS-46) (Low,
-  Done) per the "every process fix gets a ticket" rule, closed
-  immediately since the fix had already shipped.
-- Cut **v1.10.0** (minor — confirmed with Joseph rather than assumed,
-  since both entries are UI/UX changes, not bug fixes, and the spec doc's
-  own Drive folder was already named "v1.10"): moved `[Unreleased]` into
-  a dated section, bumped `package.json`/`package-lock.json`, generated
-  `Nestlog-Release-Notes-v1.10.0.pdf`, attached it to both JOS-44 and
-  JOS-45 and posted the release notes as a comment on each. Merged via
-  PR #12.
-- Joseph flagged three gaps in that first release-notes pass: the PDF
-  needed screenshots (both JOS-44/JOS-45 are visible UI changes — the
-  first PDF had none), he wants the PDF sent through chat every time (not
-  just attached to Linear, so he can grab it himself and put it in
-  Drive), and JOS-46 was sitting labelless since none of Bug/Feature/
-  Polish actually described a fix to Claude's own process. Fixed all
-  three: regenerated the PDF with tight, element-scoped screenshots of
-  the modal and banner (two earlier attempts leaked the Next.js dev
-  toolbar badge and a too-narrow test container that wrapped text
-  differently than production — both caught and fixed before finalizing,
-  by framing the shot to match the real page's actual container), sent
-  it via `SendUserFile`, re-attached the corrected PDF to both tickets
-  (replacing the screenshot-less one), and added a new **Process** Type
-  label (workspace-level, alongside Bug/Feature/Polish) applied to JOS-46
-  and retrofitted onto JOS-43. All three now standing rules in
-  `CLAUDE.md`, not just one-off fixes. Merged via PR #14.
-
-**Worth knowing:**
-- Both delete-entry `window.confirm()` call sites are gone; a third,
-  unrelated one remains intentionally (clearing an in-progress
-  breastfeeding session on Breast-uncheck) — not a delete action, out of
-  JOS-44's scope.
-- Production branch is still `claude/baby-tracker-nextjs-setup-9gocr2`
-  until JOS-43 lands.
-
----
-
-## 2026-09-02
-
-**Done:**
-- [JOS-42](https://linear.app/josephemmi/issue/JOS-42) (Urgent, merged):
-  bottle/pump mL amounts were silently not saving on Android Chrome — the
-  inputs only committed on `blur`, and Android Chrome doesn't reliably
-  fire `blur` when the on-screen keyboard is dismissed via its own
-  control rather than by tapping another element. Fixed by committing on
-  a short debounce as the user types, in addition to `onBlur`
-  (`src/lib/debounced-commit.ts`), plus an Enter-to-blur fallback on the
-  Time input (same class of bug, lower-severity failure mode — stuck
-  open, not silent loss). Merged via PR #2.
-- Added `.github/pull_request_template.md` and a "Git & deploy workflow"
-  section in `CLAUDE.md` — this repo's branch → PR → review → merge →
-  auto-deploy flow, and the fact there's no CI, had never been written
-  down before this. Merged via PR #3.
-- Created the `retro` skill (personal, works across projects, not just
-  this repo) — an end-of-work retrospective that surfaces process/tooling
-  friction and maintains this log. Also set up a global Stop hook
-  (`~/.claude/hooks/retro-reminder.sh`) as a throttled nudge to actually
-  run it, since a skill's own proactive-trigger description alone felt
-  too easy to forget.
-- First real run of `retro` (this entry) surfaced one gap: the dev-preview
-  verification workflow (`CLAUDE.md`'s "No live Supabase session" section)
-  doesn't mention that even a route with zero real Supabase calls needs
-  dummy `NEXT_PUBLIC_SUPABASE_URL`/`_ANON_KEY` values in `.env.local` just
-  to get `npm run dev` past the proxy middleware, that ad-hoc Playwright
-  scripts (outside `npm test`) need an absolute import path since
-  `playwright` isn't a project dependency, or that deleting a dev-preview
-  route can leave a stale `.next` cache reference that looks like a false
-  typecheck failure. Documented inline in that section.
-- Cut **v1.9.1** (patch — JOS-42 was the only entry, fix-only, no new
-  functionality): moved `[Unreleased]` into a dated section, bumped
-  `package.json`, generated `Nestlog-Release-Notes-v1.9.1.pdf`, attached
-  it to JOS-42 and posted the release notes as a comment there (left the
-  ticket open rather than moving to Done — see below). Merged via PR #5.
-  Second `retro` run of the session, right after the release: nothing new
-  to flag — the release process was already fully documented from a
-  prior session and the Linear attachment flow worked cleanly first try.
-- JOS-42 confirmed fixed on a real Android Chrome phone (the one thing
-  this environment couldn't verify itself): mL entered, keyboard
-  dismissed by tapping outside the card, value persisted with no
-  workaround needed. Ticket moved to Done.
-
-**In flight / open:**
-- [JOS-43](https://linear.app/josephemmi/issue/JOS-43) (Medium, Backlog):
-  rename the production branch off its current leftover-setup name. Plan
-  is written on the ticket; deliberately not started, since it touches
-  GitHub + Vercel settings together and deserves its own quiet session.
-
-**Worth knowing:**
-- Production branch is still `claude/baby-tracker-nextjs-setup-9gocr2`
-  until JOS-43 lands — don't assume it's `main`.
+Entries before 2026-10-17 (September 2026: JOS-41 to JOS-55) are in
+`docs/project-log-archive.md`, which is not imported into sessions; grep it for history.

@@ -1,0 +1,58 @@
+// TEMPORARY (JOS-83 tile-layout comparison): the real header and Last-sleep tiles at a chosen width. DELETE BEFORE COMMITTING.
+import { AppHeader } from "@/components/layout/app-header";
+import { GlanceCards } from "@/components/log/glance-cards";
+import { PrimaryButton } from "@/components/ui/primary-button";
+import type { EntryRow } from "@/lib/entries";
+import type { Sleep } from "@/lib/sleep";
+
+const JOSEPH = "00000000-0000-0000-0000-0000000000a1";
+const BABY = "00000000-0000-0000-0000-0000000000d1";
+const L = (h: number, m: number) => Date.UTC(2026, 9, 20, h - 1, m); // Tue 20 Oct 2026, London (BST)
+
+const row = (id: string, type: "feed" | "poop" | "pee", timestamp: string, extra: Partial<EntryRow> = {}): EntryRow => ({
+  id, baby_id: BABY, logged_by: JOSEPH, type, timestamp, notes: null, amount_ml: null, bottle: false, breast: false,
+  breast_right_seconds: 0, breast_left_seconds: 0, breast_active_side: null, breast_active_started_at: null,
+  breast_session_ended: false, created_at: timestamp, deleted_at: null, deleted_by: null, ...extra,
+});
+const ENTRIES = [
+  row("e1", "feed", "2026-10-20T16:45:00.000Z", { bottle: true, amount_ml: 120 }),
+  row("e2", "poop", "2026-10-20T15:10:00.000Z"),
+  row("e3", "pee", "2026-10-20T17:05:00.000Z"),
+];
+const sleep = (id: string, stretches: Sleep["stretches"], closedAt: number | null): Sleep => ({
+  id, by: JOSEPH, stretches, closedAt, rev: 1, last: { by: JOSEPH, action: "start", at: L(15, 0) }, notes: null,
+});
+const NAP = sleep("nap", [{ start: L(15, 0), end: L(15, 40) }], L(15, 40));
+// "now" is 7:32 pm: a nap ended 3:40 pm; the night sleep began 6:20 pm
+const STATES: Record<string, Sleep[]> = {
+  sleeping: [NAP, sleep("run", [{ start: L(18, 20), end: null }], null)],
+  paused: [NAP, sleep("pau", [{ start: L(18, 20), end: L(19, 0) }], null)],
+  resting: [NAP],
+  none: [],
+};
+// "none": a household with nothing logged yet (every tile reads "Not logged yet")
+const entriesFor = (state: string) => (state === "none" ? [] : ENTRIES);
+
+export default async function Page({ searchParams }: { searchParams: Promise<{ w?: string; state?: string }> }) {
+  const { w = "768", state = "sleeping" } = await searchParams;
+  return (
+    <div style={{ width: Number(w) }}>
+      <div className="min-h-screen bg-paper p-4 sm:p-8">
+        <div className="mx-auto flex max-w-4xl flex-col gap-6">
+          <AppHeader householdName="Our household" inviteCode="ABC123" profileName="Joseph" profileColorIndex={0} active="log" />
+          <div className="flex flex-col gap-4">
+            <div data-variant>
+              <GlanceCards entries={entriesFor(state)} sleeps={STATES[state] ?? STATES.sleeping} />
+            </div>
+            <div className="flex items-center justify-between gap-4" data-log-row>
+              <PrimaryButton type="button" className="shrink-0">Log a moment</PrimaryButton>
+              <div className="flex items-center gap-2">
+                <button type="button" className="rounded-full border border-line-strong bg-paper-raised px-3 py-1.5 text-sm font-bold text-ink transition-colors hover:bg-paper">Edit</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
