@@ -27,6 +27,33 @@ conversation knows where to start without reading the rest.
 
 ---
 
+## 2026-10-21 (JOS-100: double-tap duplicates; v1.15.1)
+
+**Done:**
+- [JOS-100](https://linear.app/josephemmi/issue/JOS-100) (Bug, Done): a double tap
+  on a Log box inserted two rows. [PR #49](https://github.com/josephemmi/baby-tracker-app/pull/49)
+  merged: the Log ignores a second tap on the same box until the first insert
+  answers (`insertsInFlight`, type boxes and the first Bottle/Breast tick), and
+  migration `20261020000000_entries_unique_moment_type.sql` adds a partial unique
+  index (applied to the live project, verified). Joseph's decisions: clean the
+  duplicates, add the index, delete the empty pump ticks; Reports needs no change.
+  Live data: 17 empty pump rows and 17 duplicate rows soft-deleted (kept the row
+  with an amount, else the latest; the 20 Oct 12:13 BST pump kept 300 mL, not 260).
+- [JOS-102](https://linear.app/josephemmi/issue/JOS-102): the v1.15.1 release
+  (patch), [PR #50](https://github.com/josephemmi/baby-tracker-app/pull/50), open,
+  merging it is the release. Notes PDF attached and sent; no screenshots or guide
+  (nothing visible changed).
+- `retro`: a CLAUDE.md note on cleaning live data from a web session and the new
+  index; [JOS-103](https://linear.app/josephemmi/issue/JOS-103) (Polish, Low):
+  restoring an entry whose live twin exists shows the raw "duplicate key" message.
+
+**In flight / open:**
+- PR #50 needs Joseph's merge. The double tap on a real device is untested.
+- Joseph said PR titles historically carry no ticket id; CLAUDE.md says the id in
+  the title is what links and closes a ticket. Asked him which he wants.
+
+---
+
 ## 2026-10-20, night (JOS-98: v1.15.0 cut)
 
 **Done:**
