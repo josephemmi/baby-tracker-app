@@ -499,6 +499,20 @@ time.
   (and the `anon` ones on `create_household`/`join_household`/
   `current_household_id` pre-date this); do pin `set search_path` on
   helper functions, which it also flags.
+- **Cleaning live data from a web session, and the entries unique index
+  (JOS-100).** The Supabase MCP connector's `execute_sql` can change data, so
+  before any bulk edit: read the exact rows first (a read-only `select` of the
+  ids, with the sibling entries of each moment), say what will go and what is
+  kept, and get Joseph's go-ahead on that list; then **soft-delete**
+  (`deleted_at = now()`) rather than `delete`, so Recently Deleted can undo it
+  for 7 days, in one statement with CTEs and the counts returned, and re-run
+  the read to prove it. A moment's note is copied onto every entry of that
+  moment, so deleting one row of a moment does not lose the note. Since JOS-100
+  `entries` has a partial unique index on (baby_id, logged_by, type, timestamp)
+  where `deleted_at is null`: an insert or a restore that would make a second
+  live row with those four values fails with Postgres error 23505, and the
+  Log's insert guard (`insertsInFlight` in `log-matrix.tsx`) is the app-side
+  half of the same rule.
 - **A plpgsql trigger that calls functions its caller can't execute works or
   fails depending on which role first ran it on that connection (JOS-56).**
   plpgsql caches its plans per connection, and SQL functions get inlined at
