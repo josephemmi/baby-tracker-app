@@ -44,7 +44,7 @@ conversation knows where to start without reading the rest.
   merging it is the release. Notes PDF attached and sent; no screenshots or guide
   (nothing visible changed).
 - `retro`: a CLAUDE.md note on cleaning live data from a web session and the new
-  index; [JOS-103](https://linear.app/josephemmi/issue/JOS-103) (Polish, Low):
+  index; [JOS-104](https://linear.app/josephemmi/issue/JOS-104) (Polish, Low):
   restoring an entry whose live twin exists shows the raw "duplicate key" message.
 
 **In flight / open:**
