@@ -28,9 +28,10 @@ import {
   stateOf,
   underMinute,
   type Sleep,
-  type SleepField,
 } from "@/lib/sleep";
-import type { SleepRow, SleepTimeInput } from "@/lib/sleep-api";
+import type { SleepRow } from "@/lib/sleep-api";
+import { savedLine, type EditModel } from "@/lib/sleep-edit";
+import type { EditTimesResult } from "@/components/log/edit-times-sheet";
 import {
   bulkDeletePrompt,
   bulkSleepFailure,
@@ -1007,32 +1008,30 @@ export function LogMatrix({
     void runSleep(sleepCtl.stop(sleep));
   }
 
-  // The card stays exactly where it is and turns back into a running one; a
-  // brief flash is the confirmation (no scrolling: it is already under the
-  // finger).
-  async function reopenSleep(sleep: Sleep) {
-    const outcome = await runSleep(sleepCtl.reopen(sleep));
-    if (outcome.ok) flashSleep(sleep.id, false);
-  }
-
-  async function handleSleepSetTime(
+  // Edit times (JOS-103). The sheet saves on the rev it was opened on. A
+  // rule that said no or a dropped connection belongs under the sheet's own
+  // buttons; someone else changing the sleep first reloads the sheet with their
+  // version (the card already holds it); a deleted sleep takes the card away,
+  // so that one is a toast.
+  async function handleSleepEditTimes(
     sleep: Sleep,
-    field: SleepField,
-    input: SleepTimeInput,
-  ): Promise<string | null> {
-    const outcome = await sleepCtl.setTime(sleep, field, input);
+    model: EditModel,
+    expectedRev: number,
+  ): Promise<EditTimesResult> {
+    const outcome = await sleepCtl.editTimes(sleep, expectedRev, model);
     if (outcome.ok) {
       flashSleep(sleep.id, false);
-      return null;
+      showToast(savedLine(members.filter((m) => m.id !== currentUserId).map((m) => m.name)));
+      return { kind: "saved" };
     }
-    // A rule said no (overlap, before the last sleep...): that belongs under
-    // the picker. Someone else changing the sleep first is a toast, and the
-    // card has already moved on.
-    if (outcome.status === "error" || outcome.status === "offline") {
-      return outcome.message ?? "Couldn't save that time.";
+    if (outcome.status === "conflict" && outcome.sleep) {
+      return { kind: "stale", sleep: outcome.sleep };
+    }
+    if (outcome.status === "error" || outcome.status === "offline" || outcome.status === "open_exists") {
+      return { kind: "error", message: outcome.message ?? "Couldn't save those times." };
     }
     if (outcome.message) showToast(outcome.message);
-    return null;
+    return { kind: "error", message: outcome.message ?? "Couldn't save those times." };
   }
 
   async function handleSleepRemovePause(sleep: Sleep, index: number): Promise<string | null> {
@@ -1136,12 +1135,11 @@ export function LogMatrix({
         onPause={() => void runSleep(sleepCtl.pause(sleep))}
         onResume={() => void runSleep(sleepCtl.resume(sleep))}
         onStop={() => handleStopSleep(sleep)}
-        onReopen={() => void reopenSleep(sleep)}
         onDelete={() => requestSleepDelete(sleep)}
         selectMode={selectMode}
         selected={selectedKeys.has(sleepSelectKey(sleep.id))}
         onToggleSelect={() => toggleSelected(sleepSelectKey(sleep.id))}
-        onSetTime={(field, input) => handleSleepSetTime(sleep, field, input)}
+        onEditTimes={(model, expectedRev) => handleSleepEditTimes(sleep, model, expectedRev)}
         onRemovePause={(index) => handleSleepRemovePause(sleep, index)}
         onLoggedByCycle={() => handleSleepLoggedByCycle(sleep)}
         onNotesCommit={(value) => handleSleepNotes(sleep, value)}

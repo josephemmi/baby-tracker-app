@@ -21,13 +21,16 @@
 export const MIN = 60_000;
 export const HOUR = 60 * MIN;
 
+// A sleep left paused this long closes itself, at the moment the pause began
+// (JOS-103; it was 3 h). The one place the number lives on this side: the
+// database has its own, `sleep_auto_close_after()` in the migration that made
+// it 2 h, and the two must agree. Open to review after real use.
+export const AUTO_CLOSE_MS = 2 * HOUR;
+
 export const SLEEP_RULES = {
-  // A sleep left paused this long closes itself, ending at its last wake.
-  autoCloseMs: 3 * HOUR,
-  // A finished sleep can be reopened (back to paused) this long after its
-  // last wake — and only if no newer sleep exists.
-  reopenMs: 3 * HOUR,
-  // The shortest a stretch may be to pause it, and to move its start/wake.
+  autoCloseMs: AUTO_CLOSE_MS,
+  // The shortest a stretch of sleep or a pause may be: to pause, and in every
+  // time edit (JOS-103: one small rule, not separate numbers).
   minStretchMs: MIN,
 } as const;
 
@@ -43,11 +46,10 @@ export type SleepAction =
   | "reopen"
   | "edit"
   | "delete"
-  | "restore";
-
-// Which end of the sleep a time edit moves: the first stretch's start
-// ("Started earlier?") or the last stretch's end ("Woke earlier?").
-export type SleepField = "start" | "end";
+  | "restore"
+  // The app closed it (paused for AUTO_CLOSE_MS), written when the next sleep
+  // starts; until then the same fact is derived from the times (isAutoClosed).
+  | "autoclose";
 
 // One uninterrupted stretch of sleep. Only the last one may be open (end
 // null) — an open stretch counts up to "now".
@@ -80,7 +82,7 @@ export interface SleepWorld {
 export type SleepErrorCode =
   | "gone" // the sleep was deleted
   | "stale" // someone else changed it first
-  | "autoclosed" // it closed itself after 3 h paused
+  | "autoclosed" // it closed itself after AUTO_CLOSE_MS paused
   | "already-open" // another sleep is running or paused
   | "future"
   | "short" // pause before a stretch is a minute old
@@ -91,11 +93,8 @@ export type SleepErrorCode =
   | "order" // a stretch starts before the previous one ends
   | "empty"
   | "overlap"
-  | "before-prev" // start before the previous sleep ended
-  | "after-end" // start after this sleep's first stretch ended
-  | "before-start" // wake before this stretch began
   | "no-pause" // there is no completed pause at that position
-  | "no-reopen";
+  | "times"; // Edit times: the set of times breaks a rule (data.rule says which)
 
 export interface SleepErrorData {
   // 1-based stretch number, for per-stretch validation errors.
@@ -108,11 +107,24 @@ export interface SleepErrorData {
   other?: Sleep;
   // `short` / `inverted`: when the stretch in question began.
   stretchStart?: number;
-  // `before-prev` / `after-end` / `before-start` / `future`: the limit hit.
+  // `before-wake` and the like: the limit hit.
   limit?: number;
-  // `no-reopen`
-  reason?: ReopenBlock;
+  // `times`: which rule, and the field it was found on ("ss", "se", "p0s"...;
+  // see sleep-edit.ts).
+  rule?: EditRule;
+  field?: string;
 }
+
+// The rules an edit of times can break (sleep-edit.ts words them for the
+// sheet; the database function answers with the same names).
+export type EditRule =
+  | "needs-time"
+  | "order" // a time is not after the one before it, by at least a minute
+  | "pause-overlap"
+  | "pause-gap" // less than a minute of sleep between two pauses
+  | "open-not-last" // only the last pause can still be going
+  | "open-needs-end"; // a sleep with an end cannot have a pause still going
+
 
 export class SleepError extends Error {
   readonly code: SleepErrorCode;
@@ -133,18 +145,20 @@ export const firstStart = (s: Sleep): number => s.stretches[0].start;
 export const pausesOf = (s: Sleep): number => s.stretches.length - 1;
 
 // asleep = last stretch open. paused = last stretch ended. finished = closed,
-// or paused for more than 3 h (it closes itself — lazily, see isAutoClosed).
+// or paused for AUTO_CLOSE_MS (it closes itself — lazily, see isAutoClosed).
 export function stateOf(s: Sleep, now: number): SleepState {
   if (s.closedAt != null) return "finished";
   const l = lastStretch(s);
   if (l.end == null) return "asleep";
-  return now - l.end > SLEEP_RULES.autoCloseMs ? "finished" : "paused";
+  return now - l.end >= SLEEP_RULES.autoCloseMs ? "finished" : "paused";
 }
 
-// Finished by the 3 h rule, but not yet written as closed. The database only
-// writes closed_at when the next sleep starts, so this has to be derived.
+// Closed by the app, not by a person. Until the next sleep starts the database
+// has not written closed_at, so it is derived from the times; after that the
+// row says so itself (last action "autoclose"), and any person's edit
+// replaces that action, which is what clears the card's note.
 export const isAutoClosed = (s: Sleep, now: number): boolean =>
-  s.closedAt == null && stateOf(s, now) === "finished";
+  s.closedAt == null ? stateOf(s, now) === "finished" : s.last.action === "autoclose";
 
 export function closedAtOf(s: Sleep, now: number): number | null {
   if (s.closedAt != null) return s.closedAt;
@@ -181,21 +195,11 @@ export const latestSleep = (sleeps: Sleep[]): Sleep | null =>
 export const openSleep = (sleeps: Sleep[], now: number): Sleep | null =>
   sleeps.find((s) => stateOf(s, now) !== "finished") ?? null;
 
-// Latest end among the other sleeps: nothing may start before this.
-export function floorFor(world: SleepWorld, id: string | null): number {
-  return world.sleeps
-    .filter((o) => o.id !== id)
-    .reduce((floor, o) => {
-      const end = closedAtOf(o, world.now) ?? lastStretch(o).end;
-      return end == null ? floor : Math.max(floor, end);
-    }, -Infinity);
-}
-
 // When a sleep ended — its close, or its last wake, or (still going) its
 // start. Home files a sleep under the day it ENDED: an overnight sleep (11 pm
 // to 6 am) is this morning's, not yesterday's, so it stays on screen with its
-// Reopen button instead of dropping into "yesterday's last 3" the moment the
-// day's first feed is logged.
+// Edit times button instead of dropping into "yesterday's last 3" the moment
+// the day's first feed is logged.
 export function endedAt(s: Sleep, now: number): number {
   return closedAtOf(s, now) ?? lastStretch(s).end ?? firstStart(s);
 }
@@ -228,51 +232,10 @@ export function interleaveByTime<M extends { timestamp: string }>(
   return out;
 }
 
-export type ReopenBlock = "not-finished" | "autoclosed" | "newer" | "expired";
-
-export function canReopen(
-  world: SleepWorld,
-  s: Sleep,
-): { ok: true } | { ok: false; reason: ReopenBlock } {
-  if (s.closedAt == null) {
-    return {
-      ok: false,
-      reason: isAutoClosed(s, world.now) ? "autoclosed" : "not-finished",
-    };
-  }
-  if (world.sleeps.some((o) => o.id !== s.id && firstStart(o) > firstStart(s))) {
-    return { ok: false, reason: "newer" };
-  }
-  if (world.now - s.closedAt > SLEEP_RULES.reopenMs) {
-    return { ok: false, reason: "expired" };
-  }
-  return { ok: true };
-}
-
-/* ---------- editing a time: what the picker allows ---------- */
-
-// The window a picked time must fall in. Start: after the previous sleep
-// ended, and at least a minute before this sleep's first stretch ends. Wake:
-// at least a minute after the last stretch began, and not in the future.
-export function pickBounds(
-  world: SleepWorld,
-  s: Sleep,
-  field: SleepField,
-): { lo: number; hi: number } {
-  if (field === "start") {
-    const firstEnd = s.stretches[0].end;
-    return {
-      lo: floorFor(world, s.id),
-      hi: firstEnd != null ? firstEnd - SLEEP_RULES.minStretchMs : world.now,
-    };
-  }
-  return { lo: lastStretch(s).start + SLEEP_RULES.minStretchMs, hi: world.now };
-}
-
 /* ---------- errors the other parent can cause ---------- */
 
 export function staleError(world: SleepWorld, s: Sleep): SleepError {
-  if (isAutoClosed(s, world.now)) {
+  if (isAutoClosed(s, world.now) && s.closedAt == null) {
     return new SleepError("autoclosed", {
       at: (lastStretch(s).end as number) + SLEEP_RULES.autoCloseMs,
     });
@@ -290,21 +253,21 @@ export function staleError(world: SleepWorld, s: Sleep): SleepError {
 // looking at; when given and out of date, the write loses to whoever got
 // there first. The database does exactly this with `WHERE rev = ...`.
 
-function byId(world: SleepWorld, id: string): Sleep {
+export function byId(world: SleepWorld, id: string): Sleep {
   const s = world.sleeps.find((x) => x.id === id);
   if (!s) throw new SleepError("gone");
   return s;
 }
 
-function checkRev(world: SleepWorld, s: Sleep, baseRev?: number) {
+export function checkRev(world: SleepWorld, s: Sleep, baseRev?: number) {
   if (baseRev !== undefined && s.rev !== baseRev) throw staleError(world, s);
 }
 
-function replace(world: SleepWorld, next: Sleep): SleepWorld {
+export function replace(world: SleepWorld, next: Sleep): SleepWorld {
   return { ...world, sleeps: world.sleeps.map((s) => (s.id === next.id ? next : s)) };
 }
 
-function touch(
+export function touch(
   s: Sleep,
   who: string | null,
   action: SleepAction,
@@ -313,15 +276,45 @@ function touch(
   return { ...s, rev: s.rev + 1, last: { by: who, action, at } };
 }
 
+// An edit that leaves a sleep paused past AUTO_CLOSE_MS (or one that had
+// closed itself) writes the close it would otherwise only derive, so the
+// "one open sleep" rule never counts it and the app's mark is gone.
+export function closeIfFinished(s: Sleep, now: number): Sleep {
+  return s.closedAt == null && stateOf(s, now) === "finished"
+    ? { ...s, closedAt: lastStretch(s).end }
+    : s;
+}
+
 function withLastEnd(stretches: Stretch[], end: number): Stretch[] {
   return stretches.map((g, i) => (i === stretches.length - 1 ? { ...g, end } : g));
+}
+
+// Close any sleep that has already auto-closed, writing what was only derived:
+// closed at its last wake, by the app, with no new rev (nothing a person would
+// see changes). Start does it first, in the same step, so "one open sleep"
+// never blocks on a sleep that has in fact ended; so does an edit that brings
+// a finished sleep back to life.
+export function settleAutoClosed(world: SleepWorld, exceptId?: string): Sleep[] {
+  return world.sleeps.map((s) =>
+    s.id !== exceptId && s.closedAt == null && isAutoClosed(s, world.now)
+      ? {
+          ...s,
+          closedAt: lastStretch(s).end,
+          last: {
+            by: null,
+            action: "autoclose" as const,
+            at: (lastStretch(s).end as number) + SLEEP_RULES.autoCloseMs,
+          },
+        }
+      : s,
+  );
 }
 
 function overlapRange(other: Sleep, now: number) {
   return other.stretches.map((g) => ({ start: g.start, end: g.end ?? now }));
 }
 
-function validateStretches(
+export function validateStretches(
   world: SleepWorld,
   id: string | null,
   stretches: Stretch[],
@@ -366,11 +359,7 @@ export function startSleep(
   const stretches: Stretch[] = [{ start: at, end: null }];
   validateStretches(world, null, stretches);
 
-  // Close any sleep that has already auto-closed first, in the same step, so
-  // "one open sleep" never blocks on a sleep that has in fact ended.
-  const settled = world.sleeps.map((s) =>
-    isAutoClosed(s, world.now) ? { ...s, closedAt: lastStretch(s).end } : s,
-  );
+  const closed = settleAutoClosed(world);
   const sleep: Sleep = {
     id,
     by: who,
@@ -380,7 +369,7 @@ export function startSleep(
     last: { by: who, action: "start", at },
     notes: null,
   };
-  return { ...world, sleeps: [...settled, sleep] };
+  return { ...world, sleeps: [...closed, sleep] };
 }
 
 export function pauseSleep(
@@ -446,72 +435,13 @@ export function finishSleep(
   );
 }
 
-// Reopen: a finished sleep goes back to paused, its last wake kept.
-export function reopenSleep(
-  world: SleepWorld,
-  who: string | null,
-  id: string,
-  baseRev?: number,
-): SleepWorld {
-  const s = byId(world, id);
-  checkRev(world, s, baseRev);
-  const check = canReopen(world, s);
-  if (!check.ok) {
-    throw stateOf(s, world.now) !== "finished"
-      ? staleError(world, s)
-      : new SleepError("no-reopen", { reason: check.reason });
-  }
-  return replace(
-    world,
-    touch({ ...s, closedAt: null }, who, "reopen", lastStretch(s).end as number),
-  );
-}
-
-// "Started earlier?" moves the first stretch's start; "Woke earlier?" moves
-// the last stretch's end. Only open sleeps — a finished card is read-only.
-export function editSleepTime(
-  world: SleepWorld,
-  who: string | null,
-  id: string,
-  field: SleepField,
-  at: number,
-  baseRev?: number,
-): SleepWorld {
-  const s = byId(world, id);
-  checkRev(world, s, baseRev);
-  const state = stateOf(s, world.now);
-  if (state === "finished") throw staleError(world, s);
-  // A wake time only exists once the sleep is paused ("Woke earlier?").
-  if (field === "end" && state !== "paused") throw staleError(world, s);
-
-  if (!Number.isFinite(at)) throw new SleepError("bad-time");
-  if (at > world.now) throw new SleepError("future");
-  const { lo, hi } = pickBounds(world, s, field);
-  if (at < lo) {
-    throw new SleepError(field === "start" ? "before-prev" : "before-start", { limit: lo });
-  }
-  if (at > hi) {
-    throw new SleepError(field === "start" ? "after-end" : "future", {
-      limit: field === "start" ? hi + SLEEP_RULES.minStretchMs : hi,
-    });
-  }
-
-  const stretches = s.stretches.map((g, i) => {
-    if (field === "start" && i === 0) return { ...g, start: at };
-    if (field === "end" && i === s.stretches.length - 1) return { ...g, end: at };
-    return g;
-  });
-  validateStretches(world, id, stretches);
-  return replace(world, touch({ ...s, stretches }, who, "edit", world.now));
-}
-
 // Remove one completed pause (JOS-78). `index` is the 0-based number of the
 // stretch BEFORE the pause, so 0 is the first pause. The stretch either side
 // of it become one — the paused time counts as sleep — and the sleep's start
-// and end do not move. Only while the sleep is open: a finished sleep is
-// read-only (JOS-56), so removing means Reopen first. That also covers one
-// that closed itself after 3 h paused: staleError says so. The pause still in
-// progress (after the last stretch) is not a pause yet; Resume ends it.
+// and end do not move. In every state since JOS-103 (a finished sleep is no
+// longer read-only); one that closed itself stays closed, and the edit
+// replaces its "closed by the app" mark. The pause still in progress (after
+// the last stretch) is not a pause yet; Resume ends it.
 export function removePause(
   world: SleepWorld,
   who: string | null,
@@ -521,7 +451,6 @@ export function removePause(
 ): SleepWorld {
   const s = byId(world, id);
   checkRev(world, s, baseRev);
-  if (stateOf(s, world.now) === "finished") throw staleError(world, s);
   if (!Number.isInteger(index) || index < 0 || index > s.stretches.length - 2) {
     throw new SleepError("no-pause");
   }
@@ -532,7 +461,7 @@ export function removePause(
     ...s.stretches.slice(index + 2),
   ];
   validateStretches(world, id, stretches);
-  return replace(world, touch({ ...s, stretches }, who, "edit", world.now));
+  return replace(world, closeIfFinished(touch({ ...s, stretches }, who, "edit", world.now), world.now));
 }
 
 // Soft delete. The server keeps the row (deleted_at) so Recently Deleted can

@@ -1,31 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { MIN, SleepError, type Sleep, type SleepWorld } from "@/lib/sleep";
+import { MIN, SleepError, type Sleep } from "@/lib/sleep";
 import {
-  WHEEL_MINUTES,
-  agoLabel,
-  agoOutOfRange,
   bulkDeletePrompt,
   bulkSleepFailure,
   durationLabel,
-  clockLabel,
   createZone,
-  defaultAgo,
   deleteSleepPrompt,
   describeRestoreRefusal,
   describeSleepError,
   joinTimes,
-  judgePick,
   listPauses,
   pauseCountLabel,
   pauseLength,
-  REMOVE_NEEDS_REOPEN,
   removePauseBody,
   removePauseLabel,
-  reopenHint,
   sleepSelectKey,
   timerDigits,
   timerSpoken,
-  type Pick,
 } from "@/lib/sleep-format";
 
 const london = createZone("Europe/London");
@@ -48,7 +39,6 @@ function sleep(stretches: Array<[number, number | null]>, over: Partial<Sleep> =
   };
 }
 
-const world = (sleeps: Sleep[], now = NOW): SleepWorld => ({ now, sleeps });
 const names = (id: string | null) => ({ joseph: "Joseph", jen: "Jen" })[id ?? ""] ?? "Someone";
 
 describe("12-hour times in the device's zone", () => {
@@ -79,55 +69,64 @@ describe("12-hour times in the device's zone", () => {
     expect(london.fmtStamp(at(-24 * 60), NOW)).toBe("Thu 15 Oct 6:20 pm");
   });
 
-  it("labels a picked time as 12-hour", () => {
-    expect(clockLabel("18:05")).toBe("6:05 pm");
-    expect(clockLabel("00:30")).toBe("12:30 am");
-    expect(clockLabel("12:00")).toBe("12:00 pm");
+  it("reads the wall clock of an instant as minutes since local midnight", () => {
+    expect(london.clockOf(Date.parse("2026-10-16T17:05:00Z"))).toBe(18 * 60 + 5);
+    expect(london.clockOf(Date.parse("2026-10-16T23:00:00Z"))).toBe(0); // midnight BST
+    expect(london.clockOf(Date.parse("2026-10-16T23:05:00Z"))).toBe(5);
+    expect(newYork.clockOf(Date.parse("2026-10-16T17:05:00Z"))).toBe(13 * 60 + 5);
   });
 });
 
-describe("reading a time-only entry", () => {
-  it("reads a time earlier today as today", () => {
-    expect(london.fromClockInput("17:35", NOW)).toBe(Date.parse("2026-10-16T16:35:00Z"));
+describe("atClock: an instant from a day and a wall-clock time (JOS-103)", () => {
+  const MIN_OF = (h: number, m: number) => h * 60 + m;
+
+  it("lands on the local day of the instant, moved by whole days", () => {
+    const base = Date.parse("2026-10-16T17:20:00Z"); // 6:20 pm London
+    expect(london.atClock(base, 0, MIN_OF(9, 30))).toBe(Date.parse("2026-10-16T08:30:00Z"));
+    expect(london.atClock(base, 1, MIN_OF(9, 30))).toBe(Date.parse("2026-10-17T08:30:00Z"));
+    expect(london.atClock(base, -1, MIN_OF(23, 59))).toBe(Date.parse("2026-10-15T22:59:00Z"));
   });
 
-  it("reads a time later than now as yesterday", () => {
-    // 12:05 am on the 17th (BST); 11:40 pm means last night
-    const now = Date.parse("2026-10-16T23:05:00Z");
-    expect(london.fromClockInput("23:40", now)).toBe(Date.parse("2026-10-16T22:40:00Z"));
+  it("uses the LOCAL day: 11:30 pm UTC is already the 17th in London", () => {
+    const base = Date.parse("2026-10-16T23:30:00Z");
+    expect(london.atClock(base, 0, MIN_OF(7, 10))).toBe(Date.parse("2026-10-17T06:10:00Z"));
   });
 
-  it("accepts the current minute", () => {
-    expect(london.fromClockInput("18:20", NOW)).toBe(NOW);
+  it("steps across a month and a year end", () => {
+    expect(london.atClock(Date.parse("2026-10-31T12:00:00Z"), 1, MIN_OF(8, 0))).toBe(
+      Date.parse("2026-11-01T08:00:00Z"),
+    );
+    expect(london.atClock(Date.parse("2026-12-31T12:00:00Z"), 1, MIN_OF(8, 0))).toBe(
+      Date.parse("2027-01-01T08:00:00Z"),
+    );
   });
 
-  it("rejects anything that is not HH:MM", () => {
-    expect(london.fromClockInput("", NOW)).toBeNaN();
-    expect(london.fromClockInput("25:00", NOW)).toBeNaN();
-    expect(london.fromClockInput("12:61", NOW)).toBeNaN();
-    expect(london.fromClockInput("noon", NOW)).toBeNaN();
+  it("reads 12:00 am as the start of the day and 12:30 am just after it", () => {
+    const base = Date.parse("2026-10-16T17:20:00Z");
+    expect(london.atClock(base, 0, 0)).toBe(Date.parse("2026-10-15T23:00:00Z"));
+    expect(london.atClock(base, 0, 30)).toBe(Date.parse("2026-10-15T23:30:00Z"));
   });
 
-  it("takes the latest reading not in the future when the clocks go back", () => {
-    // BST ends Sun 25 Oct 2026: 02:00 BST becomes 01:00 GMT, so 01:30 happens twice
-    // (00:30Z = 01:30 BST, then 01:30Z = 01:30 GMT).
-    const secondTime = Date.parse("2026-10-25T01:45:00Z"); // 01:45 GMT
-    expect(london.fromClockInput("01:30", secondTime)).toBe(Date.parse("2026-10-25T01:30:00Z"));
-    const firstTime = Date.parse("2026-10-25T00:45:00Z"); // 01:45 BST, first pass
-    expect(london.fromClockInput("01:30", firstTime)).toBe(Date.parse("2026-10-25T00:30:00Z"));
+  it("takes the reading nearest the reference when the clocks go back and a time happens twice", () => {
+    // BST ends Sun 25 Oct 2026: 01:30 is 00:30Z (BST) and again 01:30Z (GMT).
+    const early = Date.parse("2026-10-25T00:40:00Z");
+    expect(london.atClock(early, 0, MIN_OF(1, 30))).toBe(Date.parse("2026-10-25T00:30:00Z"));
+    const late = Date.parse("2026-10-25T01:40:00Z");
+    expect(london.atClock(late, 0, MIN_OF(1, 30))).toBe(Date.parse("2026-10-25T01:30:00Z"));
   });
 
-  it("skips a clock time that does not exist when the clocks go forward", () => {
-    // 01:30 on Sun 29 Mar 2026 never happens in London; yesterday's does.
-    const now = Date.parse("2026-03-29T12:00:00Z");
-    expect(london.fromClockInput("01:30", now)).toBe(Date.parse("2026-03-28T01:30:00Z"));
+  it("does not throw for a time that does not exist when the clocks go forward", () => {
+    // 01:30 on Sun 29 Mar 2026 never happens in London: it reads as 02:30 BST.
+    const base = Date.parse("2026-03-29T12:00:00Z");
+    const got = london.atClock(base, 0, MIN_OF(1, 30));
+    expect(Number.isFinite(got)).toBe(true);
+    expect(got).toBe(Date.parse("2026-03-29T01:30:00Z"));
+    expect(london.fmtTime(got)).toBe("2:30 am");
   });
 
   it("works in zones other than London", () => {
-    // 1:05 pm in New York on the 16th is 17:05Z
-    expect(newYork.fromClockInput("13:05", Date.parse("2026-10-16T20:00:00Z"))).toBe(
-      Date.parse("2026-10-16T17:05:00Z"),
-    );
+    const base = Date.parse("2026-10-16T20:00:00Z");
+    expect(newYork.atClock(base, 0, MIN_OF(13, 5))).toBe(Date.parse("2026-10-16T17:05:00Z"));
   });
 });
 
@@ -152,123 +151,6 @@ describe("durations", () => {
   });
 });
 
-describe("the how-long-ago wheel", () => {
-  it("has 36 rows, 5 minutes to 3 hours in 5-minute steps", () => {
-    expect(WHEEL_MINUTES).toHaveLength(36);
-    expect(WHEEL_MINUTES[0]).toBe(5);
-    expect(WHEEL_MINUTES[35]).toBe(180);
-    WHEEL_MINUTES.forEach((m, i) => expect(m).toBe((i + 1) * 5));
-  });
-
-  it("labels the rows", () => {
-    expect(agoLabel(5)).toBe("5 min ago");
-    expect(agoLabel(60)).toBe("1 hr ago");
-    expect(agoLabel(75)).toBe("1 hr 15 min ago");
-    expect(agoLabel(180)).toBe("3 hr ago");
-  });
-
-  it("selects 15 minutes when it opens", () => {
-    const s = sleep([[at(-10), null]]);
-    expect(defaultAgo(world([s]), s, "start")).toBe(15);
-  });
-
-  it("greys out rows that start before the previous sleep ended", () => {
-    const prev = sleep([[at(-120), at(-40)]], { id: "p", closedAt: at(-40) });
-    const s = sleep([[at(-10), null]]);
-    const w = world([prev, s]);
-    expect(agoOutOfRange(w, s, "start", 35)).toBe(false);
-    expect(agoOutOfRange(w, s, "start", 40)).toBe(false); // exactly at the previous wake
-    expect(agoOutOfRange(w, s, "start", 45)).toBe(true);
-    expect(agoOutOfRange(w, s, "start", 180)).toBe(true);
-  });
-
-  it("falls back to the first allowed row when 15 minutes is not allowed", () => {
-    const prev = sleep([[at(-120), at(-12)]], { id: "p", closedAt: at(-12) });
-    const s = sleep([[at(-5), null]]);
-    expect(defaultAgo(world([prev, s]), s, "start")).toBe(10);
-  });
-});
-
-describe("the preview line under the picker", () => {
-  const running = sleep([[at(-10), null]]);
-  const pick = (over: Partial<Pick>): Pick => ({
-    field: "start",
-    mode: null,
-    ago: null,
-    time: "",
-    ...over,
-  });
-
-  it("is empty until something is chosen", () => {
-    expect(judgePick(world([running]), running, pick({}), london)).toEqual({
-      kind: "idle",
-      text: "",
-      ms: NaN,
-    });
-  });
-
-  it("previews a how-long-ago choice", () => {
-    const j = judgePick(world([running]), running, pick({ mode: "ago", ago: 5 }), london);
-    expect(j.kind).toBe("ok");
-    expect(j.text).toBe("6:15 pm · 5m ago");
-    expect(j.ms).toBe(at(-5));
-  });
-
-  it("previews a picked time", () => {
-    const j = judgePick(world([running]), running, pick({ mode: "time", time: "18:12" }), london);
-    expect(j.kind).toBe("ok");
-    expect(j.text).toBe("6:12 pm · 8m ago");
-  });
-
-  it("warns, and offers Save anyway, past 3 hours", () => {
-    const old = sleep([[at(-10), null]]);
-    const j = judgePick(world([old]), old, pick({ mode: "time", time: "14:00" }), london);
-    expect(j.kind).toBe("warn");
-    expect(j.text).toBe("2:00 pm · 4h 20m ago · long ago, is that right?");
-  });
-
-  it("calls yesterday's time yesterday", () => {
-    const now = Date.parse("2026-10-16T23:05:00Z"); // 12:05 am London on the 17th
-    const s = sleep([[now - 10 * MIN, null]]);
-    const j = judgePick(world([s], now), s, pick({ mode: "time", time: "23:40" }), london);
-    expect(j.text.startsWith("yesterday 11:40 pm")).toBe(true);
-    expect(j.kind).toBe("ok");
-  });
-
-  it("refuses a start before the previous sleep ended, and says when that was", () => {
-    const prev = sleep([[at(-120), at(-40)]], { id: "p", closedAt: at(-40) });
-    const j = judgePick(
-      world([prev, running]),
-      running,
-      pick({ mode: "ago", ago: 60 }),
-      london,
-    );
-    expect(j).toMatchObject({ kind: "err", text: "Before the last sleep ended (5:40 pm)." });
-  });
-
-  it("refuses a start after the sleep's first stretch ended", () => {
-    const paused = sleep([[at(-60), at(-20)]]);
-    const j = judgePick(world([paused]), paused, pick({ mode: "ago", ago: 10 }), london);
-    expect(j).toMatchObject({ kind: "err", text: "That is after the sleep ended (6:00 pm)." });
-  });
-
-  it("refuses a wake time before the stretch began", () => {
-    const paused = sleep([[at(-60), at(-20)]]);
-    const j = judgePick(
-      world([paused]),
-      paused,
-      pick({ field: "end", mode: "ago", ago: 90 }),
-      london,
-    );
-    expect(j).toMatchObject({ kind: "err", text: "Before the sleep started." });
-  });
-
-  it("refuses an unreadable time", () => {
-    const j = judgePick(world([running]), running, pick({ mode: "time", time: "" }), london);
-    expect(j).toMatchObject({ kind: "err", text: "That is not a valid time." });
-  });
-});
-
 describe("what the other parent did, in words", () => {
   const describe_ = (err: SleepError) => describeSleepError(err, london, NOW, names);
 
@@ -290,7 +172,16 @@ describe("what the other parent did, in words", () => {
 
   it("explains an auto-close", () => {
     const err = new SleepError("autoclosed", { at: Date.parse("2026-10-16T17:00:00Z") });
-    expect(describe_(err)).toBe("This sleep closed itself after 3 h paused (at 6:00 pm).");
+    expect(describe_(err)).toBe("This sleep closed itself after 2 h paused (at 6:00 pm).");
+  });
+
+  it("says what a database refusal of an edit means", () => {
+    expect(describe_(new SleepError("times", { rule: "pause-gap" }))).toBe(
+      "Leave at least 1 minute of sleep between two pauses.",
+    );
+    expect(describe_(new SleepError("times", { rule: "open-not-last" }))).toBe(
+      "Only the last pause can still be going.",
+    );
   });
 
   it("tells a second starter that a sleep is already running", () => {
@@ -314,29 +205,6 @@ describe("what the other parent did, in words", () => {
       "Pause needs a minute of sleep first. Stop Sleep works any time.",
     );
     expect(describe_(new SleepError("gone"))).toBe("That sleep was deleted.");
-  });
-
-  it("explains why a sleep can not be reopened, in the same words as the card", () => {
-    expect(describe_(new SleepError("no-reopen", { reason: "newer" }))).toBe(
-      "This sleep can't be reopened: a new sleep has started.",
-    );
-    expect(describe_(new SleepError("no-reopen", { reason: "autoclosed" }))).toBe(
-      "This sleep can't be reopened: it closed itself after 3 hours paused.",
-    );
-    expect(describe_(new SleepError("no-reopen", { reason: "expired" }))).toBe(
-      "This sleep can't be reopened: it ended more than 3 hours ago.",
-    );
-  });
-});
-
-describe("reopenHint: the line under a finished card with no Reopen button", () => {
-  it("gives one sentence per reason, always starting the same way", () => {
-    expect(reopenHint("newer")).toBe("This sleep can't be reopened: a new sleep has started.");
-    expect(reopenHint("expired")).toBe("This sleep can't be reopened: it ended more than 3 hours ago.");
-    expect(reopenHint("autoclosed")).toBe(
-      "This sleep can't be reopened: it closed itself after 3 hours paused.",
-    );
-    expect(reopenHint("not-finished")).toBe("This sleep can't be reopened: it is still running.");
   });
 });
 
@@ -414,10 +282,6 @@ describe("the pause list", () => {
     expect(removePauseBody(london, first)).toBe(
       "9:06 pm to 9:08 pm (2 min). That time will count as sleep again.",
     );
-  });
-
-  it("tells a finished card how to remove a pause", () => {
-    expect(REMOVE_NEEDS_REOPEN).toBe("To remove a pause, tap Reopen sleep first.");
   });
 
   it("explains a pause that has gone", () => {

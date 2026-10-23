@@ -1,27 +1,23 @@
 import { describe, expect, it } from "vitest";
 import {
+  AUTO_CLOSE_MS,
   HOUR,
   MIN,
   SleepError,
   asleepMs,
-  canReopen,
   closedAtOf,
-  editSleepTime,
   endedAt,
   filedAt,
   finishSleep,
   firstStart,
-  floorFor,
   interleaveByTime,
   isAutoClosed,
   latestSleep,
   openSleep,
   pauseSleep,
   pausesOf,
-  pickBounds,
   removePause,
   removeSleep,
-  reopenSleep,
   resumeSleep,
   spanMs,
   startSleep,
@@ -32,6 +28,7 @@ import {
   type SleepWorld,
   type Stretch,
 } from "@/lib/sleep";
+import { editSleepTimes, toModel } from "@/lib/sleep-edit";
 import { listPauses, timerDigits } from "@/lib/sleep-format";
 
 // Fri 16 Oct 2026, 6:20 pm in London (BST, UTC+1).
@@ -88,10 +85,13 @@ describe("state derivation", () => {
     expect(stateOf(sleep([[at(-60), at(-10)]]), NOW)).toBe("paused");
   });
 
-  it("stays paused at exactly 3 h and finishes only after it", () => {
-    const s = sleep([[at(-300), at(-180)]]);
-    expect(stateOf(s, NOW)).toBe("paused");
-    expect(stateOf(s, NOW + 1)).toBe("finished");
+  it("closes itself after AUTO_CLOSE_MS paused (2 h): 1 h 55 min stays paused, 2 h is finished", () => {
+    expect(AUTO_CLOSE_MS).toBe(2 * HOUR);
+    const s = sleep([[at(-300), at(-120)]]);
+    expect(stateOf(s, NOW - 1)).toBe("paused");
+    expect(stateOf(s, NOW)).toBe("finished");
+    const near = sleep([[at(-300), at(-115)]]);
+    expect(stateOf(near, NOW)).toBe("paused");
   });
 
   it("is finished whenever closedAt is set", () => {
@@ -103,10 +103,17 @@ describe("state derivation", () => {
     const s = sleep([[at(-400), at(-200)]]);
     expect(isAutoClosed(s, NOW)).toBe(true);
     expect(closedAtOf(s, NOW)).toBe(at(-200));
-    // a stored close is not "auto"
+    // a close a person made is not "auto"
     const stored = sleep([[at(-400), at(-200)]], { closedAt: at(-200) });
     expect(isAutoClosed(stored, NOW)).toBe(false);
     expect(closedAtOf(stored, NOW)).toBe(at(-200));
+    // one the app wrote when the next sleep started still is, until an edit
+    const written = sleep([[at(-400), at(-200)]], {
+      closedAt: at(-200),
+      last: { by: null, action: "autoclose", at: at(-80) },
+    });
+    expect(isAutoClosed(written, NOW)).toBe(true);
+    expect(closedAtOf(written, NOW)).toBe(at(-200));
   });
 
   it("counts an open stretch up to now and sums the stretches", () => {
@@ -211,6 +218,9 @@ describe("start", () => {
     const stale = sleep([[at(-400), at(-250)]]);
     const w = startSleep(world([stale]), "jen", NOW, "b");
     expect(w.sleeps[0].closedAt).toBe(at(-250));
+    expect(w.sleeps[0].rev).toBe(stale.rev);
+    expect(w.sleeps[0].last).toEqual({ by: null, action: "autoclose", at: at(-250) + AUTO_CLOSE_MS });
+    expect(isAutoClosed(w.sleeps[0], NOW)).toBe(true);
     expect(stateOf(w.sleeps[0], NOW)).toBe("finished");
     expect(w.sleeps[1]).toMatchObject({ id: "b", closedAt: null });
   });
@@ -294,7 +304,7 @@ describe("resume", () => {
     const s = sleep([[at(-400), at(-250)]]);
     const err = fails(() => resumeSleep(world([s]), "jen", s.id, NOW));
     expect(err.code).toBe("autoclosed");
-    expect(err.data.at).toBe(at(-250) + 3 * HOUR);
+    expect(err.data.at).toBe(at(-250) + AUTO_CLOSE_MS);
   });
 });
 
@@ -363,138 +373,6 @@ describe("the under-a-minute rule is about the whole sleep", () => {
   });
 });
 
-describe("reopen", () => {
-  const finished = (wakeMinutesAgo: number) =>
-    sleep([[at(-wakeMinutesAgo - 60), at(-wakeMinutesAgo)]], {
-      closedAt: at(-wakeMinutesAgo),
-    });
-
-  it("puts a finished sleep back to paused, keeping the last wake", () => {
-    const s = finished(30);
-    const w = reopenSleep(world([s]), "joseph", s.id);
-    expect(w.sleeps[0].closedAt).toBeNull();
-    expect(stateOf(w.sleeps[0], NOW)).toBe("paused");
-    expect(w.sleeps[0].stretches).toEqual(s.stretches);
-    expect(w.sleeps[0].last).toEqual({ by: "joseph", action: "reopen", at: at(-30) });
-  });
-
-  it("is offered for 3 h after the last wake", () => {
-    expect(canReopen(world([finished(180)]), finished(180)).ok).toBe(true);
-    const late = finished(181);
-    expect(canReopen(world([late]), late)).toEqual({ ok: false, reason: "expired" });
-    expect(code(() => reopenSleep(world([late]), "joseph", late.id))).toBe("no-reopen");
-  });
-
-  it("is not offered when a newer sleep exists", () => {
-    const old = finished(120);
-    const newer = sleep([[at(-60), at(-10)]], { closedAt: at(-10) });
-    expect(canReopen(world([old, newer]), old)).toEqual({ ok: false, reason: "newer" });
-    expect(canReopen(world([old, newer]), newer).ok).toBe(true);
-  });
-
-  it("is not offered after an auto-close", () => {
-    const auto = sleep([[at(-400), at(-250)]]);
-    expect(canReopen(world([auto]), auto)).toEqual({ ok: false, reason: "autoclosed" });
-    const err = fails(() => reopenSleep(world([auto]), "joseph", auto.id));
-    expect(err.code).toBe("no-reopen");
-    expect(err.data.reason).toBe("autoclosed");
-  });
-
-  it("leaves an open sleep alone", () => {
-    const open = sleep([[at(-30), null]]);
-    expect(code(() => reopenSleep(world([open]), "joseph", open.id))).toBe("stale");
-  });
-
-  it("can be resumed or stopped again afterwards", () => {
-    const s = finished(30);
-    const reopened = reopenSleep(world([s]), "joseph", s.id);
-    const resumed = resumeSleep(reopened, "joseph", s.id, NOW);
-    expect(stateOf(resumed.sleeps[0], NOW)).toBe("asleep");
-    expect(pausesOf(resumed.sleeps[0])).toBe(1);
-
-    const stopped = finishSleep(reopened, "joseph", s.id, NOW);
-    expect(stopped.sleeps[0].closedAt).toBe(at(-30));
-  });
-});
-
-describe("setting the start or wake time", () => {
-  it("moves the start earlier of a running sleep", () => {
-    const s = sleep([[at(-10), null]]);
-    const w = editSleepTime(world([s]), "joseph", s.id, "start", at(-25));
-    expect(firstStart(w.sleeps[0])).toBe(at(-25));
-    expect(asleepMs(w.sleeps[0], NOW)).toBe(25 * MIN);
-    expect(w.sleeps[0].rev).toBe(2);
-    expect(w.sleeps[0].last).toEqual({ by: "joseph", action: "edit", at: NOW });
-  });
-
-  it("moves the wake time of a paused sleep", () => {
-    const s = sleep([[at(-60), at(-10)]]);
-    const w = editSleepTime(world([s]), "joseph", s.id, "end", at(-20));
-    expect(w.sleeps[0].stretches[0].end).toBe(at(-20));
-  });
-
-  it("can not start in the future", () => {
-    const s = sleep([[at(-10), null]]);
-    expect(code(() => editSleepTime(world([s]), "joseph", s.id, "start", NOW + 1))).toBe("future");
-  });
-
-  it("can not start before the previous sleep ended", () => {
-    const prev = sleep([[at(-200), at(-100)]], { closedAt: at(-100) });
-    const s = sleep([[at(-30), null]]);
-    const err = fails(() => editSleepTime(world([prev, s]), "joseph", s.id, "start", at(-101)));
-    expect(err.code).toBe("before-prev");
-    expect(err.data.limit).toBe(at(-100));
-    // right at the previous wake is allowed
-    expect(() => editSleepTime(world([prev, s]), "joseph", s.id, "start", at(-100))).not.toThrow();
-  });
-
-  it("can not start after the first stretch has ended", () => {
-    const s = sleep([[at(-60), at(-20)]]);
-    const err = fails(() => editSleepTime(world([s]), "joseph", s.id, "start", at(-20)));
-    expect(err.code).toBe("after-end");
-    expect(err.data.limit).toBe(at(-20));
-  });
-
-  it("can not wake before the last stretch is a minute old", () => {
-    const s = sleep([[at(-60), at(-10)]]);
-    expect(code(() => editSleepTime(world([s]), "joseph", s.id, "end", at(-60) + 30_000))).toBe(
-      "before-start",
-    );
-  });
-
-  it("refuses an edit that would overlap another sleep", () => {
-    const s = sleep([[at(-60), at(-50)]]);
-    const newer = sleep([[at(-40), at(-5)]], { closedAt: at(-5) });
-    expect(code(() => editSleepTime(world([s, newer]), "joseph", s.id, "end", at(-30)))).toBe(
-      "overlap",
-    );
-  });
-
-  it("has no wake time to move while still asleep", () => {
-    const s = sleep([[at(-30), null]]);
-    expect(code(() => editSleepTime(world([s]), "joseph", s.id, "end", at(-5)))).toBe("stale");
-  });
-
-  it("is not available on a finished sleep", () => {
-    const s = sleep([[at(-60), at(-20)]], { closedAt: at(-20) });
-    expect(code(() => editSleepTime(world([s]), "joseph", s.id, "start", at(-70)))).toBe("stale");
-  });
-
-  it("exposes the window the picker allows", () => {
-    const prev = sleep([[at(-200), at(-100)]], { closedAt: at(-100) });
-    const running = sleep([[at(-30), null]]);
-    expect(pickBounds(world([prev, running]), running, "start")).toEqual({ lo: at(-100), hi: NOW });
-    expect(pickBounds(world([prev, running]), running, "end")).toEqual({
-      lo: at(-30) + MIN,
-      hi: NOW,
-    });
-    const paused = sleep([[at(-30), at(-10)]]);
-    expect(pickBounds(world([prev, paused]), paused, "start").hi).toBe(at(-10) - MIN);
-    expect(floorFor(world([prev, paused]), paused.id)).toBe(at(-100));
-    expect(floorFor(world([paused]), paused.id)).toBe(-Infinity);
-  });
-});
-
 describe("two parents: first write wins", () => {
   it("tells the second parent what the first did, and when", () => {
     const s = sleep([[at(-30), null]]);
@@ -534,8 +412,9 @@ describe("two parents: first write wins", () => {
 
   it("rejects an edit made on an out-of-date rev", () => {
     const s = sleep([[at(-30), null]]);
-    const afterJen = editSleepTime(world([s]), "jen", s.id, "start", at(-40), 1);
-    const err = fails(() => editSleepTime(afterJen, "joseph", s.id, "start", at(-50), 1));
+    const earlier = (minutes: number) => ({ ...toModel(s, NOW), start: at(-minutes) });
+    const afterJen = editSleepTimes(world([s]), "jen", s.id, earlier(40), 1);
+    const err = fails(() => editSleepTimes(afterJen, "joseph", s.id, earlier(50), 1));
     expect(err.code).toBe("stale");
     expect(err.data.action).toBe("edit");
   });
@@ -563,7 +442,7 @@ describe("the writes never mutate the world they are given", () => {
     const snapshot = JSON.stringify(before);
     pauseSleep(before, "joseph", s.id, NOW);
     finishSleep(before, "joseph", s.id, NOW);
-    editSleepTime(before, "joseph", s.id, "start", at(-40));
+    editSleepTimes(before, "joseph", s.id, { ...toModel(s, NOW), start: at(-40) }, 1);
     removeSleep(before, "joseph", s.id);
     expect(JSON.stringify(before)).toBe(snapshot);
   });
@@ -649,6 +528,7 @@ describe("interleaveByTime", () => {
 // the SQL function is authoritative and these pin down that the TypeScript
 // rules agree with it (JOS-78). What can't be mirrored here is the household
 // check and signed-out callers — those are the database's, scenario 17e.
+// Since JOS-103 a pause can be removed in every state, finished included.
 describe("remove a pause (scenario 17)", () => {
   const T = (clock: string) => Date.parse(`2026-10-${clock}:00Z`);
   const JOSEPH = "joseph";
@@ -668,76 +548,60 @@ describe("remove a pause (scenario 17)", () => {
         last: { by: JOSEPH, action: "finish", at: T("17T08:34") },
       },
     );
-  const reopenedNight = () => {
+  const finishedNight = () => {
     const s = night();
-    return { s, w: reopenSleep(world([s], T("17T08:40")), JOSEPH, s.id, 6) };
+    return { s, w: world([s], T("17T08:40")) };
   };
 
-  it("17a refuses a finished sleep, even with the right rev, and changes nothing", () => {
-    const s = night();
-    const w = world([s], T("17T08:40"));
-    const err = fails(() => removePause(w, JEN, s.id, 0, 6));
-    expect(err.code).toBe("stale");
-    expect(err.data).toEqual({ by: JOSEPH, action: "finish", at: T("17T08:34") });
-    expect(w.sleeps[0]).toBe(s);
-    expect(s.rev).toBe(6);
-  });
-
-  it("17a Reopen makes it removable: paused, last wake kept", () => {
-    const { w } = reopenedNight();
-    expect(w.sleeps[0].rev).toBe(7);
-    expect(w.sleeps[0].closedAt).toBeNull();
-    expect(stateOf(w.sleeps[0], T("17T08:40"))).toBe("paused");
+  it("17a works on a finished sleep, which stays finished with the same start and end", () => {
+    const { s, w } = finishedNight();
+    const after = removePause(w, JEN, s.id, 0, 6);
+    const got = after.sleeps[0];
+    expect(got.rev).toBe(7);
+    expect(got.closedAt).toBe(T("17T08:34"));
+    expect(stateOf(got, w.now)).toBe("finished");
+    expect(firstStart(got)).toBe(T("16T21:00"));
   });
 
   it("17a a stale rev is a conflict naming what happened since", () => {
-    const { s, w } = reopenedNight();
-    const err = fails(() => removePause({ ...w, now: T("17T08:41") }, JEN, s.id, 0, 6));
+    const { s, w } = finishedNight();
+    const after = removePause(w, JOSEPH, s.id, 0, 6);
+    const err = fails(() => removePause({ ...after, now: T("17T08:41") }, JEN, s.id, 0, 6));
     expect(err.code).toBe("stale");
-    expect(err.data.action).toBe("reopen");
+    expect(err.data.action).toBe("edit");
   });
 
   it("17a a pause that is not there is no-pause, for every kind of bad index", () => {
-    const { s, w } = reopenedNight();
+    const { s, w } = finishedNight();
     for (const index of [2, 3, -1, 1.5, Number.NaN, null as unknown as number]) {
-      expect(code(() => removePause(w, JEN, s.id, index, 7))).toBe("no-pause");
+      expect(code(() => removePause(w, JEN, s.id, index, 6))).toBe("no-pause");
     }
-    expect(w.sleeps[0].rev).toBe(7);
+    expect(w.sleeps[0].rev).toBe(6);
   });
 
   it("17a removes the first (2 min) pause: the stretches join, the 33 min pause stays", () => {
-    const { s, w } = reopenedNight();
-    const after = removePause({ ...w, now: T("17T08:41") }, JEN, s.id, 0, 7);
+    const { s, w } = finishedNight();
+    const after = removePause({ ...w, now: T("17T08:41") }, JEN, s.id, 0, 6);
     const got = after.sleeps[0];
     expect(got.stretches).toEqual([
       { start: T("16T21:00"), end: T("17T02:10") },
       { start: T("17T02:43"), end: T("17T08:34") },
     ]);
-    expect(got.rev).toBe(8);
+    expect(got.rev).toBe(7);
     expect(got.last).toEqual({ by: JEN, action: "edit", at: T("17T08:41") });
     expect(firstStart(got)).toBe(T("16T21:00"));
-    expect(got.closedAt).toBeNull();
     // repeating the same call is a conflict, not a second removal
-    expect(code(() => removePause(after, JEN, s.id, 0, 7))).toBe("stale");
+    expect(code(() => removePause(after, JEN, s.id, 0, 6))).toBe("stale");
   });
 
   it("17a removes the last remaining pause: one stretch, no pauses, then nothing left", () => {
-    const { s, w } = reopenedNight();
-    const first = removePause({ ...w, now: T("17T08:41") }, JEN, s.id, 0, 7);
-    const second = removePause({ ...first, now: T("17T08:42") }, JOSEPH, s.id, 0, 8);
+    const { s, w } = finishedNight();
+    const first = removePause({ ...w, now: T("17T08:41") }, JEN, s.id, 0, 6);
+    const second = removePause({ ...first, now: T("17T08:42") }, JOSEPH, s.id, 0, 7);
     expect(second.sleeps[0].stretches).toEqual([{ start: T("16T21:00"), end: T("17T08:34") }]);
     expect(second.sleeps[0].last.by).toBe(JOSEPH);
     expect(pausesOf(second.sleeps[0])).toBe(0);
-    expect(code(() => removePause(second, JOSEPH, s.id, 0, 9))).toBe("no-pause");
-  });
-
-  it("17a Stop closes it at the same wake time, and it is read-only again", () => {
-    const { s, w } = reopenedNight();
-    let next = removePause({ ...w, now: T("17T08:41") }, JEN, s.id, 0, 7);
-    next = removePause({ ...next, now: T("17T08:42") }, JOSEPH, s.id, 0, 8);
-    next = finishSleep({ ...next, now: T("17T08:50") }, JOSEPH, s.id, T("17T08:50"), 9);
-    expect(next.sleeps[0].closedAt).toBe(T("17T08:34"));
-    expect(code(() => removePause(next, JOSEPH, s.id, 0, 10))).toBe("stale");
+    expect(code(() => removePause(second, JOSEPH, s.id, 0, 8))).toBe("no-pause");
   });
 
   it("17b works on a running sleep, and the open stretch keeps running", () => {
@@ -799,21 +663,19 @@ describe("remove a pause (scenario 17)", () => {
   });
 
   it("17f the time adds up: removing a pause moves exactly its length into 'asleep'", () => {
-    const s = night();
-    let w = world([s], T("17T08:40"));
-    w = reopenSleep(w, JOSEPH, s.id, 6);
+    const { s, w: start } = finishedNight();
+    let w = start;
     const before = asleepMs(w.sleeps[0], w.now);
     expect(before).toBe((10 * 60 + 59) * MIN);
     expect(timerDigits(before)).toEqual({ hours: "10", minutes: "59" });
-    w = removePause({ ...w, now: T("17T08:41") }, JEN, s.id, 0, 7);
+    w = removePause({ ...w, now: T("17T08:41") }, JEN, s.id, 0, 6);
     const after = asleepMs(w.sleeps[0], w.now);
     expect(after).toBe(before + 2 * MIN);
     expect(timerDigits(after)).toEqual({ hours: "11", minutes: "01" });
-    w = finishSleep({ ...w, now: T("17T08:41") }, JOSEPH, s.id, T("17T08:41"), 8);
     expect(w.sleeps[0].closedAt).toBe(T("17T08:34"));
   });
 
-  it("17g a sleep that closed itself after 3 h paused is read-only too, though closedAt is empty", () => {
+  it("17g a sleep that closed itself after 2 h paused loses a pause the same way, and is closed for good, no longer marked as the app's", () => {
     const s = sleep(
       [
         [T("22T21:00"), T("22T21:30")],
@@ -823,10 +685,13 @@ describe("remove a pause (scenario 17)", () => {
     );
     const w = world([s], T("23T01:11"));
     expect(s.closedAt).toBeNull();
-    const err = fails(() => removePause(w, JOSEPH, s.id, 0, 4));
-    expect(err.code).toBe("autoclosed");
-    expect(err.data.at).toBe(T("23T01:10"));
-    expect(w.sleeps[0].rev).toBe(4);
+    expect(isAutoClosed(s, w.now)).toBe(true);
+    const after = removePause(w, JOSEPH, s.id, 0, 4);
+    const got = after.sleeps[0];
+    expect(got.stretches).toEqual([{ start: T("22T21:00"), end: T("22T22:10") }]);
+    expect(got.closedAt).toBe(T("22T22:10"));
+    expect(isAutoClosed(got, w.now)).toBe(false);
+    expect(got.last.action).toBe("edit");
   });
 
   it("two parents: the second to remove a pause is told what the first did", () => {
@@ -872,9 +737,9 @@ describe("remove a pause: properties that hold however a sleep got there", () =>
   const spanEnd = (s: Sleep, now: number) =>
     stateOf(s, now) === "finished" ? (closedAtOf(s, now) as number) : now;
 
-  it("never moves the start or the wake, always adds up, and a finished sleep always refuses", () => {
+  it("never moves the start or the wake and always adds up, whatever state the sleep is in", () => {
     let removals = 0;
-    let refusedFinished = 0;
+    let removedFromFinished = 0;
     let steps = 0;
 
     for (let seed = 1; seed <= 60; seed++) {
@@ -884,11 +749,11 @@ describe("remove a pause: properties that hold however a sleep got there", () =>
       for (let step = 0; step < 100; step++) {
         steps += 1;
         const label = `seed ${seed} step ${step}`;
-        // Mostly short gaps, now and then past the 3 h auto-close.
+        // Mostly short gaps, now and then past the 2 h auto-close.
         w = { ...w, now: w.now + Math.ceil(next() * (next() < 0.04 ? 240 : 30)) * MIN };
-        // A sleep that is over for good (closed itself, or past Reopen) is
-        // sometimes followed by a new one, so the walk keeps meeting live ones.
-        if (stateOf(w.sleeps[0], w.now) === "finished" && !canReopen(w, w.sleeps[0]).ok && next() < 0.3) {
+        // A sleep that is over is sometimes followed by a new one, so the walk
+        // keeps meeting live ones.
+        if (stateOf(w.sleeps[0], w.now) === "finished" && next() < 0.3) {
           w = startSleep(world([], w.now), "joseph", w.now, "r");
         }
         const before = w.sleeps[0];
@@ -899,7 +764,6 @@ describe("remove a pause: properties that hold however a sleep got there", () =>
           if (roll < 0.28) w = pauseSleep(w, "joseph", "r", w.now);
           else if (roll < 0.56) w = resumeSleep(w, "joseph", "r", w.now);
           else if (roll < 0.6) w = finishSleep(w, "joseph", "r", w.now);
-          else if (roll < 0.7) w = reopenSleep(w, "joseph", "r");
           else {
             const index = Math.floor(next() * (before.stretches.length + 2)) - 1;
             const finished = stateOf(before, w.now) === "finished";
@@ -908,17 +772,12 @@ describe("remove a pause: properties that hold however a sleep got there", () =>
               after = removePause(w, "jen", "r", index, before.rev);
             } catch (e) {
               if (!(e instanceof SleepError)) throw e;
-              if (finished) {
-                refusedFinished += 1;
-                expect(["stale", "autoclosed"], label).toContain(e.code);
-              } else {
-                expect(e.code, label).toBe("no-pause");
-              }
+              expect(e.code, label).toBe("no-pause");
               expect(w.sleeps[0], label).toBe(before);
             }
             if (after) {
-              expect(finished, label).toBe(false);
               removals += 1;
+              if (finished) removedFromFinished += 1;
               const got = after.sleeps[0];
               const gone = listPauses(before, w.now).rows[index];
               expect(firstStart(got), label).toBe(firstStart(before));
@@ -941,7 +800,7 @@ describe("remove a pause: properties that hold however a sleep got there", () =>
 
     // The walk has to actually reach the rule, or it proves nothing.
     expect(removals).toBeGreaterThan(200);
-    expect(refusedFinished).toBeGreaterThan(20);
+    expect(removedFromFinished).toBeGreaterThan(20);
     expect(steps).toBe(6000);
   });
 });

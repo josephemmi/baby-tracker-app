@@ -26,7 +26,7 @@
 //    (JOS-90): its total is missing the night, so averaging it would drag the
 //    daily total down (the first day of logging, or a night nobody logged).
 //  - Known weak spot, accepted: stop-and-restart in the night makes the
-//    shorter half a nap. Reopen right after a mistaken Stop avoids it.
+//    shorter half a nap. Edit times (clear Ended) after a mistaken Stop avoids it.
 //  - The 24-hour pattern is the one place a sleep is cut: `segments` on each
 //    day are its stretches clipped to that CALENDAR day, for drawing only. The
 //    time still counts once, on the day he woke.
@@ -36,7 +36,7 @@
 // stepped with `setDate`-style arithmetic so a day with a clock change is 23
 // or 25 hours long and nothing drifts. That is why the tests pin a time zone.
 
-import { HOUR, MIN, SLEEP_RULES, closedAtOf, type Sleep } from "@/lib/sleep";
+import { HOUR, MIN, closedAtOf, type Sleep } from "@/lib/sleep";
 
 export const CFG = {
   // The longest sleep that ended on a date is that date's night only if it is
@@ -51,8 +51,6 @@ export const CFG = {
   minWakeMs: 5 * MIN,
   // A longer gap is probably an unlogged sleep, not time awake between sleeps.
   maxWakeWindowMs: 6 * HOUR,
-  // Reopen works for this long after the last wake (JOS-56).
-  reopenWindowMs: SLEEP_RULES.reopenMs,
 } as const;
 
 /* ---------- input ---------- */
@@ -534,37 +532,6 @@ export function glance(sleeps: ReportSleep[], nowMs: number): Glance {
     openStart: open ? open.start : null,
     last: last ? { id: last.id, start: last.start, end: last.end, ms: last.asleep } : null,
   };
-}
-
-/* ---------- Reopen (JOS-56) ---------- */
-
-export interface ReopenCheck {
-  sleepId: string | null;
-  can: boolean;
-  reason: "none" | "newer" | "late" | null;
-  wokeAt: number | null;
-  until: number | null;
-}
-
-// Only the latest finished sleep, within 3 h of waking, and only while no
-// newer sleep exists. Deleted sleeps do not exist, so deleting a mistaken
-// newer sleep makes the previous one reopenable again.
-//
-// This is the model the tests walk through. The screens ask canReopen in
-// sleep.ts, which the database repeats; the two agree (see the test), except
-// that the database lets the exact millisecond three hours after waking
-// through and this stops one millisecond short of it.
-export function reopen(sleeps: ReportSleep[], nowMs: number): ReopenCheck {
-  const sessions = normalise(sleeps, nowMs);
-  let last: Session | null = null;
-  for (const ss of sessions) {
-    if (ss.finished && ss.start <= nowMs && (last == null || ss.end > last.end)) last = ss;
-  }
-  if (!last) return { sleepId: null, can: false, reason: "none", wokeAt: null, until: null };
-  const newer = sessions.some((ss) => ss !== last && ss.start > (last as Session).start);
-  const until = last.end + CFG.reopenWindowMs;
-  const reason = newer ? "newer" : nowMs >= until ? "late" : null;
-  return { sleepId: last.id, can: reason == null, reason, wokeAt: last.end, until };
 }
 
 /* ---------- clock words ---------- */
