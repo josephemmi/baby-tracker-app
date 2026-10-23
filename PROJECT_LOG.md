@@ -27,6 +27,91 @@ conversation knows where to start without reading the rest.
 
 ---
 
+## 2026-10-23 (JOS-103: Edit times)
+
+**Done:**
+- [JOS-103](https://linear.app/josephemmi/issue/JOS-103) (Feature): the Edit times
+  sheet, built from the Drive v1.15 spec and prototype. One control on every
+  sleep card (a link while running or paused, a button once finished) opens one
+  sheet: Sleep (Started, Ended) and a block per pause, every time with its
+  date, entered on an in-app 12-hour wheel (no `<input type="time">`), whole row
+  tappable. `+ Add a pause` adds a block per tap (blank ones ignored), Remove
+  pause only marks it (Undo), clearing a finished sleep's Ended runs it again.
+  Reverses JOS-56/JOS-78 ("finished is read-only", the 3 h Reopen window):
+  Reopen sleep, "Started earlier?", "Woke earlier?" and `SleepTimePicker` are gone,
+  and the pause list's Remove works on finished sleeps.
+- **Storage (what the brief asked to check):** one `sleeps` row, `segments` is the
+  list of stretches (a pause is the gap between two), `closed_at`, `rev`.
+  `edit_sleep_times(p_id, p_rev, p_start, p_end, p_pauses)` is in
+  `20261023000000_sleep_edit_times.sql` beside `remove_sleep_pause`, same grants,
+  same realtime publication (nothing to change there). It answers ok / conflict
+  (stale) / gone / open_exists / error with `rule` and `field`.
+- **Rules:** `src/lib/sleep-edit.ts` is the port of the prototype's `validateModel`,
+  `toModel`, `fromModel` (plus the draft: dates inferred, the live summary, the
+  spec's strings) and `editSleepTimes`, the reference write the SQL mirrors. 59
+  tests, 13 of 13 mutants killed. SQL scenarios 20 to 24 in
+  `supabase/tests/sleeps.sql` (10 of 10 mutants killed); scenarios 7, 8 and 10
+  (reopen, set_sleep_time) are retired.
+- **Auto-close is 2 h** (`AUTO_CLOSE_MS` in `sleep.ts`; `sleep_auto_close_after()`
+  in the migration; they must agree). Test is `>=`. The close is derived on read
+  and written when the next sleep starts, now with `last_action = 'autoclose'`
+  (new value, no rev bump) so the card can keep its note; a person's edit
+  replaces it. An edit that leaves a sleep paused past 2 h is written closed.
+- Checked on the scratch-Postgres harness (`scripts/harness/edit-times.mjs`, 173
+  checks): both old controls gone, structure and layout at 320/360/390 px, the
+  wheel, the nap and overnight stories, every message, two phones (the warning
+  and the refusal), auto-close at 1 h 59 min 59 s and 2 h. It found two real bugs
+  (the Remove dialog still closed itself on a finished sleep; a scroll that arrived
+  while the wheel was still opening was dropped).
+
+**In flight / open:**
+- **The migration is applied to the live project** (23 Oct, with Joseph's go-ahead;
+  recorded as `20261023...._sleep_edit_times`). Verified read-only: `edit_sleep_times`
+  is security definer with `search_path=public`, executable by `authenticated` and
+  not by `anon`; the two new helpers are callable by neither; the `autoclose`
+  value is in the `last_action` check; RLS on and the table still in the realtime
+  publication; advisors show only the expected "signed-in users can execute
+  SECURITY DEFINER function" notes. The old production build's Reopen / Started
+  earlier? buttons fail until PR #51 is merged and deployed.
+  `reopen_sleep` and `set_sleep_time` are left in place for that window and are
+  unused after it: [JOS-105](https://linear.app/josephemmi/issue/JOS-105) drops them.
+- **Device checks (not possible here):** the wheel on Android Chrome (Joseph's
+  phone) and on Jen's iPad: scroll-snap feel, tap versus scroll. If it
+  misbehaves the fallback is hour/minute stepper buttons with the same 12-hour
+  display (`time-wheel.tsx` is the only file). Realtime on two devices is
+  still unexercised.
+- **v1.16.0 cut** (23 Oct, after Joseph tested the preview and said go; minor, a
+  new feature): `[Unreleased]` moved to a dated section (with JOS-100's fix, which
+  was waiting there), `package.json` and lock bumped, `NestlogReleaseNotesv1.16.0.pdf`
+  (one page, two shots; the bullets were trimmed so the images fit) and the Sleep
+  tracker guide refreshed to nine pages (`NestlogSleepTrackerUserGuidev1.16.0.pdf`):
+  every card image checked, 03 to 06, 14 to 17 and 21 reshot, 08 to 11 replaced by
+  the Edit times pages, new 30 to 32, and a new page "Edit times: good to know".
+  Shots: `gshots-v1.16.0.mjs`, `rnshots-v1.16.0.mjs` in `scripts/harness/`. Both PDFs
+  sent in chat and attached to JOS-103. **Merging PR #51 is the release.**
+  `gshots.mjs` and `log-flows.mjs` still point at the removed controls (marked stale).
+- Open to review after real use (one named constant each): the 2 h auto-close,
+  and whether 1 minute is right as the minimum for a pause when editing.
+
+**Worth knowing:**
+- The card remounts (and an open sheet's unsaved edits are lost) if the day
+  groups on the Log change under it, for instance a sleep that crosses midnight
+  while the sheet is open. Pre-existing for all card state; not fixed here.
+- The overlap rule is stretch against stretch, like the database's existing
+  check, so a sleep inside another sleep's pause is as allowed as before; the
+  message names the other sleep as a whole, with its day when it is not today.
+- The production card has no "Last change: ..." line, so the prototype's
+  "The app, closed automatically" line has no home; the note on the card says it.
+- At 320 px the app header is already 4 px wide (JOS-85); the sheet fits.
+
+**Next conversations:**
+1. Joseph merges PR #51 (the release); then JOS-105 and the retro.
+2. [JOS-105](https://linear.app/josephemmi/issue/JOS-105) (Polish, Backlog): drop `reopen_sleep` and `set_sleep_time` after the deploy (DDL: ask first).
+3. Still waiting on him: JOS-87 (tile layout pick), JOS-88, JOS-93/JOS-94 (add a
+   past sleep, the morning banner; JOS-93's question 3 is answered yes by this).
+
+---
+
 ## 2026-10-20, night (JOS-98: v1.15.0 cut)
 
 **Done:**

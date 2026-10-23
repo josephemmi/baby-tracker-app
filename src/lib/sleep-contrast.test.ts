@@ -81,6 +81,10 @@ const PAIRS: Pair[] = [
   { fg: "ink-soft", bg: "paper-raised", min: 4.5, use: "captions and axis labels on a card" },
   // Deleting a sleep (JOS-92 took the button off the card): the confirm box's red button
   { fg: "paper", bg: "danger", min: 4.5, use: "the confirm box's Delete button: Delete sleep, and Delete (n) with sleeps ticked" },
+  // Edit times (JOS-103)
+  { fg: "amber-ink", bg: "amber-soft", min: 4.5, use: "the 'Closed automatically after 2 h paused' note on a finished card" },
+  { fg: "danger", bg: "paper-raised", min: 4.5, use: "the message under a time that breaks a rule; Remove pause and Remove in the sheet" },
+  { fg: "rose-dark", bg: "rose-soft", min: 4.5, use: "the line under the sheet's buttons when someone else changed the sleep" },
 ];
 
 describe("the sleep colours", () => {

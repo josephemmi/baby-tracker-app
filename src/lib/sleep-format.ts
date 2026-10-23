@@ -8,7 +8,6 @@
 // `deviceZone` has no fixed zone, so Intl resolves the viewer's own. Tests
 // build a zone with an explicit one.
 
-import { formatTimeAgo } from "@/lib/entries";
 import { formatMinutes } from "@/lib/reports";
 import {
   HOUR,
@@ -18,14 +17,11 @@ import {
   closedAtOf,
   firstStart,
   lastStretch,
-  pickBounds,
   stateOf,
-  type ReopenBlock,
   type Sleep,
+  type EditRule,
   type SleepAction,
   type SleepError,
-  type SleepField,
-  type SleepWorld,
 } from "@/lib/sleep";
 
 export interface Zone {
@@ -38,11 +34,14 @@ export interface Zone {
   dayKey(ms: number): string;
   // The time, with the day in front of it unless it is today.
   fmtStamp(ms: number, now: number): string;
-  // "HH:MM" from <input type="time"> -> the latest moment with that local
-  // clock time that is not in the future, or NaN. Time only, no date: a time
-  // later than now is read as yesterday, so "11:40 pm" at 12:05 am means last
-  // night.
-  fromClockInput(hhmm: string, now: number): number;
+  // Minutes since local midnight, 0-1439: what a time reads on the wall clock.
+  clockOf(ms: number): number;
+  // The instant whose wall clock reads `minutes` on the local day that is
+  // `dayOffset` days from the day of `ms`. Always an instant (JOS-103): a time
+  // that does not exist (the clocks went forward) lands an hour later, as
+  // JavaScript's own Date does, and one that happens twice (they went back)
+  // takes the reading nearest to `ms`.
+  atClock(ms: number, dayOffset: number, minutes: number): number;
 }
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
@@ -86,11 +85,6 @@ export function createZone(timeZone?: string): Zone {
     return wallMs(t) - t;
   }
 
-  function toLocalInput(ms: number) {
-    const p = parts(ms);
-    return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
-  }
-
   const dayKey = (ms: number) => {
     const p = parts(ms);
     return `${p.year}-${p.month}-${p.day}`;
@@ -110,41 +104,25 @@ export function createZone(timeZone?: string): Zone {
     return `${out.weekday} ${out.day} ${out.month}`;
   };
 
-  // "YYYY-MM-DDTHH:MM" local wall time -> instant. A wall time carries no
-  // zone, so try the zone's offsets either side of it. When the clocks go back
-  // a wall time happens twice: take the latest reading that is not in the
-  // future. When they go forward it can not exist at all: NaN.
-  function fromLocalInput(str: string, now: number) {
-    const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(str);
-    if (!m) return NaN;
-    const wall = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+  function clockOf(ms: number) {
+    const p = parts(ms);
+    return Number(p.hour) * 60 + Number(p.minute);
+  }
+
+  function atClock(ms: number, dayOffset: number, minutes: number) {
+    const p = parts(ms);
+    const wall = Date.UTC(+p.year, +p.month - 1, +p.day + dayOffset, 0, minutes);
     const offsets = new Set([
       offsetAt(wall - 24 * HOUR),
       offsetAt(wall),
       offsetAt(wall + 24 * HOUR),
     ]);
-    const candidates = [...offsets]
-      .map((off) => wall - off)
-      .filter((t) => toLocalInput(t) === str);
-    if (candidates.length === 0) return NaN;
-    const past = candidates.filter((t) => t <= now);
-    return past.length > 0 ? Math.max(...past) : Math.min(...candidates);
-  }
-
-  const prevDayKey = (key: string) => {
-    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key) as RegExpExecArray;
-    return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3] - 1)).toISOString().slice(0, 10);
-  };
-
-  function fromClockInput(hhmm: string, now: number) {
-    const m = /^(\d{2}):(\d{2})/.exec(hhmm || "");
-    if (!m || +m[1] > 23 || +m[2] > 59) return NaN;
-    const clock = `${m[1]}:${m[2]}`;
-    const today = dayKey(now);
-    const candidates = [today, prevDayKey(today)]
-      .map((key) => fromLocalInput(`${key}T${clock}`, now))
-      .filter((t) => Number.isFinite(t) && t <= now);
-    return candidates.length > 0 ? Math.max(...candidates) : NaN;
+    const exact = [...offsets].map((off) => wall - off).filter((t) => wallMs(t) === wall);
+    if (exact.length > 0) {
+      return exact.reduce((best, t) => (Math.abs(t - ms) < Math.abs(best - ms) ? t : best));
+    }
+    // In the gap: read it with the offset from before the clocks moved.
+    return wall - offsetAt(wall - 24 * HOUR);
   }
 
   return {
@@ -153,7 +131,8 @@ export function createZone(timeZone?: string): Zone {
     dayKey,
     fmtStamp: (ms, now) =>
       dayKey(ms) === dayKey(now) ? fmtTime(ms) : `${fmtDay(ms)} ${fmtTime(ms)}`,
-    fromClockInput,
+    clockOf,
+    atClock,
   };
 }
 
@@ -231,9 +210,6 @@ export function pauseLength(ms: number): string {
 }
 
 export const pauseCountLabel = (n: number): string => (n === 1 ? "1 pause" : `${n} pauses`);
-
-// The hint under the rows of a finished card, which is read-only.
-export const REMOVE_NEEDS_REOPEN = "To remove a pause, tap Reopen sleep first.";
 
 // What the screen reader says for a Remove button.
 export const removePauseLabel = (zone: Zone, p: PauseRow): string =>
@@ -338,114 +314,6 @@ export function describeRestoreRefusal(
   return describeSleepError(err, zone, now, nameOf);
 }
 
-/* ---------- the time picker ---------- */
-
-// "How long ago": an inline wheel, 5 minutes to 3 hours in 5-minute steps.
-export const WHEEL_MINUTES: readonly number[] = Array.from(
-  { length: 36 },
-  (_, i) => (i + 1) * 5,
-);
-export const WHEEL_DEFAULT_MINUTES = 15;
-
-export function agoLabel(minutes: number): string {
-  const text =
-    minutes < 60
-      ? `${minutes} min`
-      : `${Math.floor(minutes / 60)} hr${minutes % 60 ? ` ${minutes % 60} min` : ""}`;
-  return `${text} ago`;
-}
-
-// "18:05" -> "6:05 pm"
-export function clockLabel(hhmm: string): string {
-  const h = Number(hhmm.slice(0, 2));
-  return `${h % 12 || 12}:${hhmm.slice(3, 5)} ${h < 12 ? "am" : "pm"}`;
-}
-
-export interface Pick {
-  field: SleepField;
-  // The last choice wins: picking a time clears "How long ago" and rolling
-  // the wheel clears the time.
-  mode: "ago" | "time" | null;
-  ago: number | null;
-  time: string;
-}
-
-export function pickedMs(pick: Pick, now: number, zone: Zone): number {
-  if (pick.mode === "ago" && pick.ago != null) return now - pick.ago * MIN;
-  if (pick.mode === "time") return zone.fromClockInput(pick.time, now);
-  return NaN;
-}
-
-// A wheel row is greyed (and can not be saved) when it would land outside the
-// window the rules allow — e.g. before the previous sleep ended.
-export function agoOutOfRange(
-  world: SleepWorld,
-  s: Sleep,
-  field: SleepField,
-  minutes: number,
-): boolean {
-  const { lo, hi } = pickBounds(world, s, field);
-  const at = world.now - minutes * MIN;
-  return at < lo || at > hi;
-}
-
-// The first wheel row that is allowed, preferring 15 minutes: opening the
-// wheel selects a row straight away, like a phone's own wheel does.
-export function defaultAgo(world: SleepWorld, s: Sleep, field: SleepField): number {
-  const order = [WHEEL_DEFAULT_MINUTES, 10, 5, ...WHEEL_MINUTES.filter((m) => m > 15)];
-  return order.find((m) => !agoOutOfRange(world, s, field, m)) ?? WHEEL_DEFAULT_MINUTES;
-}
-
-export interface Judgement {
-  // idle: nothing chosen. ok / warn (more than 3 h ago: "Save anyway") / err.
-  kind: "idle" | "ok" | "warn" | "err";
-  text: string;
-  ms: number;
-}
-
-// The preview line under the picker, and whether Save is allowed.
-export function judgePick(
-  world: SleepWorld,
-  s: Sleep,
-  pick: Pick,
-  zone: Zone,
-): Judgement {
-  if (!pick.mode) return { kind: "idle", text: "", ms: NaN };
-
-  const { now } = world;
-  const ms = pickedMs(pick, now, zone);
-  if (!Number.isFinite(ms)) return { kind: "err", text: "That is not a valid time.", ms };
-
-  const { lo, hi } = pickBounds(world, s, pick.field);
-  const yesterday = zone.dayKey(ms) !== zone.dayKey(now);
-  const when = `${yesterday ? "yesterday " : ""}${zone.fmtTime(ms)}`;
-
-  if (ms < lo) {
-    const text =
-      pick.field === "start"
-        ? yesterday
-          ? `Yesterday ${zone.fmtTime(ms)} is before the last sleep ended.`
-          : `Before the last sleep ended (${zone.fmtTime(lo)}).`
-        : yesterday
-          ? `Yesterday ${zone.fmtTime(ms)} is before the sleep started.`
-          : "Before the sleep started.";
-    return { kind: "err", text, ms };
-  }
-  if (ms > hi) {
-    const text =
-      pick.field === "start"
-        ? `That is after the sleep ended (${zone.fmtTime(hi + SLEEP_RULES.minStretchMs)}).`
-        : "That is in the future.";
-    return { kind: "err", text, ms };
-  }
-
-  const ago = formatTimeAgo(new Date(ms).toISOString(), new Date(now));
-  if (now - ms > 3 * HOUR) {
-    return { kind: "warn", text: `${when} · ${ago} · long ago, is that right?`, ms };
-  }
-  return { kind: "ok", text: `${when} · ${ago}`, ms };
-}
-
 /* ---------- sentences for when the other parent got there first ---------- */
 
 const VERB: Record<SleepAction, string> = {
@@ -457,20 +325,20 @@ const VERB: Record<SleepAction, string> = {
   edit: "edited this sleep",
   delete: "deleted this sleep",
   restore: "restored this sleep",
+  autoclose: "closed this sleep",
 };
 
-// Why Reopen sleep isn't offered, in one sentence. The line under a finished
-// card that can't be reopened, and the message when a reopen is refused after
-// the screen was already out of date, say the same thing.
-export function reopenHint(reason: ReopenBlock): string {
-  const why = {
-    "not-finished": "it is still running",
-    autoclosed: `it closed itself after ${SLEEP_RULES.autoCloseMs / HOUR} hours paused`,
-    newer: "a new sleep has started",
-    expired: `it ended more than ${SLEEP_RULES.reopenMs / HOUR} hours ago`,
-  }[reason];
-  return `This sleep can't be reopened: ${why}.`;
-}
+// What the database says when the times in an edit break a rule that the sheet
+// should have caught first (the clock moved on, say): the sheet shows it under
+// its buttons, since the field in question may no longer be on screen.
+const TIMES_RULE: Record<EditRule, string> = {
+  "needs-time": "A time is missing.",
+  order: "Those times do not fit together: each stretch and each pause needs at least a minute.",
+  "pause-overlap": "Two pauses overlap.",
+  "pause-gap": "Leave at least 1 minute of sleep between two pauses.",
+  "open-not-last": "Only the last pause can still be going.",
+  "open-needs-end": "A pause is still going: give it an end time, or clear Sleep ended.",
+};
 
 // The text for a SleepError — from the rules here, or rebuilt from what the
 // server's conflict response said. `nameOf` turns a member id into a name.
@@ -509,16 +377,10 @@ export function describeSleepError(
       const end = d.other.closedAt ?? lastStretch(d.other).end ?? now;
       return `That overlaps the sleep from ${zone.fmtStamp(firstStart(d.other), now)} to ${zone.fmtStamp(end, now)}.`;
     }
-    case "before-prev":
-      return `Before the last sleep ended (${time(d.limit)}).`;
-    case "after-end":
-      return `That is after the sleep ended (${time(d.limit)}).`;
-    case "before-start":
-      return "Before the sleep started.";
     case "no-pause":
       return "That pause is not there any more.";
-    case "no-reopen":
-      return reopenHint(d.reason ?? "not-finished");
+    case "times":
+      return TIMES_RULE[d.rule ?? "order"];
     case "bad-time":
       return "That is not a valid time.";
     case "open":

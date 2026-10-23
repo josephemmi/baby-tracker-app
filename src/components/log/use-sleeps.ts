@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { homeFetchWindowStartISO } from "@/lib/entries";
 import { serverNow } from "@/lib/server-clock";
-import { SleepError, type Sleep, type SleepField } from "@/lib/sleep";
+import { SleepError, type Sleep } from "@/lib/sleep";
+import type { EditModel } from "@/lib/sleep-edit";
 import {
   applySleep,
   conflictError,
@@ -16,7 +17,6 @@ import {
   SleepServerError,
   type SleepReply,
   type SleepRow,
-  type SleepTimeInput,
 } from "@/lib/sleep-api";
 import { describeSleepError, deviceZone } from "@/lib/sleep-format";
 
@@ -271,14 +271,14 @@ export function useSleeps({ babyId, initialRows, memberNames, onMessage }: UseSl
   const pause = useCallback((s: Sleep) => run(s.id, () => api.pause(s)), [run, api]);
   const resume = useCallback((s: Sleep) => run(s.id, () => api.resume(s)), [run, api]);
   const stop = useCallback((s: Sleep) => run(s.id, () => api.stop(s)), [run, api]);
-  const reopen = useCallback((s: Sleep) => run(s.id, () => api.reopen(s)), [run, api]);
   const remove = useCallback(
     (s: Sleep) => run(s.id, () => api.remove(s), { drop: true }),
     [run, api],
   );
-  const setTime = useCallback(
-    (s: Sleep, field: SleepField, input: SleepTimeInput) =>
-      run(s.id, () => api.setTime(s, field, input)),
+  // Edit times (JOS-103): `expectedRev` is the rev the sheet opened on.
+  const editTimes = useCallback(
+    (s: Sleep, expectedRev: number, model: EditModel) =>
+      run(s.id, () => api.editTimes(s, expectedRev, model)),
     [run, api],
   );
 
@@ -327,9 +327,8 @@ export function useSleeps({ babyId, initialRows, memberNames, onMessage }: UseSl
     pause,
     resume,
     stop,
-    reopen,
     remove,
-    setTime,
+    editTimes,
     removePause,
     setNotes,
     setLoggedBy,

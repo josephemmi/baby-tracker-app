@@ -17,7 +17,8 @@ export type SleepActionName =
   | "reopen"
   | "edit"
   | "delete"
-  | "restore";
+  | "restore"
+  | "autoclose";
 
 // One stretch of a sleep, as stored in sleeps.segments: UTC ISO text, the
 // last stretch's `end` null while it is running.
@@ -199,14 +200,13 @@ export interface Database {
       pause_sleep: { Args: { p_id: string; p_rev: number }; Returns: Json };
       resume_sleep: { Args: { p_id: string; p_rev: number }; Returns: Json };
       stop_sleep: { Args: { p_id: string; p_rev: number }; Returns: Json };
-      reopen_sleep: { Args: { p_id: string; p_rev: number }; Returns: Json };
-      set_sleep_time: {
+      edit_sleep_times: {
         Args: {
           p_id: string;
           p_rev: number;
-          p_field: "start" | "end";
-          p_at?: string | null;
-          p_ago_minutes?: number | null;
+          p_start: string;
+          p_end: string | null;
+          p_pauses: Array<{ start: string; end: string | null }>;
         };
         Returns: Json;
       };

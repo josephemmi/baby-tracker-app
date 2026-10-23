@@ -4,27 +4,23 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { Moment } from "@/lib/entries";
 import {
   asleepMs,
-  canReopen,
   closedAtOf,
   firstStart,
+  isAutoClosed,
   lastStretch,
   pausesOf,
   stateOf,
   type Sleep,
-  type SleepField,
-  type SleepState,
 } from "@/lib/sleep";
-import type { SleepTimeInput } from "@/lib/sleep-api";
+import { EDIT_AUTO_NOTE, type EditModel } from "@/lib/sleep-edit";
 import {
   durationLabel,
   deviceZone,
   listPauses,
   pauseCountLabel,
   pauseLength,
-  REMOVE_NEEDS_REOPEN,
   removePauseBody,
   removePauseLabel,
-  reopenHint,
   timerDigits,
   timerSpoken,
   type PauseList as PauseListData,
@@ -40,7 +36,7 @@ import {
 } from "@/components/log/entry-styles";
 import { NotesCell } from "@/components/log/notes-cell";
 import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
-import { SleepTimePicker } from "@/components/log/sleep-time-picker";
+import { EditTimesSheet, type EditTimesResult } from "@/components/log/edit-times-sheet";
 import { useServerNow } from "@/components/log/use-server-now";
 
 interface Member {
@@ -50,8 +46,8 @@ interface Member {
 
 export interface SleepCardProps {
   sleep: Sleep;
-  // Every sleep we know of: whether this one can be reopened, and what its
-  // start may be set to, depend on the others.
+  // Every sleep we know of: the others are what this one's times may not
+  // overlap.
   sleeps: Sleep[];
   now: number;
   zone: Zone;
@@ -66,15 +62,14 @@ export interface SleepCardProps {
   onPause: () => void;
   onResume: () => void;
   onStop: () => void;
-  onReopen: () => void;
   onDelete: () => void;
   // The Log's Edit button (JOS-92): a tick box before the time, like the one on
   // a moment's card, so a sleep can be deleted with the others ticked.
   selectMode?: boolean;
   selected?: boolean;
   onToggleSelect?: () => void;
-  // Resolves to a message when the server refused the time, null when saved.
-  onSetTime: (field: SleepField, input: SleepTimeInput) => Promise<string | null>;
+  // Edit times (JOS-103): saves the sheet's times on the rev it opened on.
+  onEditTimes: (model: EditModel, expectedRev: number) => Promise<EditTimesResult>;
   // Resolves to a message when the server refused (the pause is gone, it would
   // overlap another sleep, the network dropped), null when it went or when the
   // other parent's change already explained itself. `index` is the 0-based
@@ -85,8 +80,8 @@ export interface SleepCardProps {
   onNotice: (text: string) => void;
 }
 
-// "Started earlier?" / "Woke earlier?": on a line of its own under the start
-// (or awake) time, with room to tap.
+// "Edit times": on a line of its own under the start (or awake) time, with
+// room to tap. The only edit control a running or paused card has.
 const LINK =
   "relative z-10 min-h-[40px] px-2 pt-2.5 pb-2 text-[13px] font-bold text-night underline decoration-night decoration-dotted underline-offset-[3px]";
 
@@ -134,7 +129,7 @@ function StatusLabel({
 // one big tap target for it — the way a tap anywhere on the box opens the list.
 // The button is the only thing a keyboard or screen reader meets; its ::after
 // covers the whole box (the box is `relative`), and the box's own buttons
-// ("Started earlier?") sit above it.
+// ("Edit times") sit above it.
 function PauseToggle({
   count,
   open,
@@ -204,14 +199,13 @@ function Reveal({ id, open, children }: { id: string; open: boolean; children: R
 
 // Every pause of the sleep, in time order: when it began and ended, and how
 // long it lasted. A header with the total and nothing under the rows. Remove
-// is offered only while the sleep is open; a finished card is read-only, and
-// says how to change that.
+// is offered in every state (JOS-103: a finished card is no longer read-only),
+// except while the Edit times sheet is open, which has its own.
 function PauseList({
   headingId,
   list,
   zone,
   canRemove,
-  needsReopen,
   busy,
   error,
   onRemove,
@@ -220,7 +214,6 @@ function PauseList({
   list: PauseListData;
   zone: Zone;
   canRemove: boolean;
-  needsReopen: boolean;
   busy: boolean;
   error: string | null;
   onRemove: (row: PauseRow, opener: HTMLButtonElement) => void;
@@ -282,11 +275,6 @@ function PauseList({
           </li>
         )}
       </ul>
-      {needsReopen && (
-        <p className="border-t border-line pt-2 text-[12px] leading-normal text-ink-soft">
-          {REMOVE_NEEDS_REOPEN}
-        </p>
-      )}
       {error && (
         <p role="alert" className="border-t border-line pt-2 text-[12px] leading-normal text-rose-dark">
           {error}
@@ -344,12 +332,11 @@ export function SleepCard({
   onPause,
   onResume,
   onStop,
-  onReopen,
   onDelete,
   selectMode = false,
   selected = false,
   onToggleSelect,
-  onSetTime,
+  onEditTimes,
   onRemovePause,
   onLoggedByCycle,
   onNotesCommit,
@@ -365,12 +352,17 @@ export function SleepCard({
   const revealId = useId();
   const headingId = useId();
 
-  const [picker, setPicker] = useState<{ field: SleepField; state: SleepState } | null>(null);
-  // The subcard goes away when the sleep's state changes under it (the other
-  // parent stops it, say), and never opens on a finished sleep.
-  if (picker && (state === "finished" || picker.state !== state)) setPicker(null);
-  const openPicker = (field: SleepField) =>
-    setPicker((cur) => (cur?.field === field ? null : { field, state }));
+  // The Edit times sheet. It stays open through changes the other parent makes
+  // (it says so, and a save then loses to theirs); only Cancel, Escape or a
+  // save closes it.
+  const [editing, setEditing] = useState(false);
+  // Where the keyboard goes when it closes: back to the Edit times control
+  // after Cancel, to the first action after a save.
+  const afterClose = useRef<"trigger" | "action" | null>(null);
+  const closeSheet = (how: "cancel" | "saved") => {
+    afterClose.current = how === "saved" ? "action" : "trigger";
+    setEditing(false);
+  };
 
   // The pause list stays open through changes (a removal, the other parent's
   // resume) and closes itself only when the last pause is gone, so a later
@@ -385,7 +377,7 @@ export function SleepCard({
   // Remove was tapped: if the sleep changes under it (the other parent edits
   // or stops it) it closes, like the under-a-minute dialog.
   const [removing, setRemoving] = useState<{ index: number; rev: number } | null>(null);
-  if (removing && (removing.rev !== sleep.rev || state === "finished")) setRemoving(null);
+  if (removing && removing.rev !== sleep.rev) setRemoving(null);
   const removingRow = removing ? pauseList.rows.find((r) => r.index === removing.index) : undefined;
   // Where the keyboard goes back to when the box closes.
   const removeOpener = useRef<HTMLButtonElement | null>(null);
@@ -397,6 +389,15 @@ export function SleepCard({
   const refocusAt = useRef<number | null>(null);
   const [, nudge] = useState(0);
   useEffect(() => {
+    if (!editing && afterClose.current) {
+      const where = afterClose.current;
+      afterClose.current = null;
+      const root = cardRef.current;
+      (where === "trigger"
+        ? root?.querySelector<HTMLButtonElement>("button[data-edit-times]")
+        : root?.querySelector<HTMLButtonElement>("[data-sleep-actions] button")
+      )?.focus();
+    }
     if (refocusAt.current === null) return;
     const buttons = cardRef.current?.querySelectorAll<HTMLButtonElement>("button[data-pause-remove]");
     const target = buttons?.length
@@ -435,12 +436,14 @@ export function SleepCard({
     [sleep.id, sleep.by, sleep.notes, started],
   );
 
-  const reopen = live ? null : canReopen({ now, sleeps }, sleep);
-  const reopenable = reopen?.ok === true;
-  // Why there is no Reopen sleep button, said on the card instead of leaving
-  // the user to wonder.
-  const noReopenHint = reopen && !reopen.ok ? reopenHint(reopen.reason) : null;
   const end = closedAtOf(sleep, now) ?? last.end ?? now;
+  const closedByApp = state === "finished" && isAutoClosed(sleep, now);
+  const nameOf = (id: string | null) => (id ? (memberNames[id] ?? "Someone") : "The app");
+  const editTimesLink = !editing && (
+    <button type="button" data-edit-times onClick={() => setEditing(true)} className={LINK}>
+      Edit times
+    </button>
+  );
 
   return (
     <div
@@ -478,20 +481,10 @@ export function SleepCard({
           )}
           <div className="flex items-baseline gap-1.5">
             {dayPrefix && <span className="text-[12.5px] text-ink-soft">{dayPrefix}</span>}
-            {live ? (
-              <button
-                type="button"
-                onClick={() => openPicker("start")}
-                className="-mx-1 rounded-md px-1 text-[15px] font-bold whitespace-nowrap tabular-nums text-ink hover:bg-paper"
-              >
-                {zone.fmtTime(started)}
-              </button>
-            ) : (
-              // A finished sleep is read-only: Reopen sleep is the way in.
-              <span className="text-[15px] font-bold whitespace-nowrap tabular-nums text-ink">
-                {zone.fmtTime(started)}
-              </span>
-            )}
+            {/* Not a control: Edit times is the one way in (JOS-103). */}
+            <span className="text-[15px] font-bold whitespace-nowrap tabular-nums text-ink">
+              {zone.fmtTime(started)}
+            </span>
           </div>
         </div>
 
@@ -551,9 +544,7 @@ export function SleepCard({
             <div className="mt-0.5 text-[14px]">
               Started <b className="text-[15px] tabular-nums text-ink">{zone.fmtTime(started)}</b>
             </div>
-            <button type="button" onClick={() => openPicker("start")} className={LINK}>
-              Started earlier?
-            </button>
+            {editTimesLink}
           </div>
           {pauses > 0 && (
             <PauseToggle
@@ -584,9 +575,7 @@ export function SleepCard({
               </b>{" "}
               since {zone.fmtTime(last.end ?? now)}
             </div>
-            <button type="button" onClick={() => openPicker("end")} className={LINK}>
-              Woke earlier?
-            </button>
+            {editTimesLink}
           </div>
           {pauses > 0 && (
             <PauseToggle
@@ -618,6 +607,14 @@ export function SleepCard({
             <span className="sr-only">to</span>
             <b className="px-1 font-bold text-ink">{zone.fmtTime(end)}</b>
           </div>
+          {closedByApp && (
+            <p
+              data-auto-close-note
+              className="mx-auto mt-1 mb-2 max-w-full rounded-[8px] bg-amber-soft px-2.5 py-2 text-center text-[12.5px] font-semibold text-amber-ink"
+            >
+              {EDIT_AUTO_NOTE}
+            </p>
+          )}
           {pauses > 0 && (
             <PauseToggle
               count={pauses}
@@ -635,8 +632,7 @@ export function SleepCard({
             headingId={headingId}
             list={pauseList}
             zone={zone}
-            canRemove={live}
-            needsReopen={!live && reopenable}
+            canRemove={!editing}
             busy={busy}
             error={removeError}
             onRemove={(row, opener) => {
@@ -648,26 +644,20 @@ export function SleepCard({
         </Reveal>
       )}
 
-      {picker && live && (
-        <SleepTimePicker
-          // A fresh picker per field, so switching between them starts clean.
-          key={picker.field}
+      {editing && (
+        <EditTimesSheet
           sleep={sleep}
           sleeps={sleeps}
           now={now}
-          field={picker.field}
           zone={zone}
-          onCancel={() => setPicker(null)}
-          onSave={async (input) => {
-            const message = await onSetTime(picker.field, input);
-            if (!message) setPicker(null);
-            return message;
-          }}
+          nameOf={nameOf}
+          onSave={onEditTimes}
+          onClose={closeSheet}
         />
       )}
 
-      <div className="mb-2.5 flex flex-col gap-2">
-        {state === "asleep" && (
+      <div data-sleep-actions className="mb-2.5 flex flex-col gap-2 empty:hidden">
+        {!editing && state === "asleep" && (
           <>
             <button
               type="button"
@@ -687,7 +677,7 @@ export function SleepCard({
             </button>
           </>
         )}
-        {state === "paused" && (
+        {!editing && state === "paused" && (
           <>
             <button
               type="button"
@@ -707,20 +697,16 @@ export function SleepCard({
             </button>
           </>
         )}
-        {reopenable && (
+        {!editing && state === "finished" && (
           <button
             type="button"
-            onClick={onReopen}
+            data-edit-times
+            onClick={() => setEditing(true)}
             disabled={busy}
-            className={`${BUTTON} border-line-strong bg-transparent text-ink`}
+            className={`${BUTTON} border-night bg-paper-raised text-night`}
           >
-            Reopen sleep
+            Edit times
           </button>
-        )}
-        {noReopenHint && (
-          <p className="text-center text-[12px] text-ink-soft" data-reopen-hint>
-            {noReopenHint}
-          </p>
         )}
       </div>
 

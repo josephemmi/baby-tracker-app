@@ -15,8 +15,9 @@ import {
   type SleepAction,
   type SleepErrorCode,
   type SleepErrorData,
-  type SleepField,
+  type EditRule,
 } from "@/lib/sleep";
+import type { EditModel } from "@/lib/sleep-edit";
 
 export type SleepRow = Database["public"]["Tables"]["sleeps"]["Row"];
 
@@ -93,6 +94,8 @@ interface RawReply {
   sleep?: SleepRow;
   reason?: string;
   code?: string;
+  rule?: string;
+  field?: string;
   n?: number;
   other?: SleepRow;
   limit?: string;
@@ -156,7 +159,8 @@ export function parseReply(json: unknown): SleepReply {
         other: raw.other ? rowToSleep(raw.other) : undefined,
         limit: ms(raw.limit),
         stretchStart: ms(raw.stretchStart),
-        reason: raw.reason as SleepErrorData["reason"],
+        rule: raw.rule as EditRule | undefined,
+        field: raw.field,
       };
       return {
         status: "error",
@@ -170,8 +174,6 @@ export function parseReply(json: unknown): SleepReply {
 }
 
 /* ---------- calls ---------- */
-
-export type SleepTimeInput = { at: number } | { agoMinutes: number };
 
 type Rpc = PromiseLike<{ data: unknown; error: { message: string } | null }>;
 
@@ -199,17 +201,23 @@ export function sleepApi(supabase: SupabaseClient<Database>) {
     pause: (s: Sleep) => action(() => supabase.rpc("pause_sleep", { p_id: s.id, p_rev: s.rev })),
     resume: (s: Sleep) => action(() => supabase.rpc("resume_sleep", { p_id: s.id, p_rev: s.rev })),
     stop: (s: Sleep) => action(() => supabase.rpc("stop_sleep", { p_id: s.id, p_rev: s.rev })),
-    reopen: (s: Sleep) => action(() => supabase.rpc("reopen_sleep", { p_id: s.id, p_rev: s.rev })),
     remove: (s: Sleep) => action(() => supabase.rpc("delete_sleep", { p_id: s.id, p_rev: s.rev })),
     restore: (id: string) => action(() => supabase.rpc("restore_sleep", { p_id: id })),
-    setTime: (s: Sleep, field: SleepField, input: SleepTimeInput) =>
+    // Edit times (JOS-103): the whole set of times in one atomic, rev-checked
+    // write. `expectedRev` is the rev the sheet was opened on, not necessarily
+    // the one on screen now: if the sleep has moved on the answer is a conflict
+    // and nothing is saved.
+    editTimes: (s: Sleep, expectedRev: number, model: EditModel) =>
       action(() =>
-        supabase.rpc("set_sleep_time", {
+        supabase.rpc("edit_sleep_times", {
           p_id: s.id,
-          p_rev: s.rev,
-          p_field: field,
-          p_at: "at" in input ? new Date(input.at).toISOString() : null,
-          p_ago_minutes: "agoMinutes" in input ? input.agoMinutes : null,
+          p_rev: expectedRev,
+          p_start: new Date(model.start).toISOString(),
+          p_end: model.end == null ? null : new Date(model.end).toISOString(),
+          p_pauses: model.pauses.map((p) => ({
+            start: new Date(p.start).toISOString(),
+            end: p.end == null ? null : new Date(p.end).toISOString(),
+          })),
         }),
       ),
     // `index` is the 0-based number of the stretch before the pause. The rev

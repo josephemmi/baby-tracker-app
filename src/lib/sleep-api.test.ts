@@ -142,18 +142,19 @@ describe("parseReply", () => {
     expect(r.status === "error" && r.error.code).toBe("overlap");
     expect(r.status === "error" && r.error.data.other?.id).toBe("s0");
 
+    const times = parseReply({ status: "error", code: "times", rule: "pause-gap", field: "p1s", now, sleep: row() });
+    expect(times.status === "error" && times.error.data.rule).toBe("pause-gap");
+    expect(times.status === "error" && times.error.data.field).toBe("p1s");
+
     const limited = parseReply({
       status: "error",
-      code: "before-prev",
+      code: "before-wake",
       now,
       limit: "2026-10-16T16:40:00.000Z",
     });
     expect(limited.status === "error" && limited.error.data.limit).toBe(
       Date.parse("2026-10-16T16:40:00Z"),
     );
-
-    const reopen = parseReply({ status: "error", code: "no-reopen", reason: "newer", now, sleep: row() });
-    expect(reopen.status === "error" && reopen.error.data.reason).toBe("newer");
   });
 
   it("refuses something it does not understand rather than guessing", () => {
@@ -189,7 +190,7 @@ describe("conflictError", () => {
     );
     const err = conflictError("autoclosed", s);
     expect(err.code).toBe("autoclosed");
-    expect(err.data.at).toBe(Date.parse("2026-10-16T13:00:00Z"));
+    expect(err.data.at).toBe(Date.parse("2026-10-16T12:00:00Z")); // the pause began 10:00, plus AUTO_CLOSE_MS (2 h)
   });
 });
 

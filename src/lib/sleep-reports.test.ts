@@ -14,7 +14,7 @@ process.env.TZ = "Europe/London";
 import { describe, expect, it } from "vitest";
 import { formatTimeAgo } from "@/lib/entries";
 import { formatMinutes } from "@/lib/reports";
-import { HOUR, MIN, SLEEP_RULES, canReopen, removeSleep, type Sleep } from "@/lib/sleep";
+import { HOUR, MIN, type Sleep } from "@/lib/sleep";
 import * as S from "@/lib/sleep-reports";
 import type { ReportSleep } from "@/lib/sleep-reports";
 
@@ -515,7 +515,6 @@ describe("summary", () => {
     expect(t.primaryMs).toBe(0);
     expect(t.entries).toStrictEqual([]);
     expect(S.glance([], NOW).state).toBe("none");
-    expect(S.reopen([], NOW).reason).toBe("none");
   });
 });
 
@@ -733,9 +732,6 @@ describe("Log tile (glance)", () => {
     expect(g.state).toBe("sleeping");
     expect(g.openMs).toBe(0);
     expect(S.today([justStarted], now).sleepingNow?.ms).toBe(0);
-    expect(
-      S.reopen([sleep("prev", [[L(10, 16, 13, 0), L(10, 16, 14, 0)]]), justStarted], now).reason,
-    ).toBe("newer");
     expect(S.glance([sleep("z", [[now, now]])], now).state).toBe("none");
   });
 
@@ -763,60 +759,6 @@ describe("Log tile (glance)", () => {
     const newer = sleep("newer", [[L(10, 16, 15, 0), L(10, 16, 15, 4)]]);
     expect(S.glance([prev, newer], L(10, 16, 15, 10)).last?.id).toBe("newer");
     expect(S.glance([prev, { ...newer, deletedAt: 1 }], L(10, 16, 15, 10)).last?.id).toBe("prev");
-  });
-});
-
-describe("Reopen", () => {
-  it("reopen: nothing finished, nothing to reopen (an open sleep is not finished)", () => {
-    expect(S.reopen([], NOW).can).toBe(false);
-    const r = S.reopen([sleep("open", [[L(10, 16, 10, 0), null]], null)], L(10, 16, 11, 0));
-    expect(r.can).toBe(false);
-    expect(r.reason).toBe("none");
-  });
-
-  it("reopen: the latest finished sleep, within 3 h of waking, nothing newer", () => {
-    const nap = sleep("nap", [[L(10, 16, 13, 0), L(10, 16, 14, 0)]]);
-    const r = S.reopen([nap], L(10, 16, 16, 59));
-    expect(r).toStrictEqual({
-      sleepId: "nap",
-      can: true,
-      reason: null,
-      wokeAt: L(10, 16, 14, 0),
-      until: L(10, 16, 17, 0),
-    });
-  });
-
-  it("reopen: at exactly 3 h it is too late", () => {
-    const nap = sleep("nap", [[L(10, 16, 13, 0), L(10, 16, 14, 0)]]);
-    const r = S.reopen([nap], L(10, 16, 17, 0));
-    expect(r.can).toBe(false);
-    expect(r.reason).toBe("late");
-  });
-
-  it("reopen: a newer sleep, running or finished, blocks it even inside 3 h", () => {
-    const prev = sleep("prev", [[L(10, 16, 13, 0), L(10, 16, 14, 0)]]);
-    const running = sleep("run", [[L(10, 16, 14, 30), null]], null);
-    expect(S.reopen([prev, running], L(10, 16, 15, 0)).reason).toBe("newer");
-    expect(S.reopen([prev, running], L(10, 16, 15, 0)).sleepId).toBe("prev");
-    const finished = sleep("fin", [[L(10, 16, 14, 30), L(10, 16, 14, 35)]]);
-    const r = S.reopen([prev, finished], L(10, 16, 15, 0));
-    expect(r.sleepId).toBe("fin"); // the latest finished sleep is the one that could be reopened
-    expect(r.can).toBe(true);
-  });
-
-  it("reopen after DELETE: remove the mistaken newer sleep and the previous one can be reopened again, if still inside 3 h", () => {
-    const prev = sleep("prev", [[L(10, 16, 13, 0), L(10, 16, 14, 0)]]);
-    const mistake = sleep("oops", [[L(10, 16, 15, 0), L(10, 16, 15, 3)]]);
-    const now = L(10, 16, 15, 10);
-    expect(S.reopen([prev, mistake], now).sleepId).toBe("oops");
-    const after = S.reopen([prev, { ...mistake, deletedAt: now }], now);
-    expect(after.sleepId).toBe("prev");
-    expect(after.can).toBe(true);
-    expect(after.until).toBe(L(10, 16, 17, 0));
-    // delete it after the window has passed: the previous sleep is back on the tile but too late to reopen
-    const late = S.reopen([prev, { ...mistake, deletedAt: 1 }], L(10, 16, 17, 30));
-    expect(late.sleepId).toBe("prev");
-    expect(late.reason).toBe("late");
   });
 });
 
@@ -930,31 +872,8 @@ describe("the app's sleeps feed the engine", () => {
     expect(S.today([TN1], woke + 12 * HOUR - 1).awakeStale).toBe(false);
   });
 
-  it("the config block is the spec's: 5 min, 6 h, and the 3 h Reopen window the sleep rules already have", () => {
+  it("the config block is the spec's: 5 min and 6 h", () => {
     expect(S.CFG.minWakeMs).toBe(5 * MIN);
     expect(S.CFG.maxWakeWindowMs).toBe(6 * HOUR);
-    expect(S.CFG.reopenWindowMs).toBe(SLEEP_RULES.reopenMs);
-  });
-
-  it("Delete sleep then Reopen: the screens' rule (canReopen) agrees with the model's on every case but the exact boundary millisecond", () => {
-    const prev = appSleep("prev", [[L(10, 16, 13, 0), L(10, 16, 14, 0)]]);
-    const mistake = appSleep("oops", [[L(10, 16, 15, 0), L(10, 16, 15, 3)]]);
-    const cases: Array<{ name: string; sleeps: Sleep[]; now: number }> = [
-      { name: "newest finished, inside 3 h", sleeps: [prev], now: L(10, 16, 16, 59) },
-      { name: "newest finished, past 3 h", sleeps: [prev], now: L(10, 16, 17, 30) },
-      { name: "a newer finished sleep", sleeps: [prev, mistake], now: L(10, 16, 15, 10) },
-      { name: "the newer one deleted", sleeps: [prev], now: L(10, 16, 15, 10) },
-    ];
-    for (const { name, sleeps, now } of cases) {
-      const model = S.reopen(S.toReportSleeps(sleeps, now), now);
-      const world = { now, sleeps };
-      const latest = sleeps.find((s) => s.id === model.sleepId) as Sleep;
-      expect(canReopen(world, latest).ok, name).toBe(model.can);
-    }
-    // And the pure delete in sleep.ts is what the model means by "does not exist".
-    const world = { now: L(10, 16, 15, 10), sleeps: [prev, mistake] };
-    expect(canReopen(world, prev).ok).toBe(false);
-    const after = removeSleep(world, "joseph", "oops");
-    expect(canReopen(after, prev).ok).toBe(true);
   });
 });
