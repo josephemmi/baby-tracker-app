@@ -65,10 +65,14 @@ conversation knows where to start without reading the rest.
   while the wheel was still opening was dropped).
 
 **In flight / open:**
-- **The migration is not applied to the live project**: DDL is Joseph's call. It
-  must go on before this PR is merged (the preview shares the live database and
-  needs `edit_sleep_times`), and the old production build's Reopen / Started
-  earlier? buttons stop working from that moment until the deploy.
+- **The migration is applied to the live project** (23 Oct, with Joseph's go-ahead;
+  recorded as `20261023...._sleep_edit_times`). Verified read-only: `edit_sleep_times`
+  is security definer with `search_path=public`, executable by `authenticated` and
+  not by `anon`; the two new helpers are callable by neither; the `autoclose`
+  value is in the `last_action` check; RLS on and the table still in the realtime
+  publication; advisors show only the expected "signed-in users can execute
+  SECURITY DEFINER function" notes. The old production build's Reopen / Started
+  earlier? buttons fail until PR #51 is merged and deployed.
   `reopen_sleep` and `set_sleep_time` are left in place for that window and are
   unused after it: [JOS-105](https://linear.app/josephemmi/issue/JOS-105) drops them.
 - **Device checks (not possible here):** the wheel on Android Chrome (Joseph's
@@ -95,7 +99,7 @@ conversation knows where to start without reading the rest.
 - At 320 px the app header is already 4 px wide (JOS-85); the sheet fits.
 
 **Next conversations:**
-1. Joseph tests the preview, decides on the migration, approves; then the cut
+1. Joseph tests the preview and approves; then the cut
    (confirm the level; a minor) with the guide pages rewritten.
 2. [JOS-105](https://linear.app/josephemmi/issue/JOS-105) (Polish, Backlog): drop `reopen_sleep` and `set_sleep_time` after the deploy (DDL: ask first).
 3. Still waiting on him: JOS-87 (tile layout pick), JOS-88, JOS-93/JOS-94 (add a
