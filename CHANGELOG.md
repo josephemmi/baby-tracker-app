@@ -9,33 +9,26 @@ feature, and PATCH is a fix with no new functionality.
 
 ## [Unreleased]
 
+## [1.16.0] - 2026-10-23
+
 ### Added
-- Edit times for a sleep (JOS-103). Every sleep card has one Edit times control,
-  a link while it is running or paused and a button once it is finished. It
-  opens a sheet that lists when the sleep started and ended and when each pause
-  started and ended, each with its date. Tap a row to change a time on a
-  12-hour wheel (hour, minute, AM or PM), which reads the same on every phone
-  whatever its clock is set to. Add a pause that was never tapped, remove a
-  mistaken one (with Undo), or clear Ended to bring a stopped sleep back to
-  life. Either parent can correct any time in any state. Save checks every
-  rule, such as no overlap with another sleep, and if the other parent changed
-  the sleep first it saves nothing and shows their latest times.
+- Edit times for a sleep (JOS-103). Every sleep card has one Edit times control
+  that opens a sheet with when the sleep and each pause started and ended, each
+  with its date. Tap a row to set a time on a 12-hour wheel, the same on every
+  phone. Add a pause you forgot, remove a mistaken one (with Undo), or clear
+  Ended to bring a stopped sleep back. Either parent can fix any time in any
+  state; if the other parent saved first, nothing is lost silently.
 
 ### Changed
-- A sleep paused for 2 hours now closes itself, at the moment the pause began
-  (JOS-103; it was 3 hours), and the card says so: "Closed automatically after
-  2 h paused. If he went back to sleep, tap Edit times." Finished sleeps are
-  no longer read-only. Reopen sleep, Started earlier? and Woke earlier? are
-  replaced by Edit times, and Remove on a pause now works on a finished sleep
-  too.
+- A sleep paused for 2 hours now closes itself (JOS-103; it was 3) and the card
+  says so. Finished sleeps are no longer read-only: Reopen sleep, Started
+  earlier? and Woke earlier? are replaced by Edit times, and Remove works on a
+  pause of a finished sleep too.
 
 ### Fixed
-- Double tap on a Log box no longer adds a second row (JOS-100). Ticking a type
-  (Pump, Pee, Poo, Bottle or Breast) on a moment now ignores another tap on the
-  same box until the first one has been saved, so one tap pair makes one row.
-  The database now refuses a second identical row too, and the 17 doubled rows
-  and 17 empty Pump ticks already in it were cleared (they sit in Recently
-  Deleted for 7 days).
+- A double tap on a Log box no longer adds a second row (JOS-100). The database
+  refuses a second identical row too, and the doubled rows already there were
+  cleared (they sit in Recently Deleted for 7 days).
 
 ## [1.15.0] - 2026-10-20
 

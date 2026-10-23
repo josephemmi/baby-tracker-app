@@ -80,10 +80,16 @@ conversation knows where to start without reading the rest.
   misbehaves the fallback is hour/minute stepper buttons with the same 12-hour
   display (`time-wheel.tsx` is the only file). Realtime on two devices is
   still unexercised.
-- Release cut waits for Joseph's approval (no bump, notes or guide in the PR).
-  At the cut: the Sleep tracker guide's pages for Reopen sleep, "Started
-  earlier?" and "How long ago" are wrong now (`guide.json`, and `gshots.mjs`
-  needs new scenes); `log-flows.mjs` is stale too.
+- **v1.16.0 cut** (23 Oct, after Joseph tested the preview and said go; minor, a
+  new feature): `[Unreleased]` moved to a dated section (with JOS-100's fix, which
+  was waiting there), `package.json` and lock bumped, `NestlogReleaseNotesv1.16.0.pdf`
+  (one page, two shots; the bullets were trimmed so the images fit) and the Sleep
+  tracker guide refreshed to nine pages (`NestlogSleepTrackerUserGuidev1.16.0.pdf`):
+  every card image checked, 03 to 06, 14 to 17 and 21 reshot, 08 to 11 replaced by
+  the Edit times pages, new 30 to 32, and a new page "Edit times: good to know".
+  Shots: `gshots-v1.16.0.mjs`, `rnshots-v1.16.0.mjs` in `scripts/harness/`. Both PDFs
+  sent in chat and attached to JOS-103. **Merging PR #51 is the release.**
+  `gshots.mjs` and `log-flows.mjs` still point at the removed controls (marked stale).
 - Open to review after real use (one named constant each): the 2 h auto-close,
   and whether 1 minute is right as the minimum for a pause when editing.
 
@@ -99,8 +105,7 @@ conversation knows where to start without reading the rest.
 - At 320 px the app header is already 4 px wide (JOS-85); the sheet fits.
 
 **Next conversations:**
-1. Joseph tests the preview and approves; then the cut
-   (confirm the level; a minor) with the guide pages rewritten.
+1. Joseph merges PR #51 (the release); then JOS-105 and the retro.
 2. [JOS-105](https://linear.app/josephemmi/issue/JOS-105) (Polish, Backlog): drop `reopen_sleep` and `set_sleep_time` after the deploy (DDL: ask first).
 3. Still waiting on him: JOS-87 (tile layout pick), JOS-88, JOS-93/JOS-94 (add a
    past sleep, the morning banner; JOS-93's question 3 is answered yes by this).

@@ -1,7 +1,7 @@
 {
   "app": "Nestlog",
   "feature": "Sleep tracker",
-  "version": "1.15.0",
+  "version": "1.16.0",
   "pages": [
     {
       "title": "Start a sleep",
@@ -92,7 +92,7 @@
                 "image": "img/06-finished.png",
                 "chip": "Finished",
                 "chip_color": "sage",
-                "caption": "Saved. A finished sleep is read-only. Tap **2 pauses** to see each one. Stopped too soon? Tap **Reopen sleep**. Don't want it? Tap **×** to delete it, or tick it in Edit to delete several at once."
+                "caption": "Saved. Tap **2 pauses** to see each one. Wrong time? Tap **Edit times**. Don't want it? Tap **×**, or tick it in Edit to delete several."
               }
             ],
             [
@@ -100,9 +100,9 @@
                 "panel": true,
                 "title": "Good to know",
                 "bullets": [
-                  "Only time asleep is counted, not time awake while paused.",
-                  "Paused for 3 hours? The sleep closes itself at the time baby woke, and can't be reopened.",
-                  "Use **Stop** when baby is up for the day or the night. Use **Pause** for a short wake."
+                  "Only time asleep counts, not time awake while paused.",
+                  "Paused for 2 hours? It closes itself at the time baby woke. Went back to sleep? **Edit times**.",
+                  "**Stop** for the day or the night. **Pause** for a short wake."
                 ]
               },
               {
@@ -117,45 +117,42 @@
       ]
     },
     {
-      "title": "Started late? Fix the time",
-      "lead": "Forgot to tap when baby dropped off? Set the real time. **Woke earlier?** does the same for waking up.",
+      "title": "Wrong time? Edit times",
+      "lead": "Forgot to tap when baby dropped off, or when he woke? Fix any time on a sleep, in any state.",
       "rows": [
         {
           "cols": [
             [
               {
-                "image": "img/08-started-earlier.png",
-                "chip": "Step 1",
+                "image": "img/08-edit-times.png",
+                "chip": "Tap Edit times",
                 "chip_color": "sage",
-                "caption": "Tap **Started earlier?**"
-              },
-              {
-                "panel": true,
-                "title": "Pick a time",
-                "bullets": [
-                  "Your phone's own clock opens. Choose the time and confirm. It saves right away.",
-                  "A time **more than 3 hours ago** asks you to confirm first (**Save anyway**).",
-                  "A time that overlaps another sleep is refused, and the card says why."
+                "legend": [
+                  "Tap a time to change it.",
+                  "**Remove pause** takes a mistaken pause out.",
+                  "**+ Add a pause** for a pause you forgot to tap.",
+                  "**Save times** when you're done."
                 ]
               }
             ],
             [
               {
-                "image": "img/09-two-ways.png",
-                "chip": "Step 2",
-                "chip_color": "sage",
+                "image": "img/09-wheel.png",
+                "chip": "The time wheel",
+                "chip_color": "night",
                 "legend": [
-                  "**How long ago**: scroll a wheel.",
-                  "**Pick a time**: use your phone's clock."
+                  "Scroll or tap the hour, the minute and AM or PM.",
+                  "**Done** closes the wheel. **Clear** empties the time."
                 ]
               },
               {
-                "image": "img/10-wheel.png",
-                "chip": "How long ago",
-                "chip_color": "night",
+                "image": "img/10-add-pause.png",
+                "chip": "A pause you forgot",
+                "chip_color": "sage",
                 "legend": [
-                  "Scroll to the time.",
-                  "Tap **Set** (or tap the highlighted time). Done."
+                  "Tap again for more pauses.",
+                  "This line shows what the sleep will come to.",
+                  "**Save times**."
                 ]
               }
             ]
@@ -164,8 +161,45 @@
       ]
     },
     {
+      "title": "Edit times: good to know",
+      "lead": "Nothing changes until you tap **Save times**. If something is wrong, you're told which time to fix.",
+      "rows": [
+        {
+          "cols": [
+            [
+              {
+                "image": "img/11-edit-error.png",
+                "chip": "Can't save?",
+                "chip_color": "amber",
+                "caption": "The message says which time to fix, for example when it overlaps another sleep. Nothing is changed for you.",
+                "note": "Times never move by themselves."
+              },
+              {
+                "panel": true,
+                "title": "Good to know",
+                "bullets": [
+                  "Times are 12-hour, am or pm, whatever your phone is set to.",
+                  "You pick the time only. The date follows the sleep.",
+                  "Nothing changes until you tap **Save times**. **Cancel** drops it.",
+                  "Jen can fix it too. If she saved first, the sheet tells you, and shows her times."
+                ]
+              }
+            ],
+            [
+              {
+                "image": "img/30-closed-itself.png",
+                "chip": "Closed itself?",
+                "chip_color": "amber",
+                "caption": "Tap **Edit times**, set when he woke, and add the pause it missed."
+              }
+            ]
+          ]
+        }
+      ]
+    },
+    {
       "title": "Stopped by accident?",
-      "lead": "A quick stop asks first. A finished sleep can be reopened for a while, and a pause you didn't mean can be removed.",
+      "lead": "A quick stop asks first. Stopped too soon, or paused by mistake? Edit times puts it right.",
       "rows": [
         {
           "cols": [
@@ -178,29 +212,48 @@
               },
               {
                 "panel": true,
-                "title": "When you can reopen a sleep",
+                "title": "Stopped too soon?",
                 "bullets": [
-                  "Within **3 hours** of waking.",
-                  "Only while it's the **latest** sleep. Once a new one starts, the old one is locked.",
-                  "Not after it closed itself from 3 hours paused.",
-                  "It goes back to paused, in the same place in your list.",
-                  "Deleted the newest sleep? The one before it can be reopened again, if it's still inside the 3 hours."
+                  "Tap **Edit times**, then clear **Ended** and tap **Save times**.",
+                  "The sleep runs again. No pause is made.",
+                  "Works at any time, even the next day, unless another sleep got in the way."
                 ]
               }
             ],
             [
               {
-                "image": "img/11-cant-reopen.png",
-                "chip": "No Reopen button?",
+                "image": "img/32-clear-ended.png",
+                "chip": "Clear Ended",
                 "chip_color": "night",
-                "caption": "The card says why."
-              },
+                "legend": [
+                  "**Ended** says Not set.",
+                  "The line says he's sleeping again.",
+                  "**Save times**."
+                ]
+              }
+            ]
+          ]
+        },
+        {
+          "cols": [
+            [
               {
                 "image": "img/18-remove-pause.png",
                 "chip": "Paused by mistake?",
                 "chip_color": "rose",
-                "caption": "**Reopen sleep**, tap **Remove** next to that pause, then **Stop Sleep**. It ends at the same wake time.",
-                "note": "Only while a sleep is open. A finished sleep is read-only."
+                "caption": "Tap **Remove** next to that pause. It works on a finished sleep too.",
+                "note": "The two stretches join. The wake time stays."
+              }
+            ],
+            [
+              {
+                "image": "img/31-remove-in-sheet.png",
+                "chip": "Or in Edit times",
+                "chip_color": "rose",
+                "legend": [
+                  "**Undo** changes your mind.",
+                  "Nothing is removed until **Save times**."
+                ]
               }
             ]
           ]
@@ -219,7 +272,7 @@
                 "chip": "Tap to change",
                 "chip_color": "night",
                 "legend": [
-                  "The start time.",
+                  "**Edit times**: fix the start, the end and every pause.",
                   "Who's logging it. Tap the name to switch.",
                   "**×** deletes the sleep.",
                   "Add a note any time."
