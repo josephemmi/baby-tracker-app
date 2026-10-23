@@ -88,7 +88,7 @@ conversation knows where to start without reading the rest.
   every card image checked, 03 to 06, 14 to 17 and 21 reshot, 08 to 11 replaced by
   the Edit times pages, new 30 to 32, and a new page "Edit times: good to know".
   Shots: `gshots-v1.16.0.mjs`, `rnshots-v1.16.0.mjs` in `scripts/harness/`. Both PDFs
-  sent in chat and attached to JOS-103. **Merging PR #51 is the release.**
+  sent in chat and attached to JOS-103. **PR #51 is merged (23 Oct, merge commit `3357904`), so v1.16.0 is the release and is deploying to production.**
   `gshots.mjs` and `log-flows.mjs` still point at the removed controls (marked stale).
 - Open to review after real use (one named constant each): the 2 h auto-close,
   and whether 1 minute is right as the minimum for a pause when editing.
@@ -105,7 +105,7 @@ conversation knows where to start without reading the rest.
 - At 320 px the app header is already 4 px wide (JOS-85); the sheet fits.
 
 **Next conversations:**
-1. Joseph merges PR #51 (the release); then JOS-105 and the retro.
+1. Check on a phone and on Jen's iPad that the production deploy of PR #51 is READY and the wheel feels right; then JOS-105.
 2. [JOS-105](https://linear.app/josephemmi/issue/JOS-105) (Polish, Backlog): drop `reopen_sleep` and `set_sleep_time` after the deploy (DDL: ask first).
 3. Still waiting on him: JOS-87 (tile layout pick), JOS-88, JOS-93/JOS-94 (add a
    past sleep, the morning banner; JOS-93's question 3 is answered yes by this).

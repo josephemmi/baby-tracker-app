@@ -129,12 +129,12 @@
 - Every piece of work gets a Linear ticket in the JOS team / Momentini
   project — including process or tooling fixes noticed along the way
   (like this section, or JOS-43), not just product features and bugs.
-- Label every ticket using the existing Type taxonomy — **Bug**,
-  **Feature**, **Polish**, or **Process** (a fix to how work itself gets
-  done — Claude Code's own operating process/tooling/workflow — rather
-  than the app's behavior or presentation; added for JOS-46, retrofitted
-  onto JOS-43). Don't leave a ticket unlabeled because none of the three
-  product-facing types quite fit — that's the signal it's a Process one.
+- Label every ticket with one **Type** (**Bug**, **Feature**, **Polish** or
+  **Engineering**: work the user never sees, such as tooling, docs, developer
+  workflow; it replaced **Process** when the labels were reorganised on 23 Oct,
+  and a save with "Process" now fails with "Could not find label") and, for the
+  app itself, the **Area** label **Product**. Check `list_issue_labels` if a
+  save is refused, rather than guessing a name (JOS-106).
 - When wrapping up a significant unit of work (closing a ticket, merging
   a PR, cutting a release), run the `retro` skill before ending the
   session — it looks back at what just happened for process, tooling, or
