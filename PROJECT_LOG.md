@@ -70,7 +70,7 @@ conversation knows where to start without reading the rest.
   needs `edit_sleep_times`), and the old production build's Reopen / Started
   earlier? buttons stop working from that moment until the deploy.
   `reopen_sleep` and `set_sleep_time` are left in place for that window and are
-  unused after it: a follow-up ticket drops them.
+  unused after it: [JOS-105](https://linear.app/josephemmi/issue/JOS-105) drops them.
 - **Device checks (not possible here):** the wheel on Android Chrome (Joseph's
   phone) and on Jen's iPad: scroll-snap feel, tap versus scroll. If it
   misbehaves the fallback is hour/minute stepper buttons with the same 12-hour
@@ -97,7 +97,7 @@ conversation knows where to start without reading the rest.
 **Next conversations:**
 1. Joseph tests the preview, decides on the migration, approves; then the cut
    (confirm the level; a minor) with the guide pages rewritten.
-2. A ticket to drop `reopen_sleep` and `set_sleep_time` after the deploy.
+2. [JOS-105](https://linear.app/josephemmi/issue/JOS-105) (Polish, Backlog): drop `reopen_sleep` and `set_sleep_time` after the deploy (DDL: ask first).
 3. Still waiting on him: JOS-87 (tile layout pick), JOS-88, JOS-93/JOS-94 (add a
    past sleep, the morning banner; JOS-93's question 3 is answered yes by this).
 
