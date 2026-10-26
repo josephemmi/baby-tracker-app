@@ -248,14 +248,8 @@
   than it was worth for a one-page PDF, and that conclusion doesn't
   change regardless of what tooling becomes available later. Sending the
   file via chat is not the same thing as uploading it to Drive.
-- For each Linear ticket included in the release, attach the release-notes
-  PDF and post the release notes (the relevant CHANGELOG section, or at
-  minimum that ticket's entry) as a comment on the ticket before moving it
-  to Done. Both — attachment and comment — come first; the Done transition
-  happens after, not before. (Linear's GitHub integration can move a
-  ticket to Done the moment its PR merges, so on a release cut this order
-  is often already broken before the release starts. Attach and comment
-  anyway, after the fact; it is still the record.)
+- Done is automatic when the PR merges and the feature is live (DL46).
+  Release notes are attached afterwards, at release, by cut-release.
   - **How to attach a file to a Linear ticket** (v1.12.0 cut): call
     `mcp__Linear__prepare_attachment_upload` (issue, filename,
     `application/pdf`, the file's exact byte size), then **within 60
